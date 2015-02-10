@@ -1,0 +1,5 @@
+*.o
+gen_rnndb_cmdline.c
+gen_rnndb_cmdline.h
+gen_rnndb
+
