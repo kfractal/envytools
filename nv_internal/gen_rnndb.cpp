@@ -41,7 +41,31 @@ extern "C" {
 
 using namespace std;
 
+//
+// misc junk ...
+//
+inline ostream& operator << ( ostream &os, QString qstr) {
+    return os << qstr.toStdString();
+}
+
+inline bool verbose()  {
+    return args_info.verbose_arg;
+}
+
+inline bool emit_xml() {
+    return false;
+}
+
+template <class X>
+inline string hexStr( X x ) {
+    stringstream ss;
+    ss << "0x" << hex << x;
+    return ss.str();
+}
+
+//
 // rnndb (re)construction
+//
 struct rnndb_t {
     struct array_t {
 	int length;
@@ -165,14 +189,14 @@ struct rnndb_t {
 // ---- gen_registers (of old) ----
 //
 struct emitted_db {
-    map<string, group *>    *group_map;
-    map<string, reg *>      *register_map;
-    map<string, field *>    *field_map;
-    map<string, constant *> *constant_map;
+    map<string, group    *>  * group_map;
+    map<string, reg      *>  * register_map;
+    map<string, field    *>  * field_map;
+    map<string, constant *>  * constant_map;
     emitted_db() { 
-	group_map    = new map<string, group*>();
-	register_map = new map<string, reg *>();
-	field_map    = new map<string, field *>();
+	group_map    = new map<string, group    *>();
+	register_map = new map<string, reg      *>();
+	field_map    = new map<string, field    *>();
 	constant_map = new map<string, constant *>();
     }
 };
@@ -183,9 +207,6 @@ group    * current_group    = 0;
 reg      * current_register = 0;
 constant * current_constant = 0;
 field    * current_field    = 0;
-
-
-
 
 string current_scope()
 {
@@ -215,19 +236,16 @@ string emit_scope()
 }
 
 
-inline QXmlStreamWriter *current_writer() { return current_group ? &current_group->stream : 0; }
-static string gen_rnndb_filename(const group_spec &g)
-{
+static inline QXmlStreamWriter *current_writer() {
+    if ( emit_xml() )
+	return current_group ? &current_group->stream : 0;
+    else
+	return 0;
+}
+
+static string gen_rnndb_filename(const group_spec &g) {
     return string(g.name) + string(".xml");
 }
-
-template <class X> 
-inline string hexStr( X x ) {
-    stringstream ss;
-    ss << "0x" << hex << x;
-    return ss.str();
-}
-
 
 void begin_group(const group_spec &gs)
 {
@@ -238,24 +256,26 @@ void begin_group(const group_spec &gs)
     string group_filename = gen_rnndb_filename(gs);
 
     current_group->file.setFileName( QString::fromStdString(group_filename));
-    if (! current_group->file.open( QIODevice::WriteOnly) )
-	throw domain_error("can't open" + group_filename + "for writing");
+    if ( emit_xml() ) {
+	if (! current_group->file.open( QIODevice::WriteOnly) )
+	    throw domain_error("can't open" + group_filename + "for writing");
 
-    current_group->stream.setDevice(&current_group->file);
-    current_group->stream.setAutoFormatting(true);
-    current_group->stream.writeStartDocument();
-    current_group->stream.writeStartElement("database");
-    current_group->stream.writeStartElement("domain");
-    current_group->stream.writeAttribute("name", gs.def);
+	current_group->stream.setDevice(&current_group->file);
+	current_group->stream.setAutoFormatting(true);
+	current_group->stream.writeStartDocument();
+	current_group->stream.writeStartElement("database");
+	current_group->stream.writeStartElement("domain");
+	current_group->stream.writeAttribute("name", gs.def);
+    }
     return;
 }
 
 void end_group()
 {
     end_register();
-    if (current_group) {
-	current_group->stream.writeEndElement(); // domain
-	current_group->stream.writeEndElement(); // database
+    if ( current_group && emit_xml() ) {
+	current_group->stream.writeEndElement();  // domain
+	current_group->stream.writeEndElement();  // database
 	current_group->stream.writeEndDocument(); // doc
 	current_group->file.close();
     }
@@ -270,7 +290,8 @@ void end_register(void)
     if ( ! current_register )
 	return;
 
-    current_writer()->writeEndElement(); // reg
+    if ( emit_xml() )
+	current_writer()->writeEndElement(); // reg
     current_register = 0;
 }
 
@@ -284,7 +305,8 @@ void end_field(void)
     if ( ! current_field )
 	return;
 
-    current_writer()->writeEndElement(); // bitfield
+    if ( emit_xml() ) 
+	current_writer()->writeEndElement(); // bitfield
     current_field = 0;
 }
 
@@ -305,11 +327,12 @@ void emit_register(const register_spec &rs)
     QString name(rs.def);
     name.replace(QString::fromStdString(group_name) + "_", QString(""),
 		 Qt::CaseInsensitive);
-
-    current_writer()->writeStartElement("reg32");
-    current_writer()->writeAttribute("offset", QString::fromStdString(offset_hex_str));
-    current_writer()->writeAttribute("name", name);
-    current_writer()->writeAttribute("variants", "GK20A");
+    if ( emit_xml() ) {
+	current_writer()->writeStartElement("reg32");
+	current_writer()->writeAttribute("offset", QString::fromStdString(offset_hex_str));
+	current_writer()->writeAttribute("name", name);
+	current_writer()->writeAttribute("variants", "GK20A");
+    }
 }
 
 void emit_offset(const register_spec &rs)
@@ -345,14 +368,16 @@ void emit_field(const field_spec &fs)
     } else {
         (*current_db->register_map)[reg_name]->fields[field_name] = current_field;
     }
-    
-    current_writer()->writeStartElement("bitfield");
-    current_writer()->writeAttribute("low", QString::number(fs.lowbit));
-    current_writer()->writeAttribute("high", QString::number(fs.highbit));
 
     QString name(fs.def);
     name.replace(QString::fromStdString(reg_name) + "_", QString(""), Qt::CaseInsensitive);
-    current_writer()->writeAttribute("name", name);
+    
+    if ( emit_xml() ) {
+	current_writer()->writeStartElement("bitfield");
+	current_writer()->writeAttribute("low", QString::number(fs.lowbit));
+	current_writer()->writeAttribute("high", QString::number(fs.highbit));
+	current_writer()->writeAttribute("name", name);
+    }
 }
 
 
@@ -377,11 +402,12 @@ void emit_constant(const constant_spec &cs)
 		 Qt::CaseInsensitive);
 
 
-    current_writer()->writeStartElement("enum");
-    current_writer()->writeAttribute("name", name);
-    current_writer()->writeAttribute("value", QString::number(cs.value));
-    current_writer()->writeEndElement();
-
+    if ( emit_xml() ) {
+	current_writer()->writeStartElement("enum");
+	current_writer()->writeAttribute("name", name);
+	current_writer()->writeAttribute("value", QString::number(cs.value));
+	current_writer()->writeEndElement();
+    }
     current_constant = 0;
 }
 
@@ -529,7 +555,7 @@ QDomDocument *readDocFile(const QString &name, const QString &workdir)
 
 
 
-QDomDocument * readDB(const QString &root_file_name)
+QDomDocument * read_rnn_db(const QString &root_file_name)
 {
     QFileInfo rfi(root_file_name);
     QString workdir = rfi.absoluteDir().absolutePath();
@@ -537,7 +563,7 @@ QDomDocument * readDB(const QString &root_file_name)
     QList<QDomDocument *> pending_docs;
     pending_docs.push_back( root_doc = readDocFile(rfi.absoluteFilePath(), workdir));
 
-    while( pending_docs.size() ) {
+    while ( pending_docs.size() ) {
 	QList<QDomDocument *> imports = scanDoc(pending_docs.front(), workdir);
 	pending_docs.pop_front();
 	pending_docs.append( imports );
@@ -546,6 +572,74 @@ QDomDocument * readDB(const QString &root_file_name)
     return root_doc;
 }
 
+static std::vector<int> stops { 80, 95, 128 };
+inline int stop_gap(int content_width) {
+    int s = 0, gap;
+    do {
+	gap = stops[s] - (content_width);
+	s++;
+    } while ( (gap < 1) && (s < stops.size()) );
+    gap = max(gap, 1);
+    return gap;
+}
+
+std::string nv_drf_definition(group *g)
+{
+    stringstream lhs, rhs, result;
+    lhs << "#define " << g->def << " ";
+    rhs << hex << "0x" << setfill('0') << setw (8) << g->base <<
+	":0x" << setfill('0') << setw (8) << g->extent << " /*d*/";
+    int gap = stop_gap(lhs.str().length() + rhs.str().length());
+    result << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+    return result.str();
+}
+
+std::string nv_drf_definition(reg *r)
+{ 
+    stringstream lhs, rhs, result;
+    lhs << "#define " << r->def << " ";
+    rhs << hex << "0x" << r->offset << " /*r*/";
+    int gap = stop_gap(lhs.str().length() + rhs.str().length());
+    result << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+    return result.str();
+}
+
+std::string nv_drf_definition(field *f) {
+    stringstream lhs, rhs, result;
+    lhs << "#define " << f->def << " ";
+    rhs << f->highbit << ":" << f->lowbit << " /*f*/";
+    int gap = stop_gap(lhs.str().length() + rhs.str().length());
+    result << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+    return result.str();
+}
+
+std::string nv_drf_definition(constant *c) {
+    stringstream lhs, rhs, result;
+    lhs << "#define " << c->def << " ";
+    rhs << hex << "0x" << setw(8) << setfill('0') << c->value << " /*c*/";
+    int gap = stop_gap(lhs.str().length() + rhs.str().length());
+    result << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+    return result.str();
+}
+
+
+void integrate_group(group *G)
+{
+    // find any/all elements in the rnndb which cover the same group/domain
+    // e.g. bus, mc, graph, ...
+}
+void integrate_register(reg *R)
+{
+    // find uses of register with either the same name or same offset
+}
+void integrate_field(field *F)
+{
+    // find uses of the same field
+}
+void integrate_constant(constant *C)
+{
+    // find uses of the same constant/enum
+}
 
 int main (int argc, char **argv)
 {
@@ -562,20 +656,23 @@ int main (int argc, char **argv)
     // while reading the db side-effects generate are a list of elements encountered.
     // and with those elements a set of attrs found within each.  
 
-    doc = readDB(QString(args_info.root_arg));
+    doc = read_rnn_db(QString(args_info.root_arg));
 
-    // print out the list of elements and their attrs.
-    if (args_info.verbose_arg) {
+    // print out the list of encountered elements and their attrs.
+    if (verbose()) {
 	QStringList elem_tags = elem_attr_set.keys();
 	for (QStringList::iterator e = elem_tags.begin(); e != elem_tags.end(); e++) {
 	    QStringList attrs = elem_attr_set[*e].keys();
 	    foreach (const QString &attr, attrs) {
-		qDebug() << *e << ":" << attr;
+		cout << *e << ":" << attr;
 	    }
 	}
     }
 
-
+    //
+    // working on a specific set of conditions here...
+    // so, hard-coding for gk20a and gm20b.
+    //
     struct emitted_db gk20a_db;
     struct emitted_db gm20b_db;
 
@@ -599,57 +696,28 @@ int main (int argc, char **argv)
     emitted_db *db = &gk20a_db;
 
     // groups/domains
-    for ( gi = db->group_map->begin(); gi != db->group_map->end(); gi++ ) { 
-	// 
-	// e.g. #define NV_PBUS                                            0x00001fff:0x00001000
-	//
-	stringstream lhs, rhs;
-	lhs << "#define " << gi->second->def << " ";
-	rhs << hex << "0x" << setfill('0') << setw (8) << gi->second->base << ":0x" << setfill('0') << setw (8) << gi->second->extent;
-	int gap = 80 - (lhs.str().length() + rhs.str().length());
-	cout << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+    for ( gi = db->group_map->begin(); gi != db->group_map->end(); gi++ ) {
+	if (verbose()) { cout << nv_drf_definition(gi->second); }
+	integrate_group(gi->second);
     }
-    
 
     // registers
     for ( ri = db->register_map->begin(); ri != db->register_map->end(); ri ++ ) {
-	stringstream lhs, rhs;
-	lhs << "#define " << ri->second->def << " ";
-	rhs << hex << "0x" << ri->second->offset;
-	int gap = 80 - (lhs.str().length() + rhs.str().length());
-	cout << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+	if (verbose()) { cout << nv_drf_definition(ri->second); }
+	integrate_register(ri->second);
     }
     
     // fields
     for ( fi = db->field_map->begin(); fi != db->field_map->end(); fi ++ ) {
-	stringstream lhs, rhs;
-	lhs << "#define " << fi->second->def << " ";
-
-	rhs << fi->second->highbit << ":" << fi->second->lowbit;
-	int gap = 80 - (lhs.str().length() + rhs.str().length());
-	cout << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
+	if (verbose()) { cout << nv_drf_definition(fi->second); }
+	integrate_field(fi->second);
     }
     
     // consts/enums
     for ( ci = db->constant_map->begin(); ci != db->constant_map->end(); ci ++ ) {
-	stringstream lhs, rhs;
-	lhs << "#define " << ci->second->def << " ";
-	rhs << hex << "0x" << setw(8) << setfill('0') << ci->second->value;
-
-	int gap = 80 - (lhs.str().length() + rhs.str().length());
-
-	if ( gap <= 0 ) {  
-	    gap = 128 - (lhs.str().length() + rhs.str().length());
-	    if ( gap <= 0 ) {
-		throw domain_error("seriously?");
-	    }
-	}
-	cout << lhs.str() << setfill(' ') << setw(gap) << "" << rhs.str() << endl;
-
-
-
+	if (verbose()) { cout << nv_drf_definition(ci->second); }
+	integrate_constant(ci->second);
     }
-
 
 
     chdir(cwd);
