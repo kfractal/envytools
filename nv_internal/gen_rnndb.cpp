@@ -52,6 +52,7 @@ inline bool verbose()  {
     return args_info.verbose_arg;
 }
 
+// emit_xml controls paths useable only for debug purposes at this point.
 inline bool emit_xml() {
     return false;
 }
@@ -188,6 +189,21 @@ struct rnndb_t {
 //
 // ---- gen_registers (of old) ----
 //
+// the system below starts running in the ip specific files:
+//     gk20a/gen_rnndb_gk20a.cpp and
+//     gm20b/gen_rnndb_gm20b.cpp.
+// those define the registers, fields etc to be added/checked/emitted.
+//
+// that code can be used in multiple passes/ways.
+// the framework around it (these functions below, aimed at
+// by macros, fnd pointers, foo) is really what determines the output
+// to be produced. in this case what's going on is that the gk20a/gm20b
+// ip definitions are being routed to dbs and held for use later.
+//
+// along the way, or afterward some of that information can be dumped
+// for debug or other nefarious purpose (creating #define ... style headers
+// would be one...
+//
 struct emitted_db {
     map<string, group    *>  * group_map;
     map<string, reg      *>  * register_map;
@@ -208,8 +224,7 @@ reg      * current_register = 0;
 constant * current_constant = 0;
 field    * current_field    = 0;
 
-string current_scope()
-{
+string current_scope() {
     string scope = string("group.") + string(current_group->name);
     scope += ( ( current_register ? (string(".") + current_register->name) : ".!r" ) +
 	       ( current_field    ? (string(".") + current_field->name)    : ".!f" ) +
@@ -222,9 +237,7 @@ QString current_status(const char *m) {
     return QString("%1 %2").arg(m).arg(QString::fromStdString(current_scope()));
 }
 
-
-string emit_scope()
-{
+string emit_scope() {
     // group is always in scope.  shortcuts may be taken elsewhere though
     string scope = string(current_group->name);
     reg *r = current_register;
@@ -267,11 +280,9 @@ void begin_group(const group_spec &gs)
 	current_group->stream.writeStartElement("domain");
 	current_group->stream.writeAttribute("name", gs.def);
     }
-    return;
 }
 
-void end_group()
-{
+void end_group() {
     end_register();
     if ( current_group && emit_xml() ) {
 	current_group->stream.writeEndElement();  // domain
@@ -282,9 +293,7 @@ void end_group()
     current_group = 0;
 }
 
-
-void end_register(void)
-{
+void end_register(void) {
     end_field();
 
     if ( ! current_register )
@@ -295,13 +304,11 @@ void end_register(void)
     current_register = 0;
 }
 
-void end_scope(void)
-{
+void end_scope(void) {
     end_register();
 }
 
-void end_field(void)
-{
+void end_field(void) {
     if ( ! current_field )
 	return;
 
@@ -310,8 +317,7 @@ void end_field(void)
     current_field = 0;
 }
 
-void emit_register(const register_spec &rs)
-{
+void emit_register(const register_spec &rs) {
     end_register();
     if (!current_group)
 	throw logic_error("missing group");
@@ -335,26 +341,21 @@ void emit_register(const register_spec &rs)
     }
 }
 
-void emit_offset(const register_spec &rs)
-{
+void emit_offset(const register_spec &rs) {
     emit_register(rs);
 }
 
-void delete_register(const register_spec &rs)
-{
+void delete_register(const register_spec &rs) {
     // the spec holds the info about deleting...
     emit_register(rs);
 }
 
-
 /* begin scope is just setting up a register which won't be emitted */
-void begin_scope(const register_spec &rs)
-{
+void begin_scope(const register_spec &rs) {
     emit_register(rs);
 }
 
-void emit_field(const field_spec &fs)
-{
+void emit_field(const field_spec &fs) {
     end_field();
 
     string reg_name   = emit_scope();
@@ -381,8 +382,7 @@ void emit_field(const field_spec &fs)
 }
 
 
-void emit_constant(const constant_spec &cs)
-{
+void emit_constant(const constant_spec &cs) {
     string scope = emit_scope();
     (*current_db->constant_map)[ cs.def ] = current_constant = new constant(cs);
 
@@ -401,7 +401,6 @@ void emit_constant(const constant_spec &cs)
     name.replace(QString::fromStdString(scope) + "_", QString(""),
 		 Qt::CaseInsensitive);
 
-
     if ( emit_xml() ) {
 	current_writer()->writeStartElement("enum");
 	current_writer()->writeAttribute("name", name);
@@ -411,72 +410,63 @@ void emit_constant(const constant_spec &cs)
     current_constant = 0;
 }
 
+//
+// ---- rnndb ----
+//
+// the dom document paths below are used to read in the existing rnndb xml files.
+// once in-memory the docs can be manipulated and written back out...
+// along the read paths there's a set of encountered elements and attribute maps kept
+// for debug purposes...
+//
+QMap<QString, QDomDocument *>          file_doc_map; // filename -> doc
+QMap<QString, QMap<QString, QString> > elem_attr_set; // element names -> attr name maps
 
-QDomDocument *readDocFile(const QString &name, const QString &workdir);
+QDomDocument *read_doc_file(const QString &name, const QString &workdir);
 
-QMap<QString, QDomDocument *> fileDocMap;
-QMap<QString, QMap<QString, QString> > elem_attr_set;
-
-void scanAttribute(QDomAttr a)
-{
+void scan_node(QDomNode n);
+void scan_attribute(QDomAttr a) {
     QDomElement e = a.ownerElement();
     QString tag = e.tagName();
     QString attr = a.name();
-    //qDebug() << "\t\tattr " << a.name() << " -> " << a.value();
     if ( elem_attr_set[tag].find(attr) == elem_attr_set[tag].end() ) {
 	elem_attr_set[tag][attr] = "1"; // only needs to exist, not have a proper value...
     }
 }
 
-void scanNode(QDomNode n);
-void scanElement(QDomElement e)
-{
+void scan_element(QDomElement e) {
     QString tag = e.tagName();
-
     QDomNamedNodeMap attrs = e.attributes();
     int attr_count = attrs.size();
     for ( int a = 0; a < attr_count; a++ ) {
-	scanAttribute(attrs.item(a).toAttr());
+	scan_attribute(attrs.item(a).toAttr());
     }
-
     QDomNodeList c = e.childNodes();
     for ( int s = 0; s < c.length(); s++) {
-	//qDebug() << "\t" << tag << ":" << c.at(s).nodeName();
-	scanNode( c.at(s) );
+	scan_node( c.at(s) );
     }
 }
 
-void scanText(QDomText t)
-{
-    // qDebug() << t.data();
+void scan_text(QDomText t) {
 }
 
-void scanComment(QDomComment c)
-{
-    // qDebug() << c.data();
+void scan_comment(QDomComment c) {
+
 }
 
-void scanNode(QDomNode n)
-{
+void scan_node(QDomNode n) {
+
     switch (n.nodeType()) {
-
     case QDomNode::ElementNode :
-	//qDebug() << "[element] " << n.toElement().tagName();
-	scanElement(n.toElement());
+	scan_element(n.toElement());
 	break;
-
     case QDomNode::AttributeNode :
-	//qDebug() << "[attr] " << n.toAttr().name() << "->" << n.toAttr().value();
-	scanAttribute(n.toAttr());
+	scan_attribute(n.toAttr());
 	break;
-
     case QDomNode::TextNode:
-	//qDebug() << "[text] ";
-	scanText(n.toText());
+	scan_text(n.toText());
 	break;
     case QDomNode::CommentNode:
-	//qDebug() << "[comment] ";
-	scanComment(n.toComment());
+	scan_comment(n.toComment());
 	break;
 
     case QDomNode::DocumentNode:
@@ -494,38 +484,40 @@ void scanNode(QDomNode n)
 
     default:
 	throw domain_error("unk node");
-	//qDebug() << "[unk " << n.nodeType() << "]";
 	break;
     }
 }
 
 QList<QDomDocument *>
-scanDoc(QDomDocument *doc, const QString &workdir)
+scan_doc(QDomDocument *doc, const QString &workdir)
 {
     // scan for and pull imports in first...
     QList<QDomDocument *> imported_docs;
     QDomNodeList import_nodes = doc->elementsByTagName("import");
+
     for (int n = 0; n < import_nodes.length(); n++ ) {
 	QDomElement e = import_nodes.at(n).toElement();
 	QString import_file_name = e.attribute("file", "");
-	if ( fileDocMap.find( import_file_name ) == fileDocMap.end() ) {
-	    QDomDocument *new_doc = readDocFile(import_file_name, workdir);
+
+	if ( file_doc_map.find( import_file_name ) == file_doc_map.end() ) {
+	    QDomDocument *new_doc = read_doc_file(import_file_name, workdir);
 	    imported_docs << new_doc;
-	    fileDocMap[import_file_name] = new_doc;
+	    file_doc_map[import_file_name] = new_doc;
 	}
     }
 
     // now scan the tree node by node...
     QDomNode n = doc->documentElement().firstChild();
     while(!n.isNull()) {
-	scanNode(n);
+	scan_node(n);
 	n = n.nextSibling();
     }
 
     return imported_docs;
 }
 
-QDomDocument *readDocFile(const QString &name, const QString &workdir)
+// no interpretation here... just reading the file into memory.
+QDomDocument *read_doc_file(const QString &name, const QString &workdir)
 {
     QFileInfo fi(name);
 
@@ -537,8 +529,6 @@ QDomDocument *readDocFile(const QString &name, const QString &workdir)
     }
 
     QFile file(file_name);
-
-    // cerr << "file=[" << file_name.toStdString() << "]" << endl;
 
     if ( ! file.open(QIODevice::ReadOnly) ) {
 	cerr << "couldn't open " << file_name.toStdString() << endl;
@@ -553,25 +543,34 @@ QDomDocument *readDocFile(const QString &name, const QString &workdir)
     return doc;
 }
 
-
-
+//
+// this will read in the entire rnn db starting from the given (root) filename.
+// but, only the files referred by to by imports will be pulled in.  files which
+// are not referenced in the root hierarchy/content will be ignored.
+//
 QDomDocument * read_rnn_db(const QString &root_file_name)
 {
     QFileInfo rfi(root_file_name);
     QString workdir = rfi.absoluteDir().absolutePath();
     QDomDocument *root_doc;
     QList<QDomDocument *> pending_docs;
-    pending_docs.push_back( root_doc = readDocFile(rfi.absoluteFilePath(), workdir));
+    pending_docs.push_back( root_doc = read_doc_file(rfi.absoluteFilePath(), workdir));
 
     while ( pending_docs.size() ) {
-	QList<QDomDocument *> imports = scanDoc(pending_docs.front(), workdir);
+	QList<QDomDocument *> imports = scan_doc(pending_docs.front(), workdir);
 	pending_docs.pop_front();
 	pending_docs.append( imports );
     }
-    fileDocMap["root"] = root_doc;
+    file_doc_map["root"] = root_doc;
     return root_doc;
 }
 
+//
+// below are emitters for the traditional "drf" style of nvidia
+// macros.  each _d_omain, _r_egister, _f_ield gets a specific
+// style of definition.  there's some attention paid to pretty
+// output (columns lining up, whatnot).
+//
 static std::vector<int> stops { 80, 95, 128 };
 inline int stop_gap(int content_width) {
     int s = 0, gap;
@@ -583,8 +582,7 @@ inline int stop_gap(int content_width) {
     return gap;
 }
 
-std::string nv_drf_definition(group *g)
-{
+std::string nv_drf_definition(group *g) {
     stringstream lhs, rhs, result;
     lhs << "#define " << g->def << " ";
     rhs << hex << "0x" << setfill('0') << setw (8) << g->base <<
@@ -594,8 +592,7 @@ std::string nv_drf_definition(group *g)
     return result.str();
 }
 
-std::string nv_drf_definition(reg *r)
-{ 
+std::string nv_drf_definition(reg *r) { 
     stringstream lhs, rhs, result;
     lhs << "#define " << r->def << " ";
     rhs << hex << "0x" << r->offset << " /*r*/";
@@ -622,7 +619,14 @@ std::string nv_drf_definition(constant *c) {
     return result.str();
 }
 
-
+//
+// following are functions which take a specific definition (domain, register,
+// field, etc) and go searching the rnndb for elements which map to it.  once
+// found those rnndb definitions are scoured for consistency/deltas.  deltas
+// should cause new nodes with different variant members to be created.
+// otherwise (i.e. if there is no real change to the d,r,f foo then) the
+// variants alone are updated.
+//
 void integrate_group(group *G)
 {
     // find any/all elements in the rnndb which cover the same group/domain
@@ -641,6 +645,12 @@ void integrate_constant(constant *C)
     // find uses of the same constant/enum
 }
 
+//
+// this is a bit of a multi-function tool at the moment...
+// the following will produce output that is quasi-legit:
+//
+//     ./gen_rnndb --verbose 1 --root ../rnndb/root.xml 
+//
 int main (int argc, char **argv)
 {
     int rc = 0;

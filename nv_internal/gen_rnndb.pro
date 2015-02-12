@@ -2,8 +2,13 @@
 # Copyright (c) 2015, NVIDIA CORPORATION.  All rights reserved.
 # insert GPL v2
 #
+
 TARGET = gen_rnndb
 
+#
+# note: uses c++11 purposefully in multiple places.
+# and, tested with qt 5.3 only.  clang works great.
+#
 QMAKE_CXX=clang
 CONFIG += c++11 debug
 QT += xml sql
