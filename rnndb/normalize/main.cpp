@@ -1,9 +1,7 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
 
 #include <QDebug>
-#include <QDir>
 #include <QTimer>
-#include <QXmlStreamReader>
 
 #include "main.h"
 
@@ -95,27 +93,9 @@ int Main::read_file(QFile &file)
 				break;
 			case QXmlStreamReader::StartElement:
 				if ( _verbose ) qDebug() << "info: root start elem" << xml.name();
-
-
-
-
-				if ( xml.name() == "import" ) {
-					for (auto a: xml.attributes()) {
-						// if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-						if ( a.name() == "file" ) {
-							if ( _verbose ) qDebug() << "info: import" << a.value();
-							rc = cd_and_read(a.value().toString());
-							if ( rc )
-								return rc;
-						} else {
-							// if (_warn) qDebug() << "warning: ignored" << a.name() << "attribute";
-							_ignored_attributes.insert(QString("%1.%2").arg(xml.name().toString()).arg(a.name().toString()));
-						}
-					}
-				} else {
-					// if (_warn) qDebug() << "warning: ignored" << xml.name() << "element";
-					_ignored_elements.insert(xml.name().toString());
-				}
+				rc = handle_element(xml);
+				if (rc)
+					return rc;
 				break;
 			case QXmlStreamReader::EndElement:
 				if ( _verbose ) qDebug() << "info: root end elem" << xml.name();
@@ -163,155 +143,354 @@ QMap<QString, Main::element_handler_t> Main::_element_handlers {
 };
 #undef ELEMENT
 
-int Main::handle_element(QString e)
+
+int Main::handle_element(QXmlStreamReader &e)
 {
-	/*QMap<QString, element_handler_t>::const_iterator */ auto f =
-		_element_handlers.find(e);
+	auto f = _element_handlers.find(e.name().toString());
 	if ( f == _element_handlers.end() ) {
+		_ignored_elements.insert(e.name().toString());
 		return -1;
 	}
-    #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
-	return (this->**f)();
+	return (this->**f)(e);
 }
 
-int Main::handle_array()
+int Main::handle_import(QXmlStreamReader &e)
 {
 	int rc = 0;
-	return rc;
-}
-
-int Main::handle_domain()
-{
-	int rc = 0;
-	return rc;
-}
-
-int Main::handle_doc()
-{
-	int rc = 0;
-	return rc;
-}
-
-int Main::handle_spectype()
-{
-	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		// if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		if ( a.name() == "file" ) {
+			if ( _verbose ) qDebug() << "info: import" << a.value();
+			rc = cd_and_read(a.value().toString());
+			if ( rc )
+				return rc;
+		} else {
+			// if (_warn) qDebug() << "warning: ignored" << a.name() << "attribute";
+			_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+			rc = -1;
+		}
+	}
 	return rc;
 }
 
-int Main::handle_b()
+int Main::handle_array(QXmlStreamReader &e)
 {
 	int rc = 0;
+	if (_verbose) qDebug() << "array element";
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+
 	return rc;
 }
 
-int Main::handle_reg16()
+int Main::handle_domain(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_database()
+int Main::handle_doc(QXmlStreamReader &e)
 {
 	int rc = 0;
-	return rc;
-}
-int Main::handle_bitset()
-{
-	int rc = 0;
-	return rc;
-}
-int Main::handle_copyright()
-{
-	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_reg8()
+int Main::handle_spectype(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_nick()
+int Main::handle_b(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_license()
+int Main::handle_reg16(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_enum()
+int Main::handle_database(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+	return rc;
+}
+int Main::handle_bitset(QXmlStreamReader &e)
+{
+	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+	return rc;
+}
+int Main::handle_copyright(QXmlStreamReader &e)
+{
+	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_use_group()
+int Main::handle_reg8(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_li()
+int Main::handle_nick(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_reg64()
+int Main::handle_license(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_reg32()
+int Main::handle_enum(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_brief()
+int Main::handle_use_group(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_author()
+int Main::handle_li(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_ul()
+int Main::handle_reg64(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_bitfield()
+int Main::handle_reg32(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_stripe()
+int Main::handle_brief(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_group()
+int Main::handle_author(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
 
-int Main::handle_value()
+int Main::handle_ul(QXmlStreamReader &e)
 {
 	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
 	return rc;
 }
+
+int Main::handle_bitfield(QXmlStreamReader &e)
+{
+	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+	return rc;
+}
+
+int Main::handle_stripe(QXmlStreamReader &e)
+{
+	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+	return rc;
+}
+
+int Main::handle_group(QXmlStreamReader &e)
+{
+	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+	return rc;
+}
+
+int Main::handle_value(QXmlStreamReader &e)
+{
+	int rc = 0;
+	for ( auto a: e.attributes() ) {
+		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+	}
+	return rc;
+}
+
+#if 0
+warning: ignored attribute "array.length"
+warning: ignored attribute "array.name"
+warning: ignored attribute "array.offset"
+warning: ignored attribute "array.stride"
+warning: ignored attribute "array.variants"
+warning: ignored attribute "author.email"
+warning: ignored attribute "author.name"
+warning: ignored attribute "bitfield.add"
+warning: ignored attribute "bitfield.align"
+warning: ignored attribute "bitfield.high"
+warning: ignored attribute "bitfield.low"
+warning: ignored attribute "bitfield.max"
+warning: ignored attribute "bitfield.min"
+warning: ignored attribute "bitfield.name"
+warning: ignored attribute "bitfield.pos"
+warning: ignored attribute "bitfield.radix"
+warning: ignored attribute "bitfield.shr"
+warning: ignored attribute "bitfield.type"
+warning: ignored attribute "bitfield.variants"
+warning: ignored attribute "bitset.inline"
+warning: ignored attribute "bitset.name"
+warning: ignored attribute "bitset.prefix"
+warning: ignored attribute "bitset.variants"
+warning: ignored attribute "bitset.varset"
+warning: ignored attribute "copyright.year"
+warning: ignored attribute "database.schemaLocation"
+warning: ignored attribute "domain.bare"
+warning: ignored attribute "domain.name"
+warning: ignored attribute "domain.prefix"
+warning: ignored attribute "domain.size"
+warning: ignored attribute "domain.variants"
+warning: ignored attribute "domain.varset"
+warning: ignored attribute "domain.width"
+warning: ignored attribute "enum.bare"
+warning: ignored attribute "enum.inline"
+warning: ignored attribute "enum.name"
+warning: ignored attribute "enum.varset"
+warning: ignored attribute "group.name"
+warning: ignored attribute "nick.name"
+warning: ignored attribute "reg16.name"
+warning: ignored attribute "reg16.offset"
+warning: ignored attribute "reg32.access"
+warning: ignored attribute "reg32.align"
+warning: ignored attribute "reg32.length"
+warning: ignored attribute "reg32.max"
+warning: ignored attribute "reg32.min"
+warning: ignored attribute "reg32.name"
+warning: ignored attribute "reg32.offset"
+warning: ignored attribute "reg32.shr"
+warning: ignored attribute "reg32.stride"
+warning: ignored attribute "reg32.type"
+warning: ignored attribute "reg32.variants"
+warning: ignored attribute "reg32.varset"
+warning: ignored attribute "reg64.length"
+warning: ignored attribute "reg64.name"
+warning: ignored attribute "reg64.offset"
+warning: ignored attribute "reg64.shr"
+warning: ignored attribute "reg64.variants"
+warning: ignored attribute "reg8.access"
+warning: ignored attribute "reg8.length"
+warning: ignored attribute "reg8.name"
+warning: ignored attribute "reg8.offset"
+warning: ignored attribute "reg8.shr"
+warning: ignored attribute "reg8.type"
+warning: ignored attribute "reg8.variants"
+warning: ignored attribute "spectype.name"
+warning: ignored attribute "spectype.type"
+warning: ignored attribute "stripe.length"
+warning: ignored attribute "stripe.name"
+warning: ignored attribute "stripe.offset"
+warning: ignored attribute "stripe.prefix"
+warning: ignored attribute "stripe.stride"
+warning: ignored attribute "stripe.variants"
+warning: ignored attribute "stripe.varset"
+warning: ignored attribute "use-group.name"
+warning: ignored attribute "value.name"
+warning: ignored attribute "value.value"
+warning: ignored attribute "value.variants"
+warning: ignored attribute "value.varset"
+#endif

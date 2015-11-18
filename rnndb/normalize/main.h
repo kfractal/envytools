@@ -3,6 +3,41 @@
 #include <QFile>
 #include <QDir>
 #include <QSet>
+#include <QXmlStreamReader>
+
+//
+// valid XML elements
+// note the "use-group" element is handled differentely as needed since it
+// doesn't form a nice token
+//
+#define ELEMENTS()			\
+	ELEMENT(import)			\
+	ELEMENT(group)			\
+	ELEMENT(value)			\
+	ELEMENT(array)			\
+	ELEMENT(domain)			\
+	ELEMENT(doc)			\
+	ELEMENT(spectype)		\
+	ELEMENT(b)				\
+	ELEMENT(reg16)			\
+	ELEMENT(database)		\
+	ELEMENT(bitset)			\
+	ELEMENT(copyright)		\
+	ELEMENT(reg8)			\
+	ELEMENT(nick)			\
+	ELEMENT(license)		\
+	ELEMENT(enum)			\
+	ELEMENT(li)				\
+	ELEMENT(reg64)			\
+	ELEMENT(reg32)			\
+	ELEMENT(brief)			\
+	ELEMENT(author)			\
+	ELEMENT(ul)				\
+	ELEMENT(bitfield)		\
+	ELEMENT(stripe)			\
+	ELEMENT(use_group)		\
+	/*ELEMENT(use-group)*/    
+
 
 class Main : public QCoreApplication
 {
@@ -30,41 +65,12 @@ protected:
 	QSet<QString> _ignored_attributes;
 	QSet<QString> _ignored_elements;
 
-	typedef int (Main::*element_handler_t)();
+	typedef int (Main::*element_handler_t)(QXmlStreamReader &);
 	static QMap<QString, element_handler_t> _element_handlers;
+	int handle_element(QXmlStreamReader &e);
 
-	int handle_element(QString e);
-
-#define ELEMENTS()			\
-	ELEMENT(group)			\
-	ELEMENT(value)			\
-	ELEMENT(array)			\
-	ELEMENT(domain)			\
-	ELEMENT(doc)			\
-	ELEMENT(spectype)		\
-	ELEMENT(b)				\
-	ELEMENT(reg16)			\
-	ELEMENT(database)		\
-	ELEMENT(bitset)			\
-	ELEMENT(copyright)		\
-	ELEMENT(reg8)			\
-	ELEMENT(nick)			\
-	ELEMENT(license)		\
-	ELEMENT(enum)			\
-	ELEMENT(li)				\
-	ELEMENT(reg64)			\
-	ELEMENT(reg32)			\
-	ELEMENT(brief)			\
-	ELEMENT(author)			\
-	ELEMENT(ul)				\
-	ELEMENT(bitfield)		\
-	ELEMENT(stripe)			\
-	ELEMENT(use_group)		\
-	/*ELEMENT(use-group)*/
-
-#define ELEMENT(X)	int handle_ ## X ();
-
+	// element handler prototypes (lots)
+#define ELEMENT(X)	int handle_ ## X (QXmlStreamReader &);
 	ELEMENTS()
-
 #undef ELEMENT
 };
