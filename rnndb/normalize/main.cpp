@@ -7,6 +7,12 @@
 
 #include "main.h"
 
+
+
+
+
+
+
 int Main::read_root()
 {
 	_root_dir = QDir(QFileInfo(_root).dir());
@@ -64,6 +70,10 @@ int Main::read_file(QFile &file)
 				break;
 			case QXmlStreamReader::StartElement:
 				if ( _verbose ) qDebug() << "info: root start elem" << xml.name();
+
+
+
+
 				if ( xml.name() == "import" ) {
 					for (auto a: xml.attributes()) {
 						// if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
@@ -73,11 +83,13 @@ int Main::read_file(QFile &file)
 							if ( rc )
 								return rc;
 						} else {
-							if (_warn) qDebug() << "warning: ignored" << xml.name() << "attribute";
+							// if (_warn) qDebug() << "warning: ignored" << a.name() << "attribute";
+							_ignored_attributes.insert(QString("%1.%2").arg(xml.name().toString()).arg(a.name().toString()));
 						}
 					}
 				} else {
-					if (_warn) qDebug() << "warning: ignored" << xml.name() << "element";
+					// if (_warn) qDebug() << "warning: ignored" << xml.name() << "element";
+					_ignored_elements.insert(xml.name().toString());
 				}
 				break;
 			case QXmlStreamReader::EndElement:
@@ -132,6 +144,181 @@ void Main::start()
 {
 	if ( _debug) qDebug() << "debug:" << __func__;
 	int rc = read_root();
+
+	if ( (_warn || _verbose) &&
+		 (_ignored_elements.size() || _ignored_attributes.size() ) ) {
+		for (auto e : _ignored_elements ) {
+			qDebug() << "warning: ignored element" << e;
+		}
+		for (auto a : _ignored_attributes) {
+			qDebug() << "warning: ignored attribute" << a;
+		}
+	}
+
+
 	exit(rc); // Main::exit() sets *intent* to exit w/rc.
 	return;
+}
+
+
+
+#define ELEMENT(X) { #X , &Main::handle_ ## X },
+
+QMap<QString, Main::element_handler_t> Main::_element_handlers {
+	ELEMENTS()
+	{ "use-group", &Main::handle_use_group },
+};
+#undef ELEMENT
+
+int Main::handle_element(QString e)
+{
+	/*QMap<QString, element_handler_t>::const_iterator */ auto f =
+		_element_handlers.find(e);
+	if ( f == _element_handlers.end() ) {
+		return -1;
+	}
+    #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+	return (this->**f)();
+}
+
+int Main::handle_array()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_domain()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_doc()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_spectype()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_b()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_reg16()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_database()
+{
+	int rc = 0;
+	return rc;
+}
+int Main::handle_bitset()
+{
+	int rc = 0;
+	return rc;
+}
+int Main::handle_copyright()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_reg8()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_nick()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_license()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_enum()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_use_group()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_li()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_reg64()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_reg32()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_brief()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_author()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_ul()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_bitfield()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_stripe()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_group()
+{
+	int rc = 0;
+	return rc;
+}
+
+int Main::handle_value()
+{
+	int rc = 0;
+	return rc;
 }
