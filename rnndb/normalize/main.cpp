@@ -7,11 +7,36 @@
 
 #include "main.h"
 
+int main (int argc, char **argv)
+{
+	Main app(argc, argv);
+	QTimer::singleShot(0, &app, SLOT(start()));
+	return app.exec();
+}
 
+Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv)
+{
+	_root = "../root.xml";
+}
 
+void Main::start()
+{
+	if ( _debug) qDebug() << "debug:" << __func__;
+	int rc = read_root();
 
+	if ( (_warn || _verbose) &&
+		 (_ignored_elements.size() || _ignored_attributes.size() ) ) {
+		for (auto e : _ignored_elements ) {
+			qDebug() << "warning: ignored element" << e;
+		}
+		for (auto a : _ignored_attributes) {
+			qDebug() << "warning: ignored attribute" << a;
+		}
+	}
 
-
+	exit(rc); // Main::exit() sets *intent* to exit w/rc.
+	return;
+}
 
 int Main::read_root()
 {
@@ -127,38 +152,6 @@ int Main::read_file(QFile &file)
 	return rc;
 }
 
-int main (int argc, char **argv)
-{
-	Main app(argc, argv);
-	QTimer::singleShot(0, &app, SLOT(start()));
-	return app.exec();
-}
-
-
-Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv)
-{
-	_root = "../root.xml";
-}
-
-void Main::start()
-{
-	if ( _debug) qDebug() << "debug:" << __func__;
-	int rc = read_root();
-
-	if ( (_warn || _verbose) &&
-		 (_ignored_elements.size() || _ignored_attributes.size() ) ) {
-		for (auto e : _ignored_elements ) {
-			qDebug() << "warning: ignored element" << e;
-		}
-		for (auto a : _ignored_attributes) {
-			qDebug() << "warning: ignored attribute" << a;
-		}
-	}
-
-
-	exit(rc); // Main::exit() sets *intent* to exit w/rc.
-	return;
-}
 
 
 
