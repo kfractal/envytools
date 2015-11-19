@@ -2,6 +2,8 @@
 
 #include <QDebug>
 #include <QTimer>
+#include <QXmlSchema>
+#include <QRegularExpression>
 
 #include "main.h"
 
@@ -12,9 +14,9 @@ int main (int argc, char **argv)
 	return app.exec();
 }
 
-Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv)
+Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv), _validator(_schema)
 {
-	_root = "../root.xml";
+	_root = "root.xml";
 }
 
 void Main::start()
@@ -39,6 +41,7 @@ void Main::start()
 int Main::read_root()
 {
 	_root_dir = QDir(QFileInfo(_root).dir());
+	// qDebug() << "root dir is " << _root_dir.absolutePath();
 	return cd_and_read(_root);
 }
 
@@ -69,15 +72,22 @@ int Main::cd_and_read(const QString &file_path)
 	}
 	
 	QDir::setCurrent( file_dir.path() );
-	int r = read_file(file);
+	int r = read_file(&file);
 	QDir::setCurrent( cur_dir.path() );
 	return r;
 }
 
-int Main::read_file(QFile &file)
+int Main::read_file(QFile *file)
 {
+	if (_validate_schema && _schema.isValid() ) {
+		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName())))
+            qDebug() << "instance document is valid";
+        else
+            qDebug() << "instance document is invalid";
+	}
+
 	int rc = 0;
-	QXmlStreamReader xml(&file);
+	QXmlStreamReader xml(file);
 
 	// ...
 	while (!xml.atEnd()) {
@@ -154,18 +164,25 @@ int Main::handle_element(QXmlStreamReader &e)
 	return (this->**f)(e);
 }
 
+
+#define check_attrs(X) do {											\
+		if (X ## _element_valid_attrs.end() == X ##_element_valid_attrs.find(a.name().toString())) { \
+			qDebug() << "warning: unexpected attr" << a.name().toString(); \
+		}																\
+	} while (0)
+
+
 int Main::handle_import(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		// if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		check_attrs(import);
 		if ( a.name() == "file" ) {
-			if ( _verbose ) qDebug() << "info: import" << a.value();
+			if ( _verbose ) qDebug() << "info: importing file" << a.value();
 			rc = cd_and_read(a.value().toString());
 			if ( rc )
 				return rc;
 		} else {
-			// if (_warn) qDebug() << "warning: ignored" << a.name() << "attribute";
 			_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
 			rc = -1;
 		}
@@ -173,12 +190,22 @@ int Main::handle_import(QXmlStreamReader &e)
 	return rc;
 }
 
+
+
 int Main::handle_array(QXmlStreamReader &e)
 {
+	static std::map<std::string, std::size_t> attr_index {
+		{ "length",   0 },
+		{ "name",     1 }, 
+		{ "offset" ,  2 },
+		{ "stride",   3 },
+		{ "variants", 4 },
+	};
+
 	int rc = 0;
 	if (_verbose) qDebug() << "array element";
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+		check_attrs(array);
 		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
 	}
 
@@ -237,15 +264,56 @@ int Main::handle_reg16(QXmlStreamReader &e)
 
 int Main::handle_database(QXmlStreamReader &e)
 {
+	static QMap<QString, bool> schema_cache;
+
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if ( a.name() == "schemaLocation" ) {
+			QString attr_val = a.value().toString();
+			// schema lookup (success or failure) can be expensive.
+			// don't do it more than once per url as the answer won't change.
+			if ( schema_cache.find(attr_val) == schema_cache.end() ) {
+				// split the string into a whitespace delimited set.
+				// of those look for "*.xsd" files.  if a file local to root
+				// exists matching that name, then use it.  otherwise punt.
+				QStringList seps = attr_val.split(QRegularExpression("\\s+"));
+				for ( auto s : seps ) {
+					QUrl surl(s);
+					if ( surl.isRelative() ) {
+						QString local = _root_dir.absolutePath() + "/" + s;
+						QFileInfo sfi(local); 
+						if (sfi.exists()) {
+							QFile file(sfi.absoluteFilePath());
+							if ( file.open(QIODevice::ReadOnly | QIODevice::Text) ) {
+								if (_verbose) qDebug() << "info: loading db schema from" << file.fileName();
+								_schema.load(&file, QUrl::fromLocalFile(file.fileName()));
+								if ( !_schema.isValid()) {
+									qDebug() << "warning: invalid schema" << sfi.absoluteFilePath();
+								}
+								schema_cache[attr_val] = true;
+							}
+						}
+					}
+				}
+				if ( schema_cache.find(attr_val) == schema_cache.end() ) {
+					// nothing above was tricked into believing a real one
+					// was available.  so at least don't try any longer with
+					// this same request string...
+					schema_cache[attr_val] = false;
+				}
+			}
+		} else {
+			if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+			_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		}
 	}
 	return rc;
 }
+
+
 int Main::handle_bitset(QXmlStreamReader &e)
 {
+
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
 		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
@@ -355,6 +423,7 @@ int Main::handle_brief(QXmlStreamReader &e)
 
 int Main::handle_author(QXmlStreamReader &e)
 {
+
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
 		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
@@ -372,6 +441,7 @@ int Main::handle_ul(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 
 int Main::handle_bitfield(QXmlStreamReader &e)
 {
@@ -413,84 +483,23 @@ int Main::handle_value(QXmlStreamReader &e)
 	return rc;
 }
 
-#if 0
-warning: ignored attribute "array.length"
-warning: ignored attribute "array.name"
-warning: ignored attribute "array.offset"
-warning: ignored attribute "array.stride"
-warning: ignored attribute "array.variants"
-warning: ignored attribute "author.email"
-warning: ignored attribute "author.name"
-warning: ignored attribute "bitfield.add"
-warning: ignored attribute "bitfield.align"
-warning: ignored attribute "bitfield.high"
-warning: ignored attribute "bitfield.low"
-warning: ignored attribute "bitfield.max"
-warning: ignored attribute "bitfield.min"
-warning: ignored attribute "bitfield.name"
-warning: ignored attribute "bitfield.pos"
-warning: ignored attribute "bitfield.radix"
-warning: ignored attribute "bitfield.shr"
-warning: ignored attribute "bitfield.type"
-warning: ignored attribute "bitfield.variants"
-warning: ignored attribute "bitset.inline"
-warning: ignored attribute "bitset.name"
-warning: ignored attribute "bitset.prefix"
-warning: ignored attribute "bitset.variants"
-warning: ignored attribute "bitset.varset"
-warning: ignored attribute "copyright.year"
-warning: ignored attribute "database.schemaLocation"
-warning: ignored attribute "domain.bare"
-warning: ignored attribute "domain.name"
-warning: ignored attribute "domain.prefix"
-warning: ignored attribute "domain.size"
-warning: ignored attribute "domain.variants"
-warning: ignored attribute "domain.varset"
-warning: ignored attribute "domain.width"
-warning: ignored attribute "enum.bare"
-warning: ignored attribute "enum.inline"
-warning: ignored attribute "enum.name"
-warning: ignored attribute "enum.varset"
-warning: ignored attribute "group.name"
-warning: ignored attribute "nick.name"
-warning: ignored attribute "reg16.name"
-warning: ignored attribute "reg16.offset"
-warning: ignored attribute "reg32.access"
-warning: ignored attribute "reg32.align"
-warning: ignored attribute "reg32.length"
-warning: ignored attribute "reg32.max"
-warning: ignored attribute "reg32.min"
-warning: ignored attribute "reg32.name"
-warning: ignored attribute "reg32.offset"
-warning: ignored attribute "reg32.shr"
-warning: ignored attribute "reg32.stride"
-warning: ignored attribute "reg32.type"
-warning: ignored attribute "reg32.variants"
-warning: ignored attribute "reg32.varset"
-warning: ignored attribute "reg64.length"
-warning: ignored attribute "reg64.name"
-warning: ignored attribute "reg64.offset"
-warning: ignored attribute "reg64.shr"
-warning: ignored attribute "reg64.variants"
-warning: ignored attribute "reg8.access"
-warning: ignored attribute "reg8.length"
-warning: ignored attribute "reg8.name"
-warning: ignored attribute "reg8.offset"
-warning: ignored attribute "reg8.shr"
-warning: ignored attribute "reg8.type"
-warning: ignored attribute "reg8.variants"
-warning: ignored attribute "spectype.name"
-warning: ignored attribute "spectype.type"
-warning: ignored attribute "stripe.length"
-warning: ignored attribute "stripe.name"
-warning: ignored attribute "stripe.offset"
-warning: ignored attribute "stripe.prefix"
-warning: ignored attribute "stripe.stride"
-warning: ignored attribute "stripe.variants"
-warning: ignored attribute "stripe.varset"
-warning: ignored attribute "use-group.name"
-warning: ignored attribute "value.name"
-warning: ignored attribute "value.value"
-warning: ignored attribute "value.variants"
-warning: ignored attribute "value.varset"
-#endif
+const QStringSet Main::array_element_valid_attrs     { "length", "name", "offset", "stride", "variants" };
+const QStringSet Main::author_element_valid_attrs    { "email", "name" };
+const QStringSet Main::bitfield_element_valid_attrs  { "add", "align", "high", "low", "max", "min", "name", "pos", "radix", "shr", "type", "variants" };
+const QStringSet Main::bitset_element_valid_attrs    { "inline", "name", "prefix", "variants", "varset" };
+const QStringSet Main::copyright_element_valid_attrs { "year" };
+const QStringSet Main::database_element_valid_attrs  { "schemaLocation" };
+const QStringSet Main::domain_element_valid_attrs    { "bare", "name", "prefix", "size", "variants", "varset", "width" };
+const QStringSet Main::enum_element_valid_attrs      { "bare","inline", "name", "varset" };
+const QStringSet Main::group_element_valid_attrs     { "name" };
+const QStringSet Main::import_element_valid_attrs    { "file" };
+const QStringSet Main::nick_element_valid_attrs      { "name" };
+const QStringSet Main::reg16_element_valid_attrs     { "name", "offset" };
+const QStringSet Main::reg32_element_valid_attrs     { "access", "align", "length", "max", "min", "name", "offset", "shr", "stride", "type", "variants", "varset" };
+const QStringSet Main::reg64_element_valid_attrs     { "length", "name", "offset", "shr", "variants" };
+const QStringSet Main::reg8_element_valid_attrs      { "access", "length", "name", "offset", "shr", "type", "variants" };
+const QStringSet Main::spectype_element_valid_attrs  { "name","type" };
+const QStringSet Main::stripe_element_valid_attrs    { "length", "name", "offset", "prefix", "stride", "variants", "varset" };
+const QStringSet Main::use_group_element_valid_attrs { "name" };
+const QStringSet Main::value_element_valid_attrs     { "name", "value", "variants", "varset" };
+
