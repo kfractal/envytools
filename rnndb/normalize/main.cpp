@@ -143,7 +143,17 @@ int Main::read_file(QFile *file)
 }
 
 
-
+//
+// handlers for specific elements and attributes etc are handled below.
+// note that the xml schema validator while in place isn't working properly
+// yet (not sure whether that's due to faults in the xml, or what, though
+// some were fixed already).
+//
+// there shouldn't be too much in the way of error handling going on here
+// re: illegal elements, illegal attribute names.  assume the validator is handling
+// those.  but, out of bounds and other sorts of things can and should be managed
+// here as usual (whatever is out of scope for the xml schema validator).
+//
 
 #define ELEMENT(X) { #X , &Main::handle_ ## X },
 
