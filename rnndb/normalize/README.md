@@ -1,19 +1,24 @@
-This tool requires use of the Qt framework to build and run.
-Qt >= 5.x should be installed (tested with 5.5).
-With that in mind:
-    qmake normalize_rnndb.pro
+This tool reads rnndb's XML database beginning with the root file "root.xml".
+The intent then is to merge the hwref information from NVIDIA into rnndb.
+
+Qt >= 5.x should be installed in order to buid and run (tested with 5.5).
+With that in mind, to build:
+
+    qmake normalize.pro
     make <-j*>
 
-run from the .. dir so that "root.xml" is in the current directory.
+Run from the rnndb dir (..) so that "root.xml" is in the current directory.
     normalize/normalize_rnndb
 
-as of latest check-in it should produce output along the lines of
+As of latest check-in it should produce output along the lines of
 
-warning: ignored attribute "enum.bare"
-warning: ignored attribute "domain.varset"
-[...]
+    warning: ignored attribute "enum.bare"
+    warning: ignored attribute "domain.varset"
+    [...]
 
-this is an indication of what bits of the xml haven't been scraped yet.
-next step is to take this code base and bring it up at run time with
-the tool which i used to generate the nvgpu->nouveau headers.
-working on that now...
+This is an indication of what bits of the xml haven't been scraped yet.
+The next step is to take this code base and bring it up at run time with
+the tool which I used to generate the nvgpu->nouveau headers.
+I'm working on that now...
+
+The name chosen here, 'normalize' is only for lack of a better phrase.  :/
