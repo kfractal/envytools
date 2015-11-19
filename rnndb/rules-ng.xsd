@@ -20,6 +20,10 @@
 	<!-- Elements -->
 
 	<element name="database"       type="rng:databaseType" />
+	<element name="copyright"      type="rng:copyrightType" />
+	<element name="license"        type="rng:licenseType" />
+	<element name="author"         type="rng:authorType" />
+	<element name="nick"           type="rng:nickType" />
 	<element name="import"         type="rng:importType" />
 	<element name="domain"         type="rng:domainType" />
 	<element name="group"          type="rng:groupType" />
@@ -62,6 +66,35 @@
 			<group ref="rng:topGroup" />
 		</choice>
 	</complexType>
+
+	<complexType name="copyrightType">
+		<annotation>
+			<documentation>copyrightType</documentation>
+		</annotation>
+		<attribute name="year" type="string" use="required" />
+	</complexType>
+
+	<complexType name="licenseType">
+		<annotation>
+			<documentation>licenseType</documentation>
+		</annotation>
+	</complexType>
+
+	<complexType name="authorType">
+		<annotation>
+			<documentation>authorType</documentation>
+		</annotation>
+		<attribute name="name" type="string" use="required" />
+		<attribute name="email" type="string" use="required" />
+	</complexType>
+
+	<complexType name="nickType">
+		<annotation>
+			<documentation>nickType</documentation>
+		</annotation>
+		<attribute name="name" type="string" use="required" />
+	</complexType>
+
 
 	<complexType name="importType">
 		<annotation>
