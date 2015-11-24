@@ -19,6 +19,13 @@ Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv), _validator(_s
 	_root = "root.xml";
 }
 
+#define ignored_attr(E, A) do {							\
+		_ignored_attributes.insert(QString("%1.%2").	\
+			arg(name_str(E)).arg(name_str(A)));			\
+	}													\
+	while (0)
+
+
 void Main::start()
 {
 	if ( _debug) qDebug() << "debug:" << __func__;
@@ -151,8 +158,8 @@ int Main::read_file(QFile *file)
 // some were fixed already).
 //
 // there shouldn't be too much in the way of error handling happening here
-// re: illegal elements, or attribute names.  the validator will catch
-// those.  but, out of bounds and other semantic problems can still occur.
+// re: illegal elements, or attribute names.  the validator will (eventually)
+// catch those.  but, out of bounds and other semantic problems can still occur.
 //
 
 #define ELEMENT(X) { #X , &Main::handle_ ## X },
@@ -163,22 +170,23 @@ QMap<QString, Main::element_handler_t> Main::_element_handlers {
 };
 #undef ELEMENT
 
+#define name_str(X) (X.name().toString())
 
 int Main::handle_element(QXmlStreamReader &e)
 {
-	auto f = _element_handlers.find(e.name().toString());
+	auto f = _element_handlers.find(name_str(e));
 	if ( f == _element_handlers.end() ) {
-		_ignored_elements.insert(e.name().toString());
+		_ignored_elements.insert(name_str(e));
 		return -1;
 	}
-	_current_element.push(e.name().toString());
+	_current_element.push(name_str(e));
 	return (this->**f)(e);
 }
 
 void Main::end_element(QXmlStreamReader &)
 {
 	if ( _current_element.size() == 0 ) {
-		qDebug() << "error: about to pop nothing?";
+		qDebug() << "error: about to pop empty element stack?";
 	}
 	_current_element.pop();
 }
@@ -187,15 +195,13 @@ int Main::handle_import(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		//check_attrs(import);
 		if ( a.name() == "file" ) {
 			if ( _verbose ) qDebug() << "info: importing file" << a.value();
 			rc = cd_and_read(a.value().toString());
 			if ( rc )
 				return rc;
 		} else {
-			_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
-			rc = -1;
+			ignored_attr(e,a);
 		}
 	}
 	return rc;
@@ -204,7 +210,7 @@ int Main::handle_import(QXmlStreamReader &e)
 #undef ATTR
 #undef ELEMENT
 
-#define name_str(X) (X.name().toString())
+
 #define ATTR(X) static QString X##_str { #X };
 #define ELEMENT(E) namespace E ##_element { E ## _ELEMENT_ATTRS() };
 ELEMENTS()
@@ -212,17 +218,14 @@ ELEMENTS()
 int Main::handle_array(QXmlStreamReader &e)
 {
 	int rc = 0;
-	if (_verbose) qDebug() << "array element";
 	for ( auto a: e.attributes() ) {
-		if ( name_str(a) == array_element::length_str ) {
-		} else if (name_str(a) == array_element::name_str ) {
-		} else if ( name_str(a) == array_element::offset_str) {
-		} else if ( name_str(a) == array_element::stride_str) {
-		} else if ( name_str(a) == array_element::variants_str) {
+		if (name_str(e) == array_element::length_str) {
+		} else if (name_str(e) == array_element::name_str) {
+		} else if (name_str(e) == array_element::offset_str) {
+		} else if (name_str(e) == array_element::stride_str) {
+		} else if (name_str(e) == array_element::variants_str) {
 		} else {
-			_ignored_attributes.insert(QString("%1.%2").
-									   arg(e.name().toString()).
-									   arg(a.name().toString()));
+			ignored_attr(e,a);
 		}
 	}
 
@@ -233,8 +236,16 @@ int Main::handle_domain(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == domain_element::bare_str) {
+		} else if (name_str(e) == domain_element::name_str) {
+		} else if (name_str(e) == domain_element::prefix_str) {
+		} else if (name_str(e) == domain_element::size_str) {
+		} else if (name_str(e) == domain_element::variants_str) {
+		} else if (name_str(e) == domain_element::varset_str) {
+		} else if (name_str(e) == domain_element::width_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -243,8 +254,7 @@ int Main::handle_doc(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+			ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -253,8 +263,11 @@ int Main::handle_spectype(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == spectype_element::name_str) {
+		} else if (name_str(e) == spectype_element::type_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -263,8 +276,7 @@ int Main::handle_b(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -273,8 +285,11 @@ int Main::handle_reg16(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == reg16_element::name_str) {
+		} else if (name_str(e) == reg16_element::offset_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -320,8 +335,7 @@ int Main::handle_database(QXmlStreamReader &e)
 				}
 			}
 		} else {
-			if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-			_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+			ignored_attr(e,a);
 		}
 	}
 	return rc;
@@ -333,8 +347,14 @@ int Main::handle_bitset(QXmlStreamReader &e)
 
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == bitset_element::inline_str) {
+		} else if (name_str(e) == bitset_element::name_str) {
+		} else if (name_str(e) == bitset_element::prefix_str) {
+		} else if (name_str(e) == bitset_element::variants_str) {
+		} else if (name_str(e) == bitset_element::varset_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -342,8 +362,10 @@ int Main::handle_copyright(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == copyright_element::year_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -352,8 +374,17 @@ int Main::handle_reg8(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == reg8_element::access_str) {
+		} else if (name_str(e) == reg8_element::length_str) {
+		} else if (name_str(e) == reg8_element::name_str) {
+		} else if (name_str(e) == reg8_element::offset_str) {
+		} else if (name_str(e) == reg8_element::shr_str) {
+		} else if (name_str(e) == reg8_element::type_str) {
+		} else if (name_str(e) == reg8_element::variants_str) {
+		} else {
+			ignored_attr(e,a);
+		}
+
 	}
 	return rc;
 }
@@ -362,8 +393,11 @@ int Main::handle_nick(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == nick_element::name_str) {
+		} else {
+			ignored_attr(e,a);
+		}
+
 	}
 	return rc;
 }
@@ -372,8 +406,7 @@ int Main::handle_license(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -382,8 +415,13 @@ int Main::handle_enum(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == enum_element::bare_str) {
+		} else if (name_str(e) == enum_element::inline_str) {
+		} else if (name_str(e) == enum_element::name_str) {
+		} else if (name_str(e) == enum_element::varset_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -392,8 +430,7 @@ int Main::handle_use_group(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -402,8 +439,7 @@ int Main::handle_li(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -412,8 +448,14 @@ int Main::handle_reg64(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == reg64_element::length_str) {
+		} else if (name_str(e) == reg64_element::name_str) {
+		} else if (name_str(e) == reg64_element::offset_str) {
+		} else if (name_str(e) == reg64_element::shr_str) {
+		} else if (name_str(e) == reg64_element::variants_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -422,8 +464,22 @@ int Main::handle_reg32(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == reg32_element::access_str) {
+		} else if (name_str(e) == reg32_element::align_str) {
+		} else if (name_str(e) == reg32_element::length_str) {
+		} else if (name_str(e) == reg32_element::max_str) {
+		} else if (name_str(e) == reg32_element::min_str) {
+		} else if (name_str(e) == reg32_element::name_str) {
+		} else if (name_str(e) == reg32_element::offset_str) {
+		} else if (name_str(e) == reg32_element::shr_str) {
+		} else if (name_str(e) == reg32_element::stride_str) {
+		} else if (name_str(e) == reg32_element::type_str) {
+		} else if (name_str(e) == reg32_element::variants_str) {
+		} else if (name_str(e) == reg32_element::varset_str) {
+
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -432,8 +488,7 @@ int Main::handle_brief(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -443,8 +498,11 @@ int Main::handle_author(QXmlStreamReader &e)
 
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if ( name_str(e) == author_element::email_str ) {
+		} else if ( name_str(e) == author_element::name_str ) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -453,8 +511,7 @@ int Main::handle_ul(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		ignored_attr(e,a);
 	}
 	return rc;
 }
@@ -465,9 +522,21 @@ int Main::handle_bitfield(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if ( name_str(a) == bitfield_element::add_str ) {
+		} else if (name_str(a) == bitfield_element::align_str ) {
+		} else if (name_str(a) == bitfield_element::high_str ) {
+		} else if (name_str(a) == bitfield_element::low_str ) {
+		} else if (name_str(a) == bitfield_element::max_str ) {
+		} else if (name_str(a) == bitfield_element::min_str ) {
+		} else if (name_str(a) == bitfield_element::name_str ) {
+		} else if (name_str(a) == bitfield_element::pos_str ) {
+		} else if (name_str(a) == bitfield_element::radix_str ) {
+		} else if (name_str(a) == bitfield_element::shr_str ) {
+		} else if (name_str(a) == bitfield_element::type_str ) {
+		} else if (name_str(a) == bitfield_element::variants_str ) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -476,8 +545,16 @@ int Main::handle_stripe(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == stripe_element::length_str) {
+		} else if (name_str(e) == stripe_element::name_str) {
+		} else if (name_str(e) == stripe_element::offset_str) {
+		} else if (name_str(e) == stripe_element::prefix_str) {
+		} else if (name_str(e) == stripe_element::stride_str) {
+		} else if (name_str(e) == stripe_element::variants_str) {
+		} else if (name_str(e) == stripe_element::varset_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -486,8 +563,10 @@ int Main::handle_group(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == group_element::name_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -496,8 +575,13 @@ int Main::handle_value(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if (name_str(e) == value_element::name_str) {
+		} else if (name_str(e) == value_element::value_str) {
+		} else if (name_str(e) == value_element::variants_str) {
+		} else if (name_str(e) == value_element::varset_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
