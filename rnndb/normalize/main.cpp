@@ -219,11 +219,11 @@ int Main::handle_array(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == array_element::length_str) {
-		} else if (name_str(e) == array_element::name_str) {
-		} else if (name_str(e) == array_element::offset_str) {
-		} else if (name_str(e) == array_element::stride_str) {
-		} else if (name_str(e) == array_element::variants_str) {
+		if (name_str(a) == array_element::length_str) {
+		} else if (name_str(a) == array_element::name_str) {
+		} else if (name_str(a) == array_element::offset_str) {
+		} else if (name_str(a) == array_element::stride_str) {
+		} else if (name_str(a) == array_element::variants_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -236,13 +236,13 @@ int Main::handle_domain(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == domain_element::bare_str) {
-		} else if (name_str(e) == domain_element::name_str) {
-		} else if (name_str(e) == domain_element::prefix_str) {
-		} else if (name_str(e) == domain_element::size_str) {
-		} else if (name_str(e) == domain_element::variants_str) {
-		} else if (name_str(e) == domain_element::varset_str) {
-		} else if (name_str(e) == domain_element::width_str) {
+		if (name_str(a) == domain_element::bare_str) {
+		} else if (name_str(a) == domain_element::name_str) {
+		} else if (name_str(a) == domain_element::prefix_str) {
+		} else if (name_str(a) == domain_element::size_str) {
+		} else if (name_str(a) == domain_element::variants_str) {
+		} else if (name_str(a) == domain_element::varset_str) {
+		} else if (name_str(a) == domain_element::width_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -263,8 +263,8 @@ int Main::handle_spectype(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == spectype_element::name_str) {
-		} else if (name_str(e) == spectype_element::type_str) {
+		if (name_str(a) == spectype_element::name_str) {
+		} else if (name_str(a) == spectype_element::type_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -285,8 +285,8 @@ int Main::handle_reg16(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == reg16_element::name_str) {
-		} else if (name_str(e) == reg16_element::offset_str) {
+		if (name_str(a) == reg16_element::name_str) {
+		} else if (name_str(a) == reg16_element::offset_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -347,11 +347,11 @@ int Main::handle_bitset(QXmlStreamReader &e)
 
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == bitset_element::inline_str) {
-		} else if (name_str(e) == bitset_element::name_str) {
-		} else if (name_str(e) == bitset_element::prefix_str) {
-		} else if (name_str(e) == bitset_element::variants_str) {
-		} else if (name_str(e) == bitset_element::varset_str) {
+		if (name_str(a) == bitset_element::inline_str) {
+		} else if (name_str(a) == bitset_element::name_str) {
+		} else if (name_str(a) == bitset_element::prefix_str) {
+		} else if (name_str(a) == bitset_element::variants_str) {
+		} else if (name_str(a) == bitset_element::varset_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -362,7 +362,7 @@ int Main::handle_copyright(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == copyright_element::year_str) {
+		if (name_str(a) == copyright_element::year_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -374,13 +374,13 @@ int Main::handle_reg8(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == reg8_element::access_str) {
-		} else if (name_str(e) == reg8_element::length_str) {
-		} else if (name_str(e) == reg8_element::name_str) {
-		} else if (name_str(e) == reg8_element::offset_str) {
-		} else if (name_str(e) == reg8_element::shr_str) {
-		} else if (name_str(e) == reg8_element::type_str) {
-		} else if (name_str(e) == reg8_element::variants_str) {
+		if (name_str(a) == reg8_element::access_str) {
+		} else if (name_str(a) == reg8_element::length_str) {
+		} else if (name_str(a) == reg8_element::name_str) {
+		} else if (name_str(a) == reg8_element::offset_str) {
+		} else if (name_str(a) == reg8_element::shr_str) {
+		} else if (name_str(a) == reg8_element::type_str) {
+		} else if (name_str(a) == reg8_element::variants_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -393,7 +393,7 @@ int Main::handle_nick(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == nick_element::name_str) {
+		if (name_str(a) == nick_element::name_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -415,10 +415,10 @@ int Main::handle_enum(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == enum_element::bare_str) {
-		} else if (name_str(e) == enum_element::inline_str) {
-		} else if (name_str(e) == enum_element::name_str) {
-		} else if (name_str(e) == enum_element::varset_str) {
+		if (name_str(a) == enum_element::bare_str) {
+		} else if (name_str(a) == enum_element::inline_str) {
+		} else if (name_str(a) == enum_element::name_str) {
+		} else if (name_str(a) == enum_element::varset_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -430,7 +430,10 @@ int Main::handle_use_group(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		ignored_attr(e,a);
+		if (name_str(a) == use_group_element::name_str) {
+		} else {
+			ignored_attr(e,a);
+		}
 	}
 	return rc;
 }
@@ -448,11 +451,11 @@ int Main::handle_reg64(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == reg64_element::length_str) {
-		} else if (name_str(e) == reg64_element::name_str) {
-		} else if (name_str(e) == reg64_element::offset_str) {
-		} else if (name_str(e) == reg64_element::shr_str) {
-		} else if (name_str(e) == reg64_element::variants_str) {
+		if (name_str(a) == reg64_element::length_str) {
+		} else if (name_str(a) == reg64_element::name_str) {
+		} else if (name_str(a) == reg64_element::offset_str) {
+		} else if (name_str(a) == reg64_element::shr_str) {
+		} else if (name_str(a) == reg64_element::variants_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -464,18 +467,18 @@ int Main::handle_reg32(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == reg32_element::access_str) {
-		} else if (name_str(e) == reg32_element::align_str) {
-		} else if (name_str(e) == reg32_element::length_str) {
-		} else if (name_str(e) == reg32_element::max_str) {
-		} else if (name_str(e) == reg32_element::min_str) {
-		} else if (name_str(e) == reg32_element::name_str) {
-		} else if (name_str(e) == reg32_element::offset_str) {
-		} else if (name_str(e) == reg32_element::shr_str) {
-		} else if (name_str(e) == reg32_element::stride_str) {
-		} else if (name_str(e) == reg32_element::type_str) {
-		} else if (name_str(e) == reg32_element::variants_str) {
-		} else if (name_str(e) == reg32_element::varset_str) {
+		if (name_str(a) == reg32_element::access_str) {
+		} else if (name_str(a) == reg32_element::align_str) {
+		} else if (name_str(a) == reg32_element::length_str) {
+		} else if (name_str(a) == reg32_element::max_str) {
+		} else if (name_str(a) == reg32_element::min_str) {
+		} else if (name_str(a) == reg32_element::name_str) {
+		} else if (name_str(a) == reg32_element::offset_str) {
+		} else if (name_str(a) == reg32_element::shr_str) {
+		} else if (name_str(a) == reg32_element::stride_str) {
+		} else if (name_str(a) == reg32_element::type_str) {
+		} else if (name_str(a) == reg32_element::variants_str) {
+		} else if (name_str(a) == reg32_element::varset_str) {
 
 		} else {
 			ignored_attr(e,a);
@@ -498,8 +501,8 @@ int Main::handle_author(QXmlStreamReader &e)
 
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if ( name_str(e) == author_element::email_str ) {
-		} else if ( name_str(e) == author_element::name_str ) {
+		if ( name_str(a) == author_element::email_str ) {
+		} else if ( name_str(a) == author_element::name_str ) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -545,13 +548,13 @@ int Main::handle_stripe(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == stripe_element::length_str) {
-		} else if (name_str(e) == stripe_element::name_str) {
-		} else if (name_str(e) == stripe_element::offset_str) {
-		} else if (name_str(e) == stripe_element::prefix_str) {
-		} else if (name_str(e) == stripe_element::stride_str) {
-		} else if (name_str(e) == stripe_element::variants_str) {
-		} else if (name_str(e) == stripe_element::varset_str) {
+		if (name_str(a) == stripe_element::length_str) {
+		} else if (name_str(a) == stripe_element::name_str) {
+		} else if (name_str(a) == stripe_element::offset_str) {
+		} else if (name_str(a) == stripe_element::prefix_str) {
+		} else if (name_str(a) == stripe_element::stride_str) {
+		} else if (name_str(a) == stripe_element::variants_str) {
+		} else if (name_str(a) == stripe_element::varset_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -563,7 +566,7 @@ int Main::handle_group(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == group_element::name_str) {
+		if (name_str(a) == group_element::name_str) {
 		} else {
 			ignored_attr(e,a);
 		}
@@ -575,10 +578,10 @@ int Main::handle_value(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		if (name_str(e) == value_element::name_str) {
-		} else if (name_str(e) == value_element::value_str) {
-		} else if (name_str(e) == value_element::variants_str) {
-		} else if (name_str(e) == value_element::varset_str) {
+		if (name_str(a) == value_element::name_str) {
+		} else if (name_str(a) == value_element::value_str) {
+		} else if (name_str(a) == value_element::variants_str) {
+		} else if (name_str(a) == value_element::varset_str) {
 		} else {
 			ignored_attr(e,a);
 		}
