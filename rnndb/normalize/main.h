@@ -1,48 +1,21 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
+
+#include <vector>
+#include <string>
+
 #include <QCoreApplication>
 #include <QFile>
 #include <QDir>
 #include <QSet>
 #include <QString>
+#include <QStack>
 #include <QXmlStreamReader>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
 
 typedef QSet<QString> QStringSet;
 
-//
-// valid XML elements
-// note the "use-group" element is handled differentely as needed since it
-// doesn't form a nice token
-//
-#define ELEMENTS()			\
-	ELEMENT(import)			\
-	ELEMENT(group)			\
-	ELEMENT(value)			\
-	ELEMENT(array)			\
-	ELEMENT(domain)			\
-	ELEMENT(doc)			\
-	ELEMENT(spectype)		\
-	ELEMENT(b)				\
-	ELEMENT(reg16)			\
-	ELEMENT(database)		\
-	ELEMENT(bitset)			\
-	ELEMENT(copyright)		\
-	ELEMENT(reg8)			\
-	ELEMENT(nick)			\
-	ELEMENT(license)		\
-	ELEMENT(enum)			\
-	ELEMENT(li)				\
-	ELEMENT(reg64)			\
-	ELEMENT(reg32)			\
-	ELEMENT(brief)			\
-	ELEMENT(author)			\
-	ELEMENT(ul)				\
-	ELEMENT(bitfield)		\
-	ELEMENT(stripe)			\
-	ELEMENT(use_group)		\
-	/*ELEMENT(use-group)*/    
-
+#include "elements.h"
 
 class Main : public QCoreApplication
 {
@@ -73,6 +46,8 @@ protected:
 	int read_file(QFile *);
 
 	int handle_element(QXmlStreamReader &e);
+	void end_element(QXmlStreamReader &e);
+	QStack<QString> _current_element;
 
 	QSet<QString> _ignored_attributes;
 	QSet<QString> _ignored_elements;
@@ -86,9 +61,14 @@ protected:
 	ELEMENTS()
 #undef ELEMENT
 
-	// element attribute sets (for validation)
-#define ELEMENT(X) static const QStringSet X ## _element_valid_attrs;
+
+	// element attribute sets
+	// e.g.: array_element_attrs[...]
+#define ELEMENT(X) static const std::vector<std::string> X ##_element_attrs;
+#define ATTR(X) #X,
 	ELEMENTS()
+#undef ATTR
 #undef ELEMENT
+
 
 };

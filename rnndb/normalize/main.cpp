@@ -109,6 +109,7 @@ int Main::read_file(QFile *file)
 				break;
 			case QXmlStreamReader::EndElement:
 				if ( _verbose ) qDebug() << "info: root end elem" << xml.name();
+				end_element(xml);
 				break;
 			case QXmlStreamReader::Characters:
 				if ( _verbose ) qDebug() << "info: root chars";
@@ -149,10 +150,9 @@ int Main::read_file(QFile *file)
 // yet (not sure whether that's due to faults in the xml, or what, though
 // some were fixed already).
 //
-// there shouldn't be too much in the way of error handling going on here
-// re: illegal elements, illegal attribute names.  assume the validator is handling
-// those.  but, out of bounds and other sorts of things can and should be managed
-// here as usual (whatever is out of scope for the xml schema validator).
+// there shouldn't be too much in the way of error handling happening here
+// re: illegal elements, or attribute names.  the validator will catch
+// those.  but, out of bounds and other semantic problems can still occur.
 //
 
 #define ELEMENT(X) { #X , &Main::handle_ ## X },
@@ -171,22 +171,23 @@ int Main::handle_element(QXmlStreamReader &e)
 		_ignored_elements.insert(e.name().toString());
 		return -1;
 	}
+	_current_element.push(e.name().toString());
 	return (this->**f)(e);
 }
 
-
-#define check_attrs(X) do {											\
-		if (X ## _element_valid_attrs.end() == X ##_element_valid_attrs.find(a.name().toString())) { \
-			qDebug() << "warning: unexpected attr" << a.name().toString(); \
-		}																\
-	} while (0)
-
+void Main::end_element(QXmlStreamReader &)
+{
+	if ( _current_element.size() == 0 ) {
+		qDebug() << "error: about to pop nothing?";
+	}
+	_current_element.pop();
+}
 
 int Main::handle_import(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
-		check_attrs(import);
+		//check_attrs(import);
 		if ( a.name() == "file" ) {
 			if ( _verbose ) qDebug() << "info: importing file" << a.value();
 			rc = cd_and_read(a.value().toString());
@@ -200,23 +201,29 @@ int Main::handle_import(QXmlStreamReader &e)
 	return rc;
 }
 
+#undef ATTR
+#undef ELEMENT
 
+#define name_str(X) (X.name().toString())
+#define ATTR(X) static QString X##_str { #X };
+#define ELEMENT(E) namespace E ##_element { E ## _ELEMENT_ATTRS() };
+ELEMENTS()
 
 int Main::handle_array(QXmlStreamReader &e)
 {
-	static std::map<std::string, std::size_t> attr_index {
-		{ "length",   0 },
-		{ "name",     1 }, 
-		{ "offset" ,  2 },
-		{ "stride",   3 },
-		{ "variants", 4 },
-	};
-
 	int rc = 0;
 	if (_verbose) qDebug() << "array element";
 	for ( auto a: e.attributes() ) {
-		check_attrs(array);
-		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
+		if ( name_str(a) == array_element::length_str ) {
+		} else if (name_str(a) == array_element::name_str ) {
+		} else if ( name_str(a) == array_element::offset_str) {
+		} else if ( name_str(a) == array_element::stride_str) {
+		} else if ( name_str(a) == array_element::variants_str) {
+		} else {
+			_ignored_attributes.insert(QString("%1.%2").
+									   arg(e.name().toString()).
+									   arg(a.name().toString()));
+		}
 	}
 
 	return rc;
@@ -453,11 +460,13 @@ int Main::handle_ul(QXmlStreamReader &e)
 }
 
 
+
 int Main::handle_bitfield(QXmlStreamReader &e)
 {
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
 		if ( _verbose ) qDebug() << "info:\t" << a.name() << a.value();
+
 		_ignored_attributes.insert(QString("%1.%2").arg(e.name().toString()).arg(a.name().toString()));
 	}
 	return rc;
@@ -493,23 +502,12 @@ int Main::handle_value(QXmlStreamReader &e)
 	return rc;
 }
 
-const QStringSet Main::array_element_valid_attrs     { "length", "name", "offset", "stride", "variants" };
-const QStringSet Main::author_element_valid_attrs    { "email", "name" };
-const QStringSet Main::bitfield_element_valid_attrs  { "add", "align", "high", "low", "max", "min", "name", "pos", "radix", "shr", "type", "variants" };
-const QStringSet Main::bitset_element_valid_attrs    { "inline", "name", "prefix", "variants", "varset" };
-const QStringSet Main::copyright_element_valid_attrs { "year" };
-const QStringSet Main::database_element_valid_attrs  { "schemaLocation" };
-const QStringSet Main::domain_element_valid_attrs    { "bare", "name", "prefix", "size", "variants", "varset", "width" };
-const QStringSet Main::enum_element_valid_attrs      { "bare","inline", "name", "varset" };
-const QStringSet Main::group_element_valid_attrs     { "name" };
-const QStringSet Main::import_element_valid_attrs    { "file" };
-const QStringSet Main::nick_element_valid_attrs      { "name" };
-const QStringSet Main::reg16_element_valid_attrs     { "name", "offset" };
-const QStringSet Main::reg32_element_valid_attrs     { "access", "align", "length", "max", "min", "name", "offset", "shr", "stride", "type", "variants", "varset" };
-const QStringSet Main::reg64_element_valid_attrs     { "length", "name", "offset", "shr", "variants" };
-const QStringSet Main::reg8_element_valid_attrs      { "access", "length", "name", "offset", "shr", "type", "variants" };
-const QStringSet Main::spectype_element_valid_attrs  { "name","type" };
-const QStringSet Main::stripe_element_valid_attrs    { "length", "name", "offset", "prefix", "stride", "variants", "varset" };
-const QStringSet Main::use_group_element_valid_attrs { "name" };
-const QStringSet Main::value_element_valid_attrs     { "name", "value", "variants", "varset" };
+// e.g.: const std::vector<std::string> Main::array_element_attrs { "length", ... };
+#undef ELEMENT
+#undef ATTR
+#define ELEMENT(X) const std::vector<std::string> Main:: X ##_element_attrs { X ## _ELEMENT_ATTRS() };
+#define ATTR(X) #X,
+ELEMENTS()
+#undef ATTR
+#undef ELEMENT
 
