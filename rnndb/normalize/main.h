@@ -44,6 +44,7 @@ protected:
 	int read_root();
 	int cd_and_read(const QString &);
 	int read_file(QFile *);
+	QStack<QFileInfo> _current_file; // for error reporting
 
 	int handle_element(QXmlStreamReader &e);
 	void end_element(QXmlStreamReader &e);
@@ -70,5 +71,18 @@ protected:
 #undef ATTR
 #undef ELEMENT
 
+	// parsing metrics, etc
+	static QSet<QString> _nestable_elements; // ok to nest
+  	       QSet<QString> _nested_elements;   // unexpected
 
+	QStack<attr_spec_t> attr_stack;
 };
+
+//
+// misc convenience/de-clutter goo
+//
+#define ignored_attr(E, A) do {							\
+		_ignored_attributes.insert(QString("%1.%2").	\
+			arg(name_str(E)).arg(name_str(A)));			\
+	}													\
+	while (0)

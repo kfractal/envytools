@@ -1,5 +1,4 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
-
 #include <QDebug>
 #include <QTimer>
 #include <QXmlSchema>
@@ -19,25 +18,25 @@ Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv), _validator(_s
 	_root = "root.xml";
 }
 
-#define ignored_attr(E, A) do {							\
-		_ignored_attributes.insert(QString("%1.%2").	\
-			arg(name_str(E)).arg(name_str(A)));			\
-	}													\
-	while (0)
-
-
 void Main::start()
 {
+
+	attr_spec_t defaults;
+
+	attr_stack.push(defaults);
+
 	if ( _debug) qDebug() << "debug:" << __func__;
 	int rc = read_root();
 
-	if ( (_warn || _verbose) &&
-		 (_ignored_elements.size() || _ignored_attributes.size() ) ) {
+	if ( (_warn || _verbose) ) {
 		for (auto e : _ignored_elements ) {
 			qDebug() << "warning: ignored element" << e;
 		}
 		for (auto a : _ignored_attributes) {
 			qDebug() << "warning: ignored attribute" << a;
+		}
+		for (auto ne: _nested_elements ) {
+			qDebug() << "warning: unexpected nesting of" << ne << "element";
 		}
 	}
 
@@ -61,7 +60,6 @@ int Main::cd_and_read(const QString &file_path)
 
 	if ( !file.open(QIODevice::ReadOnly | QIODevice::Text) ) {
 		QFileInfo fi(file_path);
-		if ( _verbose ) qDebug() << "info: couldn't open" << file_path << ", path is" << fi.path();
 		bool retry_at_root = (fi.isRelative());
 		bool ok = false;
 		if ( retry_at_root ) {
@@ -77,7 +75,7 @@ int Main::cd_and_read(const QString &file_path)
 			return -1;
 		}
 	}
-	
+
 	QDir::setCurrent( file_dir.path() );
 	int r = read_file(&file);
 	QDir::setCurrent( cur_dir.path() );
@@ -86,6 +84,10 @@ int Main::cd_and_read(const QString &file_path)
 
 int Main::read_file(QFile *file)
 {
+	// do not return just anywhere...
+	// see "done:" label below
+	_current_file.push(QFileInfo(*file));
+
 	if (_validate_schema && _schema.isValid() ) {
 		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName())))
             qDebug() << "instance document is valid";
@@ -112,8 +114,8 @@ int Main::read_file(QFile *file)
 				if ( _verbose ) qDebug() << "info: root start elem" << xml.name();
 				rc = handle_element(xml);
 				if (rc)
-					return rc;
-				break;
+					goto done;
+				break; /*NOTREACHED*/
 			case QXmlStreamReader::EndElement:
 				if ( _verbose ) qDebug() << "info: root end elem" << xml.name();
 				end_element(xml);
@@ -139,20 +141,24 @@ int Main::read_file(QFile *file)
 			case QXmlStreamReader::Invalid:
 			default:
 				qDebug() << "error: root invalid/unk token";
-				return -1;
+				rc = -1;
+				goto done;
 				break; /*NOTREACHED*/
 		}
 	}
+ done:
 	if (xml.hasError()) {
 		qDebug() << "error: xml has error?";
-		return -1;
+		rc = -1;
 	}
+
+	_current_file.pop();
 	return rc;
 }
 
 
 //
-// handlers for specific elements and attributes etc are handled below.
+// handlers for specific elements and attributes etc are below.
 // note that the xml schema validator while in place isn't working properly
 // yet (not sure whether that's due to faults in the xml, or what, though
 // some were fixed already).
@@ -172,6 +178,26 @@ QMap<QString, Main::element_handler_t> Main::_element_handlers {
 
 #define name_str(X) (X.name().toString())
 
+//
+// i'm not certain what flavors of validation are
+// possible with the schema validator yet.  but i'm curious
+// to know here if we see any nesting of elements.
+// for most of them it makes no sense...
+//
+// hmm... more of these are nesting than i expected.
+// bitfield, stripe, array, etc.  it seems they are
+// are implementing inherited attributes more
+// than anything.  so treating them that way for now.
+//
+QSet<QString> Main::_nestable_elements {
+	"array",
+	"bitfield",
+	"domain",
+	"database",
+	"import",
+	"stripe",
+};
+
 int Main::handle_element(QXmlStreamReader &e)
 {
 	auto f = _element_handlers.find(name_str(e));
@@ -179,7 +205,18 @@ int Main::handle_element(QXmlStreamReader &e)
 		_ignored_elements.insert(name_str(e));
 		return -1;
 	}
+
+	if ( ! _nestable_elements.contains(name_str(e)) ) {
+		for ( auto si : _current_element ) {
+			if ( si == name_str(e) ) {
+				_nested_elements.insert(si);
+				qDebug() << "warning: nested" << si << "at line" << 
+					e.lineNumber() << "of" << _current_file.top().filePath();
+			}
+		}
+	}
 	_current_element.push(name_str(e));
+
 	return (this->**f)(e);
 }
 
@@ -209,44 +246,65 @@ int Main::handle_import(QXmlStreamReader &e)
 
 #undef ATTR
 #undef ELEMENT
-
-
-#define ATTR(X) static QString X##_str { #X };
+#define ATTR(X)    static QString X##_str { #X };
 #define ELEMENT(E) namespace E ##_element { E ## _ELEMENT_ATTRS() };
 ELEMENTS()
+
+
+
 
 int Main::handle_array(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == array_element::length_str) {
+			spec._length.from(a.value());
 		} else if (name_str(a) == array_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == array_element::offset_str) {
+			spec._offset.from(a.value());
 		} else if (name_str(a) == array_element::stride_str) {
+			spec._stride.from(a.value());
 		} else if (name_str(a) == array_element::variants_str) {
+			spec._variants.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
 
+	attr_stack.push(spec);
 	return rc;
 }
+
+
 
 int Main::handle_domain(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == domain_element::bare_str) {
+			spec._bare.from(a.value());
 		} else if (name_str(a) == domain_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == domain_element::prefix_str) {
+			spec._prefix.from(a.value());
 		} else if (name_str(a) == domain_element::size_str) {
+			spec._size.from(a.value());
 		} else if (name_str(a) == domain_element::variants_str) {
+			spec._variants.from(a.value());
 		} else if (name_str(a) == domain_element::varset_str) {
+			spec._varset.from(a.value());
 		} else if (name_str(a) == domain_element::width_str) {
+			spec._width.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -262,13 +320,19 @@ int Main::handle_doc(QXmlStreamReader &e)
 int Main::handle_spectype(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == spectype_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == spectype_element::type_str) {
+			spec._type.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -284,13 +348,19 @@ int Main::handle_b(QXmlStreamReader &e)
 int Main::handle_reg16(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == reg16_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == reg16_element::offset_str) {
+			spec._offset.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -344,61 +414,89 @@ int Main::handle_database(QXmlStreamReader &e)
 
 int Main::handle_bitset(QXmlStreamReader &e)
 {
-
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == bitset_element::inline_str) {
+			spec._inline.from(a.value());
 		} else if (name_str(a) == bitset_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == bitset_element::prefix_str) {
+			spec._prefix.from(a.value());
 		} else if (name_str(a) == bitset_element::variants_str) {
+			spec._variants.from(a.value());
 		} else if (name_str(a) == bitset_element::varset_str) {
+			spec._varset.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 int Main::handle_copyright(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == copyright_element::year_str) {
+			spec._year.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_reg8(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == reg8_element::access_str) {
+			spec._access.from(a.value());
 		} else if (name_str(a) == reg8_element::length_str) {
+			spec._length.from(a.value());
 		} else if (name_str(a) == reg8_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == reg8_element::offset_str) {
+			spec._offset.from(a.value());
 		} else if (name_str(a) == reg8_element::shr_str) {
+			spec._shr.from(a.value());
 		} else if (name_str(a) == reg8_element::type_str) {
+			spec._type.from(a.value());
 		} else if (name_str(a) == reg8_element::variants_str) {
+			spec._variants.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
-
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_nick(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == nick_element::name_str) {
+			spec._name.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -414,27 +512,40 @@ int Main::handle_license(QXmlStreamReader &e)
 int Main::handle_enum(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == enum_element::bare_str) {
+			spec._bare.from(a.value());
 		} else if (name_str(a) == enum_element::inline_str) {
+			spec._inline.from(a.value());
 		} else if (name_str(a) == enum_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == enum_element::varset_str) {
+			spec._varset.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_use_group(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == use_group_element::name_str) {
+			spec._name.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -450,40 +561,64 @@ int Main::handle_li(QXmlStreamReader &e)
 int Main::handle_reg64(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == reg64_element::length_str) {
+			spec._length.from(a.value());
 		} else if (name_str(a) == reg64_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == reg64_element::offset_str) {
+			spec._offset.from(a.value());
 		} else if (name_str(a) == reg64_element::shr_str) {
+			spec._shr.from(a.value());
 		} else if (name_str(a) == reg64_element::variants_str) {
+			spec._variants.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_reg32(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == reg32_element::access_str) {
+			spec._access.from(a.value());
 		} else if (name_str(a) == reg32_element::align_str) {
+			spec._align.from(a.value());
 		} else if (name_str(a) == reg32_element::length_str) {
+			spec._length.from(a.value());
 		} else if (name_str(a) == reg32_element::max_str) {
+			spec._max.from(a.value());
 		} else if (name_str(a) == reg32_element::min_str) {
+			spec._min.from(a.value());
 		} else if (name_str(a) == reg32_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == reg32_element::offset_str) {
+			spec._offset.from(a.value());
 		} else if (name_str(a) == reg32_element::shr_str) {
+			spec._shr.from(a.value());
 		} else if (name_str(a) == reg32_element::stride_str) {
+			spec._stride.from(a.value());
 		} else if (name_str(a) == reg32_element::type_str) {
+			spec._type.from(a.value());
 		} else if (name_str(a) == reg32_element::variants_str) {
+			spec._variants.from(a.value());
 		} else if (name_str(a) == reg32_element::varset_str) {
-
+			spec._varset.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -500,13 +635,19 @@ int Main::handle_author(QXmlStreamReader &e)
 {
 
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if ( name_str(a) == author_element::email_str ) {
+			spec._email.from(a.value());
 		} else if ( name_str(a) == author_element::name_str ) {
+			spec._name.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
@@ -524,68 +665,109 @@ int Main::handle_ul(QXmlStreamReader &e)
 int Main::handle_bitfield(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+	// if we're handling a bitfield, does that mean we're always in a reg*?
+	
 	for ( auto a: e.attributes() ) {
 		if ( name_str(a) == bitfield_element::add_str ) {
+			spec._add.from(a.value());
 		} else if (name_str(a) == bitfield_element::align_str ) {
+			spec._align.from(a.value());
 		} else if (name_str(a) == bitfield_element::high_str ) {
+			spec._high.from(a.value());
 		} else if (name_str(a) == bitfield_element::low_str ) {
+			spec._low.from(a.value());
 		} else if (name_str(a) == bitfield_element::max_str ) {
+			spec._max.from(a.value());
 		} else if (name_str(a) == bitfield_element::min_str ) {
+			spec._min.from(a.value());
 		} else if (name_str(a) == bitfield_element::name_str ) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == bitfield_element::pos_str ) {
+			spec._pos.from(a.value());
 		} else if (name_str(a) == bitfield_element::radix_str ) {
+			spec._radix.from(a.value());
 		} else if (name_str(a) == bitfield_element::shr_str ) {
+			spec._shr.from(a.value());
 		} else if (name_str(a) == bitfield_element::type_str ) {
+			spec._type.from(a.value());
 		} else if (name_str(a) == bitfield_element::variants_str ) {
+			spec._variants.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_stripe(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == stripe_element::length_str) {
+			spec._length.from(a.value());
 		} else if (name_str(a) == stripe_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == stripe_element::offset_str) {
+			spec._offset.from(a.value());
 		} else if (name_str(a) == stripe_element::prefix_str) {
+			spec._prefix.from(a.value());
 		} else if (name_str(a) == stripe_element::stride_str) {
+			spec._stride.from(a.value());
 		} else if (name_str(a) == stripe_element::variants_str) {
+			spec._variants.from(a.value());
 		} else if (name_str(a) == stripe_element::varset_str) {
+			spec._varset.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_group(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == group_element::name_str) {
+			spec._name.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 
 int Main::handle_value(QXmlStreamReader &e)
 {
 	int rc = 0;
+	attr_spec_t spec = attr_stack.top();
+
 	for ( auto a: e.attributes() ) {
 		if (name_str(a) == value_element::name_str) {
+			spec._name.from(a.value());
 		} else if (name_str(a) == value_element::value_str) {
+			spec._value.from(a.value());
 		} else if (name_str(a) == value_element::variants_str) {
+			spec._variants.from(a.value());
 		} else if (name_str(a) == value_element::varset_str) {
+			spec._varset.from(a.value());
 		} else {
 			ignored_attr(e,a);
 		}
 	}
+
+	attr_stack.push(spec);
 	return rc;
 }
 

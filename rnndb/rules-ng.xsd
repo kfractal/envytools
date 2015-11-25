@@ -187,6 +187,7 @@
 		<attribute name="variants" type="string" use="optional" />
 		<attribute name="stride" type="rng:HexOrNumber" use="optional" />
 		<attribute name="length" type="rng:HexOrNumber" use="optional" />
+		<attribute name="align" type="rng:HexOrNumber" use="optional" />
 	</complexType>
 
 	<complexType name="bitsetType">
@@ -220,6 +221,12 @@
 		<attribute name="varset" type="NMTOKEN" use="optional" />
 		<attribute name="variants" type="string" use="optional" />
 		<attribute name="shr" type="nonNegativeInteger" use="optional" />
+		<attribute name="min" type="nonNegativeInteger" use="optional" />
+		<attribute name="max" type="nonNegativeInteger" use="optional" />
+		<attribute name="add" type="nonNegativeInteger" use="optional" />
+		<attribute name="align" type="nonNegativeInteger" use="optional" />
+		<attribute name="pos" type="nonNegativeInteger" use="optional" />
+		<attribute name="radix" type="nonNegativeInteger" use="optional" />
 	</complexType>
 
 	<complexType name="enumType">
