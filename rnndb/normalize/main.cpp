@@ -111,14 +111,14 @@ int Main::read_file(QFile *file)
 				if ( _verbose ) qDebug() << "info: root end doc";
 				break;
 			case QXmlStreamReader::StartElement:
-				if ( _verbose ) qDebug() << "info: root start elem" << xml.name();
 				rc = handle_element(xml);
 				if (rc)
 					goto done;
-				break; /*NOTREACHED*/
+				break;
 			case QXmlStreamReader::EndElement:
-				if ( _verbose ) qDebug() << "info: root end elem" << xml.name();
-				end_element(xml);
+				rc = end_element(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::Characters:
 				if ( _verbose ) qDebug() << "info: root chars";
@@ -176,6 +176,15 @@ QMap<QString, Main::element_handler_t> Main::_element_handlers {
 };
 #undef ELEMENT
 
+#define ELEMENT(X) { #X , &Main::close_ ## X },
+
+QMap<QString, Main::element_handler_t> Main::_element_closers {
+	ELEMENTS()
+	{ "use-group", &Main::close_use_group },
+};
+#undef ELEMENT
+
+
 #define name_str(X) (X.name().toString())
 
 //
@@ -216,16 +225,32 @@ int Main::handle_element(QXmlStreamReader &e)
 		}
 	}
 	_current_element.push(name_str(e));
-
-	return (this->**f)(e);
+	int rc = (this->**f)(e);
+	if (rc) {
+		qDebug() << "error: failed handler for" << name_str(e);
+	}
+	return rc;
 }
 
-void Main::end_element(QXmlStreamReader &)
+int Main::end_element(QXmlStreamReader &e)
 {
+	auto f = _element_closers.find(name_str(e));
+	if ( f == _element_closers.end() ) {
+		// qDebug() << "failed to find closer for" << name_str(e);
+		 _ignored_elements.insert(name_str(e));
+		return -1;
+	}
+
+	int rc = (this->**f)(e);
+
 	if ( _current_element.size() == 0 ) {
 		qDebug() << "error: about to pop empty element stack?";
 	}
 	_current_element.pop();
+	if (rc) {
+		qDebug() << "error: failed closer for" << name_str(e);
+	}
+	return rc;
 }
 
 int Main::handle_import(QXmlStreamReader &e)
@@ -242,6 +267,10 @@ int Main::handle_import(QXmlStreamReader &e)
 		}
 	}
 	return rc;
+}
+int Main::close_import(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 #undef ATTR
@@ -277,6 +306,10 @@ int Main::handle_array(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_array(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 
 
@@ -307,6 +340,11 @@ int Main::handle_domain(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_domain(QXmlStreamReader &e)
+{
+	return 0;
+}
+
 
 int Main::handle_doc(QXmlStreamReader &e)
 {
@@ -316,6 +354,11 @@ int Main::handle_doc(QXmlStreamReader &e)
 	}
 	return rc;
 }
+int Main::close_doc(QXmlStreamReader &e)
+{
+	return 0;
+}
+
 
 int Main::handle_spectype(QXmlStreamReader &e)
 {
@@ -335,6 +378,11 @@ int Main::handle_spectype(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_spectype(QXmlStreamReader &e)
+{
+	return 0;
+}
+
 
 int Main::handle_b(QXmlStreamReader &e)
 {
@@ -343,6 +391,10 @@ int Main::handle_b(QXmlStreamReader &e)
 		ignored_attr(e,a);
 	}
 	return rc;
+}
+int Main::close_b(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_reg16(QXmlStreamReader &e)
@@ -362,6 +414,10 @@ int Main::handle_reg16(QXmlStreamReader &e)
 
 	attr_stack.push(spec);
 	return rc;
+}
+int Main::close_reg16(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_database(QXmlStreamReader &e)
@@ -410,6 +466,10 @@ int Main::handle_database(QXmlStreamReader &e)
 	}
 	return rc;
 }
+int Main::close_database(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 
 int Main::handle_bitset(QXmlStreamReader &e)
@@ -436,6 +496,11 @@ int Main::handle_bitset(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_bitset(QXmlStreamReader &e)
+{
+	return 0;
+}
+
 int Main::handle_copyright(QXmlStreamReader &e)
 {
 	int rc = 0;
@@ -451,6 +516,10 @@ int Main::handle_copyright(QXmlStreamReader &e)
 
 	attr_stack.push(spec);
 	return rc;
+}
+int Main::close_copyright(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_reg8(QXmlStreamReader &e)
@@ -481,6 +550,10 @@ int Main::handle_reg8(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_reg8(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_nick(QXmlStreamReader &e)
 {
@@ -499,6 +572,10 @@ int Main::handle_nick(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_nick(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_license(QXmlStreamReader &e)
 {
@@ -507,6 +584,10 @@ int Main::handle_license(QXmlStreamReader &e)
 		ignored_attr(e,a);
 	}
 	return rc;
+}
+int Main::close_license(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_enum(QXmlStreamReader &e)
@@ -531,6 +612,10 @@ int Main::handle_enum(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_enum(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_use_group(QXmlStreamReader &e)
 {
@@ -548,6 +633,10 @@ int Main::handle_use_group(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_use_group(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_li(QXmlStreamReader &e)
 {
@@ -556,6 +645,10 @@ int Main::handle_li(QXmlStreamReader &e)
 		ignored_attr(e,a);
 	}
 	return rc;
+}
+int Main::close_li(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_reg64(QXmlStreamReader &e)
@@ -581,6 +674,10 @@ int Main::handle_reg64(QXmlStreamReader &e)
 
 	attr_stack.push(spec);
 	return rc;
+}
+int Main::close_reg64(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_reg32(QXmlStreamReader &e)
@@ -621,6 +718,10 @@ int Main::handle_reg32(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_reg32(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_brief(QXmlStreamReader &e)
 {
@@ -629,6 +730,10 @@ int Main::handle_brief(QXmlStreamReader &e)
 		ignored_attr(e,a);
 	}
 	return rc;
+}
+int Main::close_brief(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_author(QXmlStreamReader &e)
@@ -650,6 +755,10 @@ int Main::handle_author(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_author(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_ul(QXmlStreamReader &e)
 {
@@ -658,6 +767,10 @@ int Main::handle_ul(QXmlStreamReader &e)
 		ignored_attr(e,a);
 	}
 	return rc;
+}
+int Main::close_ul(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 
@@ -701,6 +814,10 @@ int Main::handle_bitfield(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_bitfield(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_stripe(QXmlStreamReader &e)
 {
@@ -730,6 +847,10 @@ int Main::handle_stripe(QXmlStreamReader &e)
 	attr_stack.push(spec);
 	return rc;
 }
+int Main::close_stripe(QXmlStreamReader &e)
+{
+	return 0;
+}
 
 int Main::handle_group(QXmlStreamReader &e)
 {
@@ -746,6 +867,10 @@ int Main::handle_group(QXmlStreamReader &e)
 
 	attr_stack.push(spec);
 	return rc;
+}
+int Main::close_group(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 int Main::handle_value(QXmlStreamReader &e)
@@ -769,6 +894,10 @@ int Main::handle_value(QXmlStreamReader &e)
 
 	attr_stack.push(spec);
 	return rc;
+}
+int Main::close_value(QXmlStreamReader &e)
+{
+	return 0;
 }
 
 // e.g.: const std::vector<std::string> Main::array_element_attrs { "length", ... };

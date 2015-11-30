@@ -47,7 +47,7 @@ protected:
 	QStack<QFileInfo> _current_file; // for error reporting
 
 	int handle_element(QXmlStreamReader &e);
-	void end_element(QXmlStreamReader &e);
+	int end_element(QXmlStreamReader &e);
 	QStack<QString> _current_element;
 
 	QSet<QString> _ignored_attributes;
@@ -55,10 +55,14 @@ protected:
 
 	typedef int (Main::*element_handler_t)(QXmlStreamReader &);
 	static QMap<QString, element_handler_t> _element_handlers;
+	static QMap<QString, element_handler_t> _element_closers;
 
 
-	// element handler prototypes
+	// element handler/closer prototypes
 #define ELEMENT(X)	int handle_ ## X (QXmlStreamReader &);
+	ELEMENTS()
+#undef ELEMENT
+#define ELEMENT(X)	int close_ ## X (QXmlStreamReader &);
 	ELEMENTS()
 #undef ELEMENT
 
