@@ -1,4 +1,5 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
+
 #include <QDebug>
 #include <QQueue>
 #include <QTimer>
@@ -14,16 +15,19 @@ int main (int argc, char **argv)
 	return app.exec();
 }
 
-Main::Main(int &argc, char **argv) : QCoreApplication(argc, argv), _validator(_schema)
+Main::Main(int &argc, char **argv) :
+	QCoreApplication(argc, argv), _validator(_schema)
 {
 	_root = "root.xml";
 }
 
 void Main::start()
 {
-
-	attr_spec_t defaults; // XXX: defaults not actually set yet...
-	attr_stack.push(defaults); // also note the constructor trick screws up this push op (resets b's)
+	// XXX: defaults not actually set yet...
+	// should almost certainly involve the schema.
+	attr_spec_t defaults;
+	defaults.zap_spec_bits(); // mark as inherited values...
+	attr_stack.push(defaults);
 
 	int rc = read_root();
 
@@ -36,6 +40,16 @@ void Main::start()
 		}
 		for (auto ne: _nested_elements ) {
 			qDebug() << "warning: unexpected nesting of" << ne << "element";
+		}
+		if ( _verbose)  {
+			for ( auto rf : _read_files ) {
+				qDebug() << "info: read" << rf;
+			}
+		}
+		for ( auto xf : _all_xml_files ) {
+			if ( _read_files.find(xf) == _read_files.end() ) {
+				qDebug() << "warning: didn't use" << xf << "?";
+			}
 		}
 	}
 
@@ -52,17 +66,6 @@ int Main::read_root()
 	find_xml_files();
 
 	int rc = cd_and_read(_root);
-
-	if ( !rc ) {
-		for ( auto rf : _read_files ) {
-			if ( _verbose) qDebug() << "info: read" << rf;
-		}
-		for ( auto xf : _all_xml_files ) {
-			if ( _read_files.find(xf) == _read_files.end() ) {
-				if ( _warn) qDebug() << "warning: didn't use" << xf << "?";
-			}
-		}
-	}
 
 	return rc;
 }
@@ -178,7 +181,9 @@ int Main::read_file(QFile *file)
 
 // misc junk for handlers
 static void show_reg32_attr_spec(const attr_spec_t &a);
-static bool reg_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name);
+static bool reg_info     (const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name);
+static bool bitfield_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name,
+						  uint32_t &high, uint32_t &low);
 
 //
 // handlers for specific elements and attributes etc are below.
@@ -308,7 +313,7 @@ int Main::handle_import(QXmlStreamReader &e)
 			if ( rc )
 				return rc;
 		} else {
-			ignored_attr(e,a);
+			ignored_attr(e, a);
 		}
 	}
 	return rc;
@@ -323,7 +328,6 @@ int Main::close_import(QXmlStreamReader &e)
 #define ATTR(X)    static QString X##_str { #X };
 #define ELEMENT(E) namespace E ##_element { E ## _ELEMENT_ATTRS() };
 ELEMENTS()
-
 
 
 int Main::handle_array(QXmlStreamReader &e)
@@ -347,15 +351,12 @@ int Main::handle_array(QXmlStreamReader &e)
 		}
 	}
 
-
 	return rc;
 }
 int Main::close_array(QXmlStreamReader &e)
 {
 	return 0;
 }
-
-
 
 int Main::handle_domain(QXmlStreamReader &e)
 {
@@ -384,11 +385,11 @@ int Main::handle_domain(QXmlStreamReader &e)
 
 	return rc;
 }
+
 int Main::close_domain(QXmlStreamReader &e)
 {
 	return 0;
 }
-
 
 int Main::handle_doc(QXmlStreamReader &e)
 {
@@ -398,11 +399,11 @@ int Main::handle_doc(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_doc(QXmlStreamReader &e)
 {
 	return 0;
 }
-
 
 int Main::handle_spectype(QXmlStreamReader &e)
 {
@@ -421,11 +422,11 @@ int Main::handle_spectype(QXmlStreamReader &e)
 
 	return rc;
 }
+
 int Main::close_spectype(QXmlStreamReader &e)
 {
 	return 0;
 }
-
 
 int Main::handle_b(QXmlStreamReader &e)
 {
@@ -435,6 +436,7 @@ int Main::handle_b(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_b(QXmlStreamReader &e)
 {
 	return 0;
@@ -454,7 +456,6 @@ int Main::handle_reg16(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
 
@@ -466,7 +467,6 @@ int Main::close_reg16(QXmlStreamReader &e)
 	uint64_t offset;
 	QString name;
 	bool ok = reg_info(attr_stack, offset, name);
-
 	if ( ok ) {
 		qDebug() << QString("reg16: %1 0x%2").arg(name).
 			arg(offset, 8 /*note: 32b still*/, 16, QChar('0'));
@@ -525,11 +525,11 @@ int Main::handle_database(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_database(QXmlStreamReader &e)
 {
 	return 0;
 }
-
 
 int Main::handle_bitset(QXmlStreamReader &e)
 {
@@ -554,6 +554,7 @@ int Main::handle_bitset(QXmlStreamReader &e)
 
 	return rc;
 }
+
 int Main::close_bitset(QXmlStreamReader &e)
 {
 	return 0;
@@ -574,6 +575,7 @@ int Main::handle_copyright(QXmlStreamReader &e)
 
 	return rc;
 }
+
 int Main::close_copyright(QXmlStreamReader &e)
 {
 	return 0;
@@ -655,6 +657,7 @@ int Main::handle_license(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_license(QXmlStreamReader &e)
 {
 	return 0;
@@ -681,6 +684,7 @@ int Main::handle_enum(QXmlStreamReader &e)
 
 	return rc;
 }
+
 int Main::close_enum(QXmlStreamReader &e)
 {
 	return 0;
@@ -701,6 +705,7 @@ int Main::handle_use_group(QXmlStreamReader &e)
 
 	return rc;
 }
+
 int Main::close_use_group(QXmlStreamReader &e)
 {
 	return 0;
@@ -714,6 +719,7 @@ int Main::handle_li(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_li(QXmlStreamReader &e)
 {
 	return 0;
@@ -760,8 +766,6 @@ int Main::close_reg64(QXmlStreamReader &e)
 	return 0;
 }
 
-
-
 int Main::handle_reg32(QXmlStreamReader &e)
 {
 	int rc = 0;
@@ -797,7 +801,6 @@ int Main::handle_reg32(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
 
@@ -828,6 +831,7 @@ int Main::handle_brief(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_brief(QXmlStreamReader &e)
 {
 	return 0;
@@ -848,9 +852,9 @@ int Main::handle_author(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
+
 int Main::close_author(QXmlStreamReader &e)
 {
 	return 0;
@@ -864,18 +868,16 @@ int Main::handle_ul(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_ul(QXmlStreamReader &e)
 {
 	return 0;
 }
 
-
-
 int Main::handle_bitfield(QXmlStreamReader &e)
 {
 	int rc = 0;
 	attr_spec_t &spec = attr_stack.top();
-	// if we're handling a bitfield, does that mean we're always in a reg*?
 	
 	for ( auto a: e.attributes() ) {
 		if ( name_str(a) == bitfield_element::add_str ) {
@@ -906,11 +908,25 @@ int Main::handle_bitfield(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
+
 int Main::close_bitfield(QXmlStreamReader &e)
 {
+	uint64_t offset;
+	QString name;
+	uint32_t high, low;
+	bool ok = bitfield_info(attr_stack, offset, name, high, low);
+
+	if ( ok ) {
+		qDebug() << QString("bitfield: %1 %2:%3").arg(name).arg(high).arg(low);
+		// arg(offset, 8, 16, QChar('0'));
+	}
+	else {
+		qDebug() << "error: bogus bitfield info? dumping attr stack...";
+		dump_attr_stack();
+		return -1;
+	}
 	return 0;
 }
 
@@ -938,9 +954,9 @@ int Main::handle_stripe(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
+
 int Main::close_stripe(QXmlStreamReader &e)
 {
 	return 0;
@@ -958,9 +974,9 @@ int Main::handle_group(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
+
 int Main::close_group(QXmlStreamReader &e)
 {
 	return 0;
@@ -984,9 +1000,9 @@ int Main::handle_value(QXmlStreamReader &e)
 			ignored_attr(e,a);
 		}
 	}
-
 	return rc;
 }
+
 int Main::close_value(QXmlStreamReader &e)
 {
 	return 0;
@@ -1023,7 +1039,6 @@ void Main::dump_attr_stack()
 	}
 }
 
-
 static bool reg_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name)
 {
 	name = QString();
@@ -1047,6 +1062,49 @@ static bool reg_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QS
 		return false;
 	}
 	return true;
+}
+
+static bool bitfield_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name,
+						  uint32_t &high, uint32_t &low)
+{
+	high = low = 0;
+	bool ok = reg_info(attr_stack, offset, name);
+
+	int depth = attr_stack.length();
+	bool high_hit, low_hit, pos_hit;
+	uint32_t pos = 0;
+	high_hit = pos_hit = low_hit = false;
+
+	if ( !ok ) {
+		if ( name.size() ) {
+			// this suggests that the offset is zero (i.e. no explicit register/offset association)
+			// that *can* be legit (though dodgy for the purposes of this application)
+			//XXX consider a warning here to clean-up the places it happens.
+			ok = true;
+		}
+	}
+
+	for ( int a = 0; a < depth; a++) {
+		if ( attr_stack[a]._high.b ) {
+			high_hit |= true;
+			high = attr_stack[a]._high.n;
+		}
+		if ( attr_stack[a]._low.b ) {
+			low_hit |= true;
+			low = attr_stack[a]._low.n;
+		}
+		if ( attr_stack[a]._pos.b ) {
+			pos_hit |= true;
+			pos = attr_stack[a]._pos.n;
+			high = low = pos;
+		}
+	}
+
+	// whichever is last wins.  pos resets though.
+	// i.e.: they don't stack.
+	ok = (high_hit && low_hit) || pos_hit;
+
+	return ok;
 }
 
 void Main::find_xml_files()

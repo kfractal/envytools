@@ -52,6 +52,10 @@ protected:
 
 	QSet<QString> _ignored_attributes;
 	QSet<QString> _ignored_elements;
+	inline void ignored_attr(QXmlStreamReader &E, QXmlStreamAttribute &A) {
+		_ignored_attributes.insert(QString("%1.%2").
+			arg(E.name().toString()).arg(A.name().toString()));
+	}
 
 	typedef int (Main::*element_handler_t)(QXmlStreamReader &);
 	static QMap<QString, element_handler_t> _element_handlers;
@@ -88,12 +92,3 @@ protected:
 	QSet<QString> _ignored_xml_files;
 	void find_xml_files();
 };
-
-//
-// misc convenience/de-clutter goo
-//
-#define ignored_attr(E, A) do {							\
-		_ignored_attributes.insert(QString("%1.%2").	\
-			arg(name_str(E)).arg(name_str(A)));			\
-	}													\
-	while (0)
