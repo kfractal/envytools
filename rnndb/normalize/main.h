@@ -80,6 +80,8 @@ protected:
   	       QSet<QString> _nested_elements;   // unexpected
 
 	QStack<attr_spec_t> attr_stack;
+
+	void dump_attr_stack();
 };
 
 //

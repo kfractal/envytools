@@ -5,19 +5,19 @@ Qt >= 5.x should be installed in order to build and run (tested with 5.5).
 With that in mind, to build:
 
     qmake normalize.pro
-    make <-j*>
+    make [-k, -j*, etc.]
 
 Run from the rnndb dir (..) so that "root.xml" is in the current directory.
 
     normalize/normalize_rnndb
 
-As of latest check-in it should produce output along the lines of
+As of latest check-in it should return with code 0 and produce output similar
+to:
 
-    warning: ignored attribute "enum.bare"
-    warning: ignored attribute "domain.varset"
+    "reg32: NV_MMIO::PUNK022::PDAEMON_ENABLE 0x00022210"
+    "reg8: NV_MMIO::PROM 0x00610000"
     [...]
 
-This is an indication of what bits of the xml haven't been scraped yet.
 The next step is to take this code base and bring it up at run time with
 the tool which I used to generate the nvgpu->nouveau headers.
 I'm working on that now...

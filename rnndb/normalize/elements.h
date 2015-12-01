@@ -1,5 +1,5 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
-
+#include <QDebug>
 
 //
 // valid XML elements
@@ -30,7 +30,7 @@
 	ELEMENT(ul)									\
 	ELEMENT(use_group)							\
 	ELEMENT(value)
-// note: the "use-group" element is handled differentely as needed since it isn't a token
+// note: the "use-group" element is handled separately since it isn't a token
 
 
 #define array_ELEMENT_ATTRS()		ATTR(length) ATTR(name) ATTR(offset) ATTR(stride) ATTR(variants)
@@ -65,25 +65,8 @@
 #define use_group_ELEMENT_ATTRS()	ATTR(name)
 #define value_ELEMENT_ATTRS()		ATTR(name) ATTR(value) ATTR(variants) ATTR(varset)
 
-// need regexp here? (whitespace and the like?)
-static inline uint32_t from_width(const QStringRef &s) {
-	return s.toInt();
-}
-static inline uint32_t from_offset(const QStringRef &s){
-	return s.toInt();
-}
-static inline uint32_t from_shr(const QStringRef &s){
-	return s.toInt();
-}
-static inline uint32_t from_stride(const QStringRef &s){
-	return s.toInt();
-}
-static inline uint32_t from_length(const QStringRef &s){
-	return s.toInt();
-}
 
-// union-esque thing which records which attrs at any
-// given element have been specified (vs. inherited)
+// union-esque thing which records attr specifications
 struct attr_spec_t {
 	struct bool_spec_t {
 		bool t;
@@ -96,23 +79,29 @@ struct attr_spec_t {
 				t = true;
 			t = false;
 		}
-		bool_spec_t() : t(false), b(false) { }
-		bool_spec_t(const bool_spec_t &o) : t(o.t), b(false) { }
 	};
 	struct string_spec_t {
 		QString s;
 		bool b;
 		void from(const QStringRef &r) { s = r.toString(); b = true; }
-		// void from(struct string_spec_t &o) { s = o._s; b = false; }
-		string_spec_t() : s(QString()), b(false) { }
-		string_spec_t(const string_spec_t &o) : s(o.s), b(false) { }
 	};
 	struct uint32_spec_t {
 		uint32_t n;
 		bool b;
-		void from(const QStringRef &r) { n = r.toInt(); b = true; }
-		uint32_spec_t() : n(0), b(false) { }
-		uint32_spec_t(const uint32_spec_t &o) : n(o.n), b(false) { }
+		// tbd: throw or propagate conversion failure...
+		void from(const QStringRef &r) {
+			bool ok;
+			n = r.toUInt(&ok); b = true;
+			// XXX docs for QString::to*Int/Long says it spots the "0x" on its own.
+			// but empirically, it does not...
+			if ( !ok && r.startsWith("0x", Qt::CaseInsensitive) ) {
+				n = r.toUInt(&ok, 16);
+				if ( !ok ) {
+					qDebug() << "error: couldn't turn this into a number:" << r;
+					n = ~(uint32_t)0;
+				}
+			}
+		}
 	};
 
 	bool_spec_t _bare;
@@ -144,15 +133,36 @@ struct attr_spec_t {
 	uint32_spec_t _high;
 	uint32_spec_t _low;
 
-	attr_spec_t() { }
-	attr_spec_t(const attr_spec_t &o) :
-		_bare(o._bare), _inline(o._inline),
-		_access(o._access), _name(o._name), _variants(o._variants),
-		_type(o._type), _varset(o._varset), _prefix(o._prefix),
-		_year(o._year), _email(o._email), _value(o._value),
-		_offset(o._offset), _shr(o._shr), _size(o._size), _stride(o._stride),
-		_length(o._length), _width(o._width), _align(o._align),
-		_max(o._max), _min(o._min), _add(o._add), _pos(o._pos), _radix(o._radix),
-		_high(o._high), _low(o._low)
-	{ }
+	void zap_spec_bits() {
+		// TBD: make a closed-form version instead of this bug-prone mess.
+		_bare.b = _inline.b =
+			false;
+
+		_access.b =
+			_name.b =
+			_variants.b =
+			_type.b =
+			_varset.b =
+			_prefix.b =
+			_year.b =
+			_email.b =
+			_value.b =
+			false;
+
+		_offset.b =
+			_shr.b =
+			_size.b =
+			_stride.b =
+			_length.b =
+			_width.b =
+			_align.b =
+			_max.b =
+			_min.b =
+			_add.b =
+			_pos.b =
+			_radix.b =
+			_high.b =
+			_low.b =
+			false;
+	}
 };
