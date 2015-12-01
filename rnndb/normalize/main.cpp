@@ -16,7 +16,7 @@ int main (int argc, char **argv)
 }
 
 Main::Main(int &argc, char **argv) :
-	QCoreApplication(argc, argv), _validator(_schema)
+	QCoreApplication(argc, argv), _in(stdin), _out(stdout), _validator(_schema)
 {
 	_root = "root.xml";
 }
@@ -468,8 +468,8 @@ int Main::close_reg16(QXmlStreamReader &e)
 	QString name;
 	bool ok = reg_info(attr_stack, offset, name);
 	if ( ok ) {
-		qDebug() << QString("reg16: %1 0x%2").arg(name).
-			arg(offset, 8 /*note: 32b still*/, 16, QChar('0'));
+		out() << QString("reg16: %1 0x%2").arg(name).
+			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
 	}
 	else {
 		qDebug() << "error: bogus reg16 info? dumping attr stack...";
@@ -617,8 +617,8 @@ int Main::close_reg8(QXmlStreamReader &e)
 	bool ok = reg_info(attr_stack, offset, name);
 
 	if ( ok ) {
-		qDebug() << QString("reg8: %1 0x%2").arg(name).
-			arg(offset, 8 /*note: 32b still*/, 16, QChar('0'));
+		out() << QString("reg8: %1 0x%2").arg(name).
+			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
 	}
 	else {
 		qDebug() << "error: bogus reg8 info? dumping attr stack...";
@@ -756,7 +756,7 @@ int Main::close_reg64(QXmlStreamReader &e)
 	QString name;
 	bool ok = reg_info(attr_stack, offset, name);
 	if ( ok ) {
-		qDebug() << QString("reg64: %1 0x%2").arg(name).arg(offset, 16, 16, QChar('0'));
+		out() << QString("reg64: %1 0x%2").arg(name).arg(offset, 16, 16, QChar('0')) << '\n';
 	}
 	else {
 		qDebug() << "error: bogus reg64 info? dumping attr stack...";
@@ -813,7 +813,7 @@ int Main::close_reg32(QXmlStreamReader &e)
 	QString name;
 	bool ok = reg_info(attr_stack, offset, name);
 	if ( ok ) {
-		qDebug() << QString("reg32: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0'));
+		out() << QString("reg32: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0')) << '\n';
 	}
 	else {
 		qDebug() << "error: bogus reg32 info? dumping attr stack...";
@@ -919,8 +919,7 @@ int Main::close_bitfield(QXmlStreamReader &e)
 	bool ok = bitfield_info(attr_stack, offset, name, high, low);
 
 	if ( ok ) {
-		qDebug() << QString("bitfield: %1 %2:%3").arg(name).arg(high).arg(low);
-		// arg(offset, 8, 16, QChar('0'));
+		out() << QString("bitfield: %1 %2:%3").arg(name).arg(high).arg(low) << '\n';
 	}
 	else {
 		qDebug() << "error: bogus bitfield info? dumping attr stack...";

@@ -24,10 +24,15 @@ class Main : public QCoreApplication
 public:
 	Main(int & argc, char ** argv);
 
+	QTextStream &out() { return _out; }
+	QTextStream &in()  { return _in;  }
+
 public slots:
 	void start();
 
 protected:
+	QTextStream _in;
+	QTextStream _out;
 
 	QXmlSchema _schema;
 	QXmlSchemaValidator _validator;
