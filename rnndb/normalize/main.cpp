@@ -1,5 +1,6 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
 #include <QDebug>
+#include <QQueue>
 #include <QTimer>
 #include <QXmlSchema>
 #include <QRegularExpression>
@@ -46,7 +47,24 @@ int Main::read_root()
 {
 	_root_dir = QDir(QFileInfo(_root).dir());
 	if (_verbose) qDebug() << "info: root dir is " << _root_dir.absolutePath();
-	return cd_and_read(_root);
+
+	// this is used to check for files which might be improperly ignored.
+	find_xml_files();
+
+	int rc = cd_and_read(_root);
+
+	if ( !rc ) {
+		for ( auto rf : _read_files ) {
+			if ( _verbose) qDebug() << "info: read" << rf;
+		}
+		for ( auto xf : _all_xml_files ) {
+			if ( _read_files.find(xf) == _read_files.end() ) {
+				if ( _warn) qDebug() << "warning: didn't use" << xf << "?";
+			}
+		}
+	}
+
+	return rc;
 }
 
 // returns to current at the end
@@ -85,7 +103,9 @@ int Main::read_file(QFile *file)
 	// do not return just anywhere...
 	// see "done:" label below
 	_current_file.push(QFileInfo(*file));
-	if ( _debug) qDebug() << "debug: read_file" << file->fileName();
+
+	_read_files.insert("./" + file->fileName()); // is the "./" dodgy?
+
 	if (_validate_schema && _schema.isValid() ) {
 		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName())))
             qDebug() << "instance document is valid";
@@ -1027,4 +1047,58 @@ static bool reg_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QS
 		return false;
 	}
 	return true;
+}
+
+void Main::find_xml_files()
+{
+    QRegularExpression file_name_re(".*\\.xml");
+    QMap<QString, QDir *> dirmap;
+    QQueue<QDir *>        dirq;
+    QMap<QString, QFileInfo *> filemap;
+    QQueue<QFileInfo *>        fileq;
+
+    // prime the pump
+    dirq.enqueue(&_root_dir);
+
+    //
+    // A queue and marker scheme is used traverse the
+    // directory hierarchy (instead of recursion).
+    //
+    while ( dirq.size() ) {
+
+        QDir *dir = dirq.dequeue();
+        if ( !dir->exists() )
+            continue;
+
+        QFileInfoList dirlist = dir->entryInfoList();
+
+        // push children dirs into the queue.  push files which match the
+        // file search expr into the fileq.
+
+        for ( QFileInfoList::iterator i = dirlist.begin(); i != dirlist.end(); i++) {
+            QString full = i->path() + "/" + i->fileName();
+            if ( i->isFile() ) {
+                QRegularExpressionMatch m = file_name_re.match(i->fileName());
+                bool matched = m.hasMatch();
+                if ( !matched )
+					continue;
+                fileq.enqueue( new QFileInfo( full ) );
+            }
+            else if ( i->isDir() ) {
+                if ( i->fileName() == "." || i->fileName() == ".." )
+                    continue;
+
+                if ( dirmap.find(full) == dirmap.end() ) {
+                    QDir * d = new QDir(full);
+                    dirq.enqueue(d);
+                    dirmap[full] = d;
+                }
+            }
+        }
+    }
+
+    while ( fileq.size() ) {
+        QFileInfo *fi = fileq.dequeue();
+		_all_xml_files.insert(fi->filePath());
+    }
 }

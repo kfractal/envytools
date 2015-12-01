@@ -82,6 +82,11 @@ protected:
 	QStack<attr_spec_t> attr_stack;
 
 	void dump_attr_stack();
+
+	QSet<QString> _all_xml_files;
+	QSet<QString> _read_files;
+	QSet<QString> _ignored_xml_files;
+	void find_xml_files();
 };
 
 //

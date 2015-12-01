@@ -18,8 +18,18 @@ to:
     "reg8: NV_MMIO::PROM 0x00610000"
     [...]
 
-The next step is to take this code base and bring it up at run time with
-the tool which I used to generate the nvgpu->nouveau headers.
+If someone adds a reference to an element or attribute this tool isn't
+expecting a warning will be issued.  Likewise any xml files found at the root
+dir of rnndb which *aren't* used by the hierarchy at root.xml will also
+be warned of.
+
+The XML schema found in rules-ng.xsd is fairly up to date, but there are
+still problems which preclude its rigorous use.  But, there *is* code in the
+tool to enable schema validation.  At some point it'd be nice to turn that
+on unconditionally...
+
+The next large step here is to take this code base and bring it up at run-time
+alongside the tool which I used to generate the nvgpu->nouveau headers.
 I'm working on that now...
 
 The name chosen here, 'normalize' is only for lack of a better phrase.  :/
