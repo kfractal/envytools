@@ -2,4 +2,5 @@ moc_*
 Makefile
 *.o
 normalize_rnndb
+.qmake.stash
 
