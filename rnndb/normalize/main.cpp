@@ -27,7 +27,7 @@ void Main::start()
 	// should almost certainly involve the schema.
 	attr_spec_t defaults;
 	defaults.zap_spec_bits(); // mark as inherited values...
-	attr_stack.push(defaults);
+	_attr_stack.push(defaults);
 
 	int rc = read_root();
 
@@ -63,6 +63,7 @@ int Main::read_root()
 	if (_verbose) qDebug() << "info: root dir is " << _root_dir.absolutePath();
 
 	// this is used to check for files which might be improperly ignored.
+	// i.e.: it's not used to drive the hierarchy traversal...
 	find_xml_files();
 
 	int rc = cd_and_read(_root);
@@ -111,9 +112,9 @@ int Main::read_file(QFile *file)
 
 	if (_validate_schema && _schema.isValid() ) {
 		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName())))
-            qDebug() << "instance document is valid";
-        else
-            qDebug() << "instance document is invalid";
+			qDebug() << "instance document is valid";
+		else
+			qDebug() << "instance document is invalid";
 	}
 
 	int rc = 0;
@@ -123,7 +124,7 @@ int Main::read_file(QFile *file)
 	while (!xml.atEnd()) {
 		auto token_type = xml.readNext();
 		// ...  do (recursive descent style, graph building) processing
-		
+
 		switch (token_type) {
 			case QXmlStreamReader::StartDocument:
 				if ( _verbose ) qDebug() << "info: root start doc";
@@ -181,9 +182,6 @@ int Main::read_file(QFile *file)
 
 // misc junk for handlers
 static void show_reg32_attr_spec(const attr_spec_t &a);
-static bool reg_info     (const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name);
-static bool bitfield_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name,
-						  uint32_t &high, uint32_t &low);
 
 //
 // handlers for specific elements and attributes etc are below.
@@ -237,38 +235,43 @@ QSet<QString> Main::_nestable_elements {
 
 int Main::handle_element(QXmlStreamReader &e)
 {
+	auto f = _element_handlers.find(name_str(e));
+	if ( f == _element_handlers.end() ) {
+		_ignored_elements.insert(name_str(e));
+		qDebug() << "error: unknown element" << name_str(e) << "at line" <<
+			e.lineNumber() << "of" << _current_file.top().filePath();
+		return -1;
+	}
+
 	if ( ! _nestable_elements.contains(name_str(e)) ) {
 		for ( auto si : _current_element ) {
 			if ( si == name_str(e) ) {
 				_nested_elements.insert(si);
-				qDebug() << "warning: nested" << si << "at line" << 
+				qDebug() << "warning: nested" << si << "at line" <<
 					e.lineNumber() << "of" << _current_file.top().filePath();
 			}
 		}
 	}
+
+	//
+	// the attribute stack records where attributes have been
+	// specified, both values as well as bits for true/false
+	// (given at that level of the stack or not).
+	//
+	// the stack is massaged/flattened here so that the handlers can
+	// treat the stack as a pair of attr sets:
+	//     . attrs specified local to the element
+	//     . attrs specified *before* the element
+	//
 	_current_element.push(name_str(e));
+	_attr_stack.push(_attr_stack.top());
 
-	attr_spec_t t = attr_stack.top();
-	t.zap_spec_bits(); // inherited values...
-	attr_stack.push(t);
+	int rc = (this->**f)(e); // records attrs seen in top()
 
-	int rc = 0;
-	auto f = _element_handlers.find(name_str(e));
-	if ( f == _element_handlers.end() ) {
-		_ignored_elements.insert(name_str(e));
-		rc = -1;
-		goto done;
-		//return -1;
-	}
-
-	rc = (this->**f)(e);
-
- done:
 	if (rc) {
-		qDebug() << "error: failed handler for" << name_str(e);
+		qDebug() << "error: failed handler for" << name_str(e) << "at line" <<
+			e.lineNumber() << "of" << _current_file.top().filePath();
 	}
-
-	// don't pop. leave that for element closers
 	return rc;
 }
 
@@ -286,7 +289,8 @@ int Main::end_element(QXmlStreamReader &e)
 	rc = (this->**f)(e);
 
 	if (rc) {
-		qDebug() << "error: failed closer for" << name_str(e);
+		qDebug() << "error: failed closer for" << name_str(e) << "at line" <<
+			e.lineNumber() << "of" << _current_file.top().filePath();
 	}
 
  done:
@@ -295,11 +299,11 @@ int Main::end_element(QXmlStreamReader &e)
 	}
 	_current_element.pop();
 
-
-	if ( attr_stack.size() <= 1 ) {
+	if ( _attr_stack.size() <= 1 ) {
 		qDebug() << "error: about to hit empty attr stack?";
 	}
-	attr_stack.pop();
+	_attr_stack.pop();
+	_attrs = _attr_stack.top();
 	return rc;
 }
 
@@ -318,6 +322,7 @@ int Main::handle_import(QXmlStreamReader &e)
 	}
 	return rc;
 }
+
 int Main::close_import(QXmlStreamReader &e)
 {
 	return 0;
@@ -328,31 +333,56 @@ int Main::close_import(QXmlStreamReader &e)
 #define ATTR(X)    static QString X##_str { #X };
 #define ELEMENT(E) namespace E ##_element { E ## _ELEMENT_ATTRS() };
 ELEMENTS()
+#undef ELEMENT
+#undef ATTR
+
+//
+// note: a ton of attrs still not handled... work in progress.
+//
+void Main::flatten_attrs(const attr_spec_t &a)
+{
+#define assign_attr(X) do { if (a._##X.b) { _attrs._##X.from       (a._##X); } } while (0)
+#define concat_attr(X) do { if (a._##X.b) { _attrs._##X.concat_from(a._##X); } } while (0)
+	if ( a._name.b   ) _attrs._name.  concat_from(a._name);
+	if ( a._offset.b ) _attrs._offset.add_from   (a._offset);
+	if ( a._pos.b    ) { // pos overrides high and low (locally)
+		_attrs._high.from(a._pos.v);
+		_attrs._low. from(a._pos.v);
+		_attrs._pos. from(a._pos.v);
+	} else {
+		if ( a._low.b  ) _attrs._low. from(a._low);
+		if ( a._high.b ) _attrs._high.from(a._high);
+	}
+}
 
 
+#define ATTR(X) else if ( name_str(a) == #X ) { local_attrs . _##X .from(a.value()); }
+#define STACK_ELEMENT_ATTRS(E)						\
+	attr_spec_t local_attrs;						\
+	int rc = 0;										\
+	do {											\
+		for ( auto a: e.attributes() ) {			\
+			if (0) { }								\
+			E ## _ELEMENT_ATTRS()					\
+			else { rc = -1; ignored_attr(e,a); }	\
+		}											\
+		if ( rc )									\
+			return rc;								\
+		flatten_attrs(local_attrs);					\
+	} while (0)
+
+//
+// element handlers, closers
+//
+// the 'closers' are kept because i have an idea they'll be needed
+// later.  but perhaps not...
+//
 int Main::handle_array(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == array_element::length_str) {
-			spec._length.from(a.value());
-		} else if (name_str(a) == array_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == array_element::offset_str) {
-			spec._offset.from(a.value());
-		} else if (name_str(a) == array_element::stride_str) {
-			spec._stride.from(a.value());
-		} else if (name_str(a) == array_element::variants_str) {
-			spec._variants.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(array);
 	return rc;
 }
+
 int Main::close_array(QXmlStreamReader &e)
 {
 	return 0;
@@ -360,29 +390,7 @@ int Main::close_array(QXmlStreamReader &e)
 
 int Main::handle_domain(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == domain_element::bare_str) {
-			spec._bare.from(a.value());
-		} else if (name_str(a) == domain_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == domain_element::prefix_str) {
-			spec._prefix.from(a.value());
-		} else if (name_str(a) == domain_element::size_str) {
-			spec._size.from(a.value());
-		} else if (name_str(a) == domain_element::variants_str) {
-			spec._variants.from(a.value());
-		} else if (name_str(a) == domain_element::varset_str) {
-			spec._varset.from(a.value());
-		} else if (name_str(a) == domain_element::width_str) {
-			spec._width.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(domain);
 	return rc;
 }
 
@@ -393,10 +401,7 @@ int Main::close_domain(QXmlStreamReader &e)
 
 int Main::handle_doc(QXmlStreamReader &e)
 {
-	int rc = 0;
-	for ( auto a: e.attributes() ) {
-			ignored_attr(e,a);
-	}
+	STACK_ELEMENT_ATTRS(doc);
 	return rc;
 }
 
@@ -407,19 +412,7 @@ int Main::close_doc(QXmlStreamReader &e)
 
 int Main::handle_spectype(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == spectype_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == spectype_element::type_str) {
-			spec._type.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(spectype);
 	return rc;
 }
 
@@ -430,10 +423,7 @@ int Main::close_spectype(QXmlStreamReader &e)
 
 int Main::handle_b(QXmlStreamReader &e)
 {
-	int rc = 0;
-	for ( auto a: e.attributes() ) {
-		ignored_attr(e,a);
-	}
+	STACK_ELEMENT_ATTRS(b);
 	return rc;
 }
 
@@ -442,40 +432,22 @@ int Main::close_b(QXmlStreamReader &e)
 	return 0;
 }
 
+// note: work in progress...
 int Main::handle_reg16(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
+	STACK_ELEMENT_ATTRS(reg16);
 
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == reg16_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == reg16_element::offset_str) {
-			spec._offset.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	uint64_t offset = _attrs._offset.v;
+	QString name    = _attrs._name.v;
+
+	out() << QString("reg16: %1 0x%2").arg(name).
+		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+
 	return rc;
 }
 
-// note: all reg16_ELEMENT_ATTRS() *are* processed.
-// (XXX but there's no reason we shouldn't allow all the other reg's
-// attrs here as well... )
 int Main::close_reg16(QXmlStreamReader &e)
 {
-	uint64_t offset;
-	QString name;
-	bool ok = reg_info(attr_stack, offset, name);
-	if ( ok ) {
-		out() << QString("reg16: %1 0x%2").arg(name).
-			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
-	}
-	else {
-		qDebug() << "error: bogus reg16 info? dumping attr stack...";
-		dump_attr_stack();
-		return -1;
-	}
 	return 0;
 }
 
@@ -498,7 +470,7 @@ int Main::handle_database(QXmlStreamReader &e)
 					QUrl surl(s);
 					if ( surl.isRelative() ) {
 						QString local = _root_dir.absolutePath() + "/" + s;
-						QFileInfo sfi(local); 
+						QFileInfo sfi(local);
 						if (sfi.exists()) {
 							QFile file(sfi.absoluteFilePath());
 							if ( file.open(QIODevice::ReadOnly | QIODevice::Text) ) {
@@ -533,25 +505,7 @@ int Main::close_database(QXmlStreamReader &e)
 
 int Main::handle_bitset(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == bitset_element::inline_str) {
-			spec._inline.from(a.value());
-		} else if (name_str(a) == bitset_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == bitset_element::prefix_str) {
-			spec._prefix.from(a.value());
-		} else if (name_str(a) == bitset_element::variants_str) {
-			spec._variants.from(a.value());
-		} else if (name_str(a) == bitset_element::varset_str) {
-			spec._varset.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(bitset);
 	return rc;
 }
 
@@ -562,17 +516,7 @@ int Main::close_bitset(QXmlStreamReader &e)
 
 int Main::handle_copyright(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == copyright_element::year_str) {
-			spec._year.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(copyright);
 	return rc;
 }
 
@@ -581,67 +525,28 @@ int Main::close_copyright(QXmlStreamReader &e)
 	return 0;
 }
 
+// note: work in progress...
 int Main::handle_reg8(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
+	STACK_ELEMENT_ATTRS(reg8);
 
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == reg8_element::access_str) {
-			spec._access.from(a.value());
-		} else if (name_str(a) == reg8_element::length_str) {
-			spec._length.from(a.value());
-		} else if (name_str(a) == reg8_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == reg8_element::offset_str) {
-			spec._offset.from(a.value());
-		} else if (name_str(a) == reg8_element::shr_str) {
-			spec._shr.from(a.value());
-		} else if (name_str(a) == reg8_element::type_str) {
-			spec._type.from(a.value());
-		} else if (name_str(a) == reg8_element::variants_str) {
-			spec._variants.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	uint64_t offset = _attrs._offset.v;
+	QString name    = _attrs._name.v;
+
+	out() << QString("reg8: %1 0x%2").arg(name).
+		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
 
 	return rc;
 }
 
-// note: not all are reg8_ELEMENT_ATTRS() are processed yet.
 int Main::close_reg8(QXmlStreamReader &e)
 {
-	uint64_t offset;
-	QString name;
-	bool ok = reg_info(attr_stack, offset, name);
-
-	if ( ok ) {
-		out() << QString("reg8: %1 0x%2").arg(name).
-			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
-	}
-	else {
-		qDebug() << "error: bogus reg8 info? dumping attr stack...";
-		dump_attr_stack();
-		return -1;
-	}
 	return 0;
 }
 
 int Main::handle_nick(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == nick_element::name_str) {
-			spec._name.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-
-	}
-
+	STACK_ELEMENT_ATTRS(nick);
 	return rc;
 }
 int Main::close_nick(QXmlStreamReader &e)
@@ -651,10 +556,7 @@ int Main::close_nick(QXmlStreamReader &e)
 
 int Main::handle_license(QXmlStreamReader &e)
 {
-	int rc = 0;
-	for ( auto a: e.attributes() ) {
-		ignored_attr(e,a);
-	}
+	STACK_ELEMENT_ATTRS(license);
 	return rc;
 }
 
@@ -665,23 +567,7 @@ int Main::close_license(QXmlStreamReader &e)
 
 int Main::handle_enum(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == enum_element::bare_str) {
-			spec._bare.from(a.value());
-		} else if (name_str(a) == enum_element::inline_str) {
-			spec._inline.from(a.value());
-		} else if (name_str(a) == enum_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == enum_element::varset_str) {
-			spec._varset.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(enum);
 	return rc;
 }
 
@@ -692,17 +578,7 @@ int Main::close_enum(QXmlStreamReader &e)
 
 int Main::handle_use_group(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == use_group_element::name_str) {
-			spec._name.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
-
+	STACK_ELEMENT_ATTRS(use_group);
 	return rc;
 }
 
@@ -713,10 +589,7 @@ int Main::close_use_group(QXmlStreamReader &e)
 
 int Main::handle_li(QXmlStreamReader &e)
 {
-	int rc = 0;
-	for ( auto a: e.attributes() ) {
-		ignored_attr(e,a);
-	}
+	STACK_ELEMENT_ATTRS(li);
 	return rc;
 }
 
@@ -725,82 +598,36 @@ int Main::close_li(QXmlStreamReader &e)
 	return 0;
 }
 
+// note: work in progress...
 int Main::handle_reg64(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
+	STACK_ELEMENT_ATTRS(reg64);
 
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == reg64_element::length_str) {
-			spec._length.from(a.value());
-		} else if (name_str(a) == reg64_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == reg64_element::offset_str) {
-			spec._offset.from(a.value());
-		} else if (name_str(a) == reg64_element::shr_str) {
-			spec._shr.from(a.value());
-		} else if (name_str(a) == reg64_element::variants_str) {
-			spec._variants.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	uint64_t offset = _attrs._offset.v;
+	QString name    = _attrs._name.v;
+
+	out() << QString("reg64: %1 0x%2").arg(name).
+		arg(offset, 16, 16, QChar('0')) << '\n';
 
 	return rc;
 }
 
-// note: not all reg64_ELEMENT_ATTRS() are processed yet
 int Main::close_reg64(QXmlStreamReader &e)
 {
-	uint64_t offset;
-	QString name;
-	bool ok = reg_info(attr_stack, offset, name);
-	if ( ok ) {
-		out() << QString("reg64: %1 0x%2").arg(name).arg(offset, 16, 16, QChar('0')) << '\n';
-	}
-	else {
-		qDebug() << "error: bogus reg64 info? dumping attr stack...";
-		dump_attr_stack();
-		return -1;
-	}
 	return 0;
 }
 
+// note: work in progress...
 int Main::handle_reg32(QXmlStreamReader &e)
 {
-	int rc = 0;
+	STACK_ELEMENT_ATTRS(reg32);
 
-	attr_spec_t &spec = attr_stack.top(); 
+	uint64_t offset = _attrs._offset.v;
+	QString name    = _attrs._name.v;
 
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == reg32_element::access_str) {
-			spec._access.from(a.value());
-		} else if (name_str(a) == reg32_element::align_str) {
-			spec._align.from(a.value());
-		} else if (name_str(a) == reg32_element::length_str) {
-			spec._length.from(a.value());
-		} else if (name_str(a) == reg32_element::max_str) {
-			spec._max.from(a.value());
-		} else if (name_str(a) == reg32_element::min_str) {
-			spec._min.from(a.value());
-		} else if (name_str(a) == reg32_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == reg32_element::offset_str) {
-			spec._offset.from(a.value());
-		} else if (name_str(a) == reg32_element::shr_str) {
-			spec._shr.from(a.value());
-		} else if (name_str(a) == reg32_element::stride_str) {
-			spec._stride.from(a.value());
-		} else if (name_str(a) == reg32_element::type_str) {
-			spec._type.from(a.value());
-		} else if (name_str(a) == reg32_element::variants_str) {
-			spec._variants.from(a.value());
-		} else if (name_str(a) == reg32_element::varset_str) {
-			spec._varset.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	out() << QString("reg32: %1 0x%2").arg(name).
+		arg(offset, 8, 16, QChar('0')) << '\n';
+
 	return rc;
 }
 
@@ -809,26 +636,12 @@ int Main::handle_reg32(QXmlStreamReader &e)
 //
 int Main::close_reg32(QXmlStreamReader &e)
 {
-	uint64_t offset;
-	QString name;
-	bool ok = reg_info(attr_stack, offset, name);
-	if ( ok ) {
-		out() << QString("reg32: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0')) << '\n';
-	}
-	else {
-		qDebug() << "error: bogus reg32 info? dumping attr stack...";
-		dump_attr_stack();
-		return -1;
-	}
 	return 0;
 }
 
 int Main::handle_brief(QXmlStreamReader &e)
 {
-	int rc = 0;
-	for ( auto a: e.attributes() ) {
-		ignored_attr(e,a);
-	}
+	STACK_ELEMENT_ATTRS(brief);
 	return rc;
 }
 
@@ -839,19 +652,7 @@ int Main::close_brief(QXmlStreamReader &e)
 
 int Main::handle_author(QXmlStreamReader &e)
 {
-
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if ( name_str(a) == author_element::email_str ) {
-			spec._email.from(a.value());
-		} else if ( name_str(a) == author_element::name_str ) {
-			spec._name.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	STACK_ELEMENT_ATTRS(author);
 	return rc;
 }
 
@@ -862,10 +663,7 @@ int Main::close_author(QXmlStreamReader &e)
 
 int Main::handle_ul(QXmlStreamReader &e)
 {
-	int rc = 0;
-	for ( auto a: e.attributes() ) {
-		ignored_attr(e,a);
-	}
+	STACK_ELEMENT_ATTRS(ul);
 	return rc;
 }
 
@@ -874,85 +672,25 @@ int Main::close_ul(QXmlStreamReader &e)
 	return 0;
 }
 
+// note: work in progress...
 int Main::handle_bitfield(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-	
-	for ( auto a: e.attributes() ) {
-		if ( name_str(a) == bitfield_element::add_str ) {
-			spec._add.from(a.value());
-		} else if (name_str(a) == bitfield_element::align_str ) {
-			spec._align.from(a.value());
-		} else if (name_str(a) == bitfield_element::high_str ) {
-			spec._high.from(a.value());
-		} else if (name_str(a) == bitfield_element::low_str ) {
-			spec._low.from(a.value());
-		} else if (name_str(a) == bitfield_element::max_str ) {
-			spec._max.from(a.value());
-		} else if (name_str(a) == bitfield_element::min_str ) {
-			spec._min.from(a.value());
-		} else if (name_str(a) == bitfield_element::name_str ) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == bitfield_element::pos_str ) {
-			spec._pos.from(a.value());
-		} else if (name_str(a) == bitfield_element::radix_str ) {
-			spec._radix.from(a.value());
-		} else if (name_str(a) == bitfield_element::shr_str ) {
-			spec._shr.from(a.value());
-		} else if (name_str(a) == bitfield_element::type_str ) {
-			spec._type.from(a.value());
-		} else if (name_str(a) == bitfield_element::variants_str ) {
-			spec._variants.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	STACK_ELEMENT_ATTRS(bitfield);
+
+	out() << QString("bitfield: %1 %2:%3").arg(_attrs._name.v).
+		arg(_attrs._high.v).arg(_attrs._low.v) << '\n';
+
 	return rc;
 }
 
 int Main::close_bitfield(QXmlStreamReader &e)
 {
-	uint64_t offset;
-	QString name;
-	uint32_t high, low;
-	bool ok = bitfield_info(attr_stack, offset, name, high, low);
-
-	if ( ok ) {
-		out() << QString("bitfield: %1 %2:%3").arg(name).arg(high).arg(low) << '\n';
-	}
-	else {
-		qDebug() << "error: bogus bitfield info? dumping attr stack...";
-		dump_attr_stack();
-		return -1;
-	}
 	return 0;
 }
 
 int Main::handle_stripe(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == stripe_element::length_str) {
-			spec._length.from(a.value());
-		} else if (name_str(a) == stripe_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == stripe_element::offset_str) {
-			spec._offset.from(a.value());
-		} else if (name_str(a) == stripe_element::prefix_str) {
-			spec._prefix.from(a.value());
-		} else if (name_str(a) == stripe_element::stride_str) {
-			spec._stride.from(a.value());
-		} else if (name_str(a) == stripe_element::variants_str) {
-			spec._variants.from(a.value());
-		} else if (name_str(a) == stripe_element::varset_str) {
-			spec._varset.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	STACK_ELEMENT_ATTRS(stripe);
 	return rc;
 }
 
@@ -963,16 +701,7 @@ int Main::close_stripe(QXmlStreamReader &e)
 
 int Main::handle_group(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
-
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == group_element::name_str) {
-			spec._name.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	STACK_ELEMENT_ATTRS(group);
 	return rc;
 }
 
@@ -983,22 +712,11 @@ int Main::close_group(QXmlStreamReader &e)
 
 int Main::handle_value(QXmlStreamReader &e)
 {
-	int rc = 0;
-	attr_spec_t &spec = attr_stack.top();
+	STACK_ELEMENT_ATTRS(value);
 
-	for ( auto a: e.attributes() ) {
-		if (name_str(a) == value_element::name_str) {
-			spec._name.from(a.value());
-		} else if (name_str(a) == value_element::value_str) {
-			spec._value.from(a.value());
-		} else if (name_str(a) == value_element::variants_str) {
-			spec._variants.from(a.value());
-		} else if (name_str(a) == value_element::varset_str) {
-			spec._varset.from(a.value());
-		} else {
-			ignored_attr(e,a);
-		}
-	}
+	out() << QString("value: %1 %2\n").
+		arg(_attrs._name.v).arg(_attrs._value.v);
+
 	return rc;
 }
 
@@ -1008,8 +726,6 @@ int Main::close_value(QXmlStreamReader &e)
 }
 
 // e.g.: const std::vector<std::string> Main::array_element_attrs { "length", ... };
-#undef ELEMENT
-#undef ATTR
 #define ELEMENT(X) const std::vector<std::string> Main:: X ##_element_attrs { X ## _ELEMENT_ATTRS() };
 #define ATTR(X) #X,
 ELEMENTS()
@@ -1031,131 +747,96 @@ static void show_reg32_attr_spec(const attr_spec_t &a)
 
 void Main::dump_attr_stack()
 {
-	int depth = attr_stack.length();
+	int depth = _attr_stack.length();
 	for ( int a = 0; a < depth; a++) {
-		const attr_spec_t &attr = attr_stack[a];
+		const attr_spec_t &attr = _attr_stack[a];
 		show_reg32_attr_spec(attr);
 	}
 }
 
-static bool reg_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name)
-{
-	name = QString();
-	offset = 0x0;
-	int depth = attr_stack.length();
-	bool offset_hit = false;
-	QString delim;
-	for ( int a = 0; a < depth; a++) {
-		if ( attr_stack[a]._offset.b ) {
-			offset_hit |= true;
-			offset += attr_stack[a]._offset.n;
-		}
-		if ( attr_stack[a]._name.b) {
-			name += delim + attr_stack[a]._name.s;
-			delim = "::"; // XXX just for now...
-		}
-	}
-
-	return offset_hit && name.length();
-	if ( !(offset_hit  && name.length()) ) {
-		return false;
-	}
-	return true;
-}
-
-static bool bitfield_info(const QStack<attr_spec_t> &attr_stack, uint64_t &offset, QString &name,
-						  uint32_t &high, uint32_t &low)
-{
-	high = low = 0;
-	bool ok = reg_info(attr_stack, offset, name);
-
-	int depth = attr_stack.length();
-	bool high_hit, low_hit, pos_hit;
-	uint32_t pos = 0;
-	high_hit = pos_hit = low_hit = false;
-
-	if ( !ok ) {
-		if ( name.size() ) {
-			// this suggests that the offset is zero (i.e. no explicit register/offset association)
-			// that *can* be legit (though dodgy for the purposes of this application)
-			//XXX consider a warning here to clean-up the places it happens.
-			ok = true;
-		}
-	}
-
-	for ( int a = 0; a < depth; a++) {
-		if ( attr_stack[a]._high.b ) {
-			high_hit |= true;
-			high = attr_stack[a]._high.n;
-		}
-		if ( attr_stack[a]._low.b ) {
-			low_hit |= true;
-			low = attr_stack[a]._low.n;
-		}
-		if ( attr_stack[a]._pos.b ) {
-			pos_hit |= true;
-			pos = attr_stack[a]._pos.n;
-			high = low = pos;
-		}
-	}
-
-	// whichever is last wins.  pos resets though.
-	// i.e.: they don't stack.
-	ok = (high_hit && low_hit) || pos_hit;
-
-	return ok;
-}
 
 void Main::find_xml_files()
 {
-    QRegularExpression file_name_re(".*\\.xml");
-    QMap<QString, QDir *> dirmap;
-    QQueue<QDir *>        dirq;
-    QMap<QString, QFileInfo *> filemap;
-    QQueue<QFileInfo *>        fileq;
+	QRegularExpression file_name_re(".*\\.xml");
+	QMap<QString, QDir *> dirmap;
+	QQueue<QDir *>        dirq;
+	QMap<QString, QFileInfo *> filemap;
+	QQueue<QFileInfo *>        fileq;
 
-    // prime the pump
-    dirq.enqueue(&_root_dir);
+	// prime the pump
+	dirq.enqueue(&_root_dir);
 
-    //
-    // A queue and marker scheme is used traverse the
-    // directory hierarchy (instead of recursion).
-    //
-    while ( dirq.size() ) {
+	//
+	// A queue and marker scheme is used traverse the
+	// directory hierarchy (instead of recursion).
+	//
+	while ( dirq.size() ) {
 
-        QDir *dir = dirq.dequeue();
-        if ( !dir->exists() )
-            continue;
+		QDir *dir = dirq.dequeue();
+		if ( !dir->exists() )
+			continue;
 
-        QFileInfoList dirlist = dir->entryInfoList();
+		QFileInfoList dirlist = dir->entryInfoList();
 
-        // push children dirs into the queue.  push files which match the
-        // file search expr into the fileq.
+		// push children dirs into the queue.  push files which match the
+		// file search expr into the fileq.
 
-        for ( QFileInfoList::iterator i = dirlist.begin(); i != dirlist.end(); i++) {
-            QString full = i->path() + "/" + i->fileName();
-            if ( i->isFile() ) {
-                QRegularExpressionMatch m = file_name_re.match(i->fileName());
-                bool matched = m.hasMatch();
-                if ( !matched )
+		for ( QFileInfoList::iterator i = dirlist.begin(); i != dirlist.end(); i++) {
+			QString full = i->path() + "/" + i->fileName();
+			if ( i->isFile() ) {
+				QRegularExpressionMatch m = file_name_re.match(i->fileName());
+				bool matched = m.hasMatch();
+				if ( !matched )
 					continue;
-                fileq.enqueue( new QFileInfo( full ) );
-            }
-            else if ( i->isDir() ) {
-                if ( i->fileName() == "." || i->fileName() == ".." )
-                    continue;
+				fileq.enqueue( new QFileInfo( full ) );
+			}
+			else if ( i->isDir() ) {
+				if ( i->fileName() == "." || i->fileName() == ".." )
+					continue;
 
-                if ( dirmap.find(full) == dirmap.end() ) {
-                    QDir * d = new QDir(full);
-                    dirq.enqueue(d);
-                    dirmap[full] = d;
-                }
-            }
-        }
-    }
+				if ( dirmap.find(full) == dirmap.end() ) {
+					QDir * d = new QDir(full);
+					dirq.enqueue(d);
+					dirmap[full] = d;
+				}
+			}
+		}
+	}
 
-    while ( fileq.size() ) {
-        QFileInfo *fi = fileq.dequeue();
+	while ( fileq.size() ) {
+		QFileInfo *fi = fileq.dequeue();
 		_all_xml_files.insert(fi->filePath());
-    }
+	}
+}
+
+//
+// specializations of spec_t<T> for conversions, etc.
+//
+template<> void spec_t<bool>::from(const QStringRef &r)
+{
+	b = true;
+	if ( ( 0 == r.compare("yes", Qt::CaseInsensitive) )  ||
+		 ( 0 == r.compare("true", Qt::CaseInsensitive) ) ||
+		 ( r == "1" ) )
+		v = true;
+	v = false;
+}
+template<> void spec_t<QString>::from(const QStringRef &r)
+{
+	v = r.toString();
+	b = true;
+}
+template<> void spec_t<uint32_t>::from(const QStringRef &r)
+{
+	bool ok;
+	v = r.toUInt(&ok); b = true;
+	// XXX docs for QString::to*Int/Long says it spots the "0x" on its own.
+	// but empirically, it does not...
+	if ( !ok && r.startsWith("0x", Qt::CaseInsensitive) ) {
+		v = r.toUInt(&ok, 16);
+		if ( !ok ) {
+			qDebug() << "error: couldn't turn this into a number:" << v;
+			v = ~(uint32_t)0;
+		}
+	}
 }

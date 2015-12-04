@@ -65,73 +65,81 @@
 #define use_group_ELEMENT_ATTRS()	ATTR(name)
 #define value_ELEMENT_ATTRS()		ATTR(name) ATTR(value) ATTR(variants) ATTR(varset)
 
+// each attribute type is a value and a "was it specified" bit 'b'.
+template<class T> struct spec_t {
+	T v;
+	bool b;
+	void from(const T &a)             { b = true; v = a;    }
+	void from(const QStringRef &r)    { b = true; v  = r;   }
+	void from(const spec_t &a)        { b = true; v  = a.v; }
+	void concat_from(const spec_t &a) { b = true; v += a.v; }
+	void add_from(const spec_t &a)    { b = true; v += a.v; }
 
-// union-esque thing which records attr specifications
+};
+
+// conversio specializations
+template<> void spec_t<bool>    ::from(const QStringRef &r);
+template<> void spec_t<QString> ::from(const QStringRef &r);
+template<> void spec_t<uint32_t>::from(const QStringRef &r);
+
+typedef spec_t<bool>   bare_attr_spec_t;
+typedef spec_t<bool>   inline_attr_spec_t;
+
+typedef spec_t<QString> access_attr_spec_t;
+typedef spec_t<QString> name_attr_spec_t;
+typedef spec_t<QString> variants_attr_spec_t;
+typedef spec_t<QString> type_attr_spec_t;
+typedef spec_t<QString> varset_attr_spec_t;
+typedef spec_t<QString> prefix_attr_spec_t;
+typedef spec_t<QString> year_attr_spec_t;
+typedef spec_t<QString> email_attr_spec_t;
+typedef spec_t<QString> value_attr_spec_t;
+
+typedef spec_t<uint32_t> offset_attr_spec_t;
+typedef spec_t<uint32_t> shr_attr_spec_t;
+typedef spec_t<uint32_t> size_attr_spec_t;
+typedef spec_t<uint32_t> stride_attr_spec_t;
+typedef spec_t<uint32_t> length_attr_spec_t;
+typedef spec_t<uint32_t> width_attr_spec_t;
+typedef spec_t<uint32_t> align_attr_spec_t;
+typedef spec_t<uint32_t> max_attr_spec_t;
+typedef spec_t<uint32_t> min_attr_spec_t;
+typedef spec_t<uint32_t> add_attr_spec_t;
+typedef spec_t<uint32_t> pos_attr_spec_t;
+typedef spec_t<uint32_t> radix_attr_spec_t;
+typedef spec_t<uint32_t> high_attr_spec_t;
+typedef spec_t<uint32_t> low_attr_spec_t;
+
+
+// records all possible attr specifications
 struct attr_spec_t {
-	struct bool_spec_t {
-		bool t;
-		bool b;
-		void from(const QStringRef &s) {
-			b = true;
-			if ( ( 0 == s.compare("yes", Qt::CaseInsensitive) )  ||
-				 ( 0 == s.compare("true", Qt::CaseInsensitive) ) ||
-				 ( s == "1" ) )
-				t = true;
-			t = false;
-		}
-	};
-	struct string_spec_t {
-		QString s;
-		bool b;
-		void from(const QStringRef &r) { s = r.toString(); b = true; }
-	};
-	struct uint32_spec_t {
-		uint32_t n;
-		bool b;
-		// tbd: throw or propagate conversion failure...
-		void from(const QStringRef &r) {
-			bool ok;
-			n = r.toUInt(&ok); b = true;
-			// XXX docs for QString::to*Int/Long says it spots the "0x" on its own.
-			// but empirically, it does not...
-			if ( !ok && r.startsWith("0x", Qt::CaseInsensitive) ) {
-				n = r.toUInt(&ok, 16);
-				if ( !ok ) {
-					qDebug() << "error: couldn't turn this into a number:" << r;
-					n = ~(uint32_t)0;
-				}
-			}
-		}
-	};
+	bare_attr_spec_t   _bare;
+	inline_attr_spec_t _inline;
 
-	bool_spec_t _bare;
-	bool_spec_t _inline; // boo
+	access_attr_spec_t _access;
+	name_attr_spec_t _name;
+	variants_attr_spec_t _variants;
+	type_attr_spec_t _type;
+	varset_attr_spec_t _varset;
+	prefix_attr_spec_t _prefix;
+	year_attr_spec_t _year;
+	email_attr_spec_t _email;
+	value_attr_spec_t _value;
 
-	string_spec_t _access;
-	string_spec_t _name;
-	string_spec_t _variants;
-	string_spec_t _type;
-	string_spec_t _varset;
-	string_spec_t _prefix;
-	string_spec_t _year;
-	string_spec_t _email;
-	string_spec_t _value;
-
-	uint32_spec_t _offset;
-	uint32_spec_t _shr;
-	uint32_spec_t _size;
-	uint32_spec_t _stride;
-	uint32_spec_t _length;
-	uint32_spec_t _width;
-	uint32_spec_t _align;
-	uint32_spec_t _max;
-	uint32_spec_t _min;
-	uint32_spec_t _add;
-	uint32_spec_t _pos;
-	uint32_spec_t _radix;
-
-	uint32_spec_t _high;
-	uint32_spec_t _low;
+	offset_attr_spec_t _offset;
+	shr_attr_spec_t _shr;
+	size_attr_spec_t _size;
+	stride_attr_spec_t _stride;
+	length_attr_spec_t _length;
+	width_attr_spec_t _width;
+	align_attr_spec_t _align;
+	max_attr_spec_t _max;
+	min_attr_spec_t _min;
+	add_attr_spec_t _add;
+	pos_attr_spec_t _pos;
+	radix_attr_spec_t _radix;
+	high_attr_spec_t _high;
+	low_attr_spec_t _low;
 
 	void zap_spec_bits() {
 		// TBD: make a closed-form version instead of this bug-prone mess.
@@ -165,4 +173,5 @@ struct attr_spec_t {
 			_low.b =
 			false;
 	}
+	attr_spec_t() { zap_spec_bits(); }
 };

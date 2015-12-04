@@ -86,9 +86,11 @@ protected:
 
 	// parsing metrics, etc
 	static QSet<QString> _nestable_elements; // ok to nest
-  	       QSet<QString> _nested_elements;   // unexpected
+		   QSet<QString> _nested_elements;   // unexpected
 
-	QStack<attr_spec_t> attr_stack;
+	QStack<attr_spec_t> _attr_stack;
+	attr_spec_t _attrs;
+	void flatten_attrs(const attr_spec_t &);
 
 	void dump_attr_stack();
 
