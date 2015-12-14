@@ -72,7 +72,13 @@ template<class T> struct spec_t {
 	void from(const T &a)             { b = true; v = a;    }
 	void from(const QStringRef &r)    { b = true; v  = r;   }
 	void from(const spec_t &a)        { b = true; v  = a.v; }
-	void concat_from(const spec_t &a) { b = true; v += a.v; }
+	void concat_from(const spec_t &a, const QString sep=QString()) {
+		b = true;
+		if ( v.length() )
+			v = v + sep + a.v;
+		else
+			v = a.v;
+	}
 	void add_from(const spec_t &a)    { b = true; v += a.v; }
 
 };

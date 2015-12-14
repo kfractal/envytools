@@ -26,6 +26,8 @@ void Main::start()
 	// XXX: defaults not actually set yet...
 	// should almost certainly involve the schema.
 	attr_spec_t defaults;
+	defaults._offset.v = 0; // int doesn't have default constructor
+
 	defaults.zap_spec_bits(); // mark as inherited values...
 	_attr_stack.push(defaults);
 
@@ -337,22 +339,44 @@ ELEMENTS()
 #undef ATTR
 
 //
-// note: a ton of attrs still not handled... work in progress.
+// XXX: would prefer closed form solution.  but at least
+// find a way to note where to add/remove attribute set tweak
+// locations...
 //
 void Main::flatten_attrs(const attr_spec_t &a)
 {
 #define assign_attr(X) do { if (a._##X.b) { _attrs._##X.from       (a._##X); } } while (0)
 #define concat_attr(X) do { if (a._##X.b) { _attrs._##X.concat_from(a._##X); } } while (0)
-	if ( a._name.b   ) _attrs._name.  concat_from(a._name);
+	if ( a._name.b   ) _attrs._name.  concat_from(a._name, "::");
 	if ( a._offset.b ) _attrs._offset.add_from   (a._offset);
 	if ( a._pos.b    ) { // pos overrides high and low (locally)
 		_attrs._high.from(a._pos.v);
 		_attrs._low. from(a._pos.v);
 		_attrs._pos. from(a._pos.v);
 	} else {
-		if ( a._low.b  ) _attrs._low. from(a._low);
-		if ( a._high.b ) _attrs._high.from(a._high);
+		assign_attr(low);
+		assign_attr(high);
 	}
+	
+	assign_attr(bare);
+	assign_attr(inline);
+	assign_attr(access);
+	assign_attr(type);
+	assign_attr(varset);
+	assign_attr(prefix);
+	assign_attr(year);
+	assign_attr(email);
+	assign_attr(value);
+	assign_attr(shr);
+	assign_attr(size);
+	assign_attr(stride);
+	assign_attr(length);
+	assign_attr(width);
+	assign_attr(align);
+	assign_attr(max);
+	assign_attr(min);
+	assign_attr(add);
+	assign_attr(radix);
 }
 
 
@@ -366,9 +390,12 @@ void Main::flatten_attrs(const attr_spec_t &a)
 			E ## _ELEMENT_ATTRS()					\
 			else { rc = -1; ignored_attr(e,a); }	\
 		}											\
-		if ( rc )									\
+		if ( rc )	{								\
+			qDebug() << "rc failed in" << __func__;	\
 			return rc;								\
+		}											\
 		flatten_attrs(local_attrs);					\
+		_attr_stack.top() = _attrs;					\
 	} while (0)
 
 //
@@ -380,6 +407,9 @@ void Main::flatten_attrs(const attr_spec_t &a)
 int Main::handle_array(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(array);
+	out() << QString("array: %1 0x%2").arg(_attrs._name.v).
+		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+
 	return rc;
 }
 
@@ -391,6 +421,8 @@ int Main::close_array(QXmlStreamReader &e)
 int Main::handle_domain(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(domain);
+	out() << QString("domain: %1").arg(_attrs._name.v) << '\n';
+
 	return rc;
 }
 
@@ -691,6 +723,9 @@ int Main::close_bitfield(QXmlStreamReader &e)
 int Main::handle_stripe(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(stripe);
+	out() << QString("stripe: %1 0x%2").arg(_attrs._name.v).
+		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+
 	return rc;
 }
 
@@ -710,12 +745,29 @@ int Main::close_group(QXmlStreamReader &e)
 	return 0;
 }
 
+bool Main::in_bitfield()
+{
+	for ( size_t i = 0; i < _current_element.length(); i++)
+		if ( _current_element[i] == "bitfield" )
+			return true;
+	return false;
+}
 int Main::handle_value(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(value);
-
-	out() << QString("value: %1 %2\n").
-		arg(_attrs._name.v).arg(_attrs._value.v);
+	QString c_str; if ( _attrs._offset.b ) {
+		c_str = QString(" 0x%1").arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0'));
+	}
+	if ( _attrs._high.b && _attrs._low.b ) { // recall just giving pos -> defines these
+		c_str += QString(" %1:%2").arg(_attrs._high.v).arg(_attrs._low.v);
+	}
+	if ( in_bitfield() ) {
+		out() << QString("bitfield value: %1 %2%3\n").
+			arg(_attrs._name.v).arg(_attrs._value.v).arg(c_str);
+	} else {
+		out() << QString("value: %1 %2\n").
+			arg(_attrs._name.v).arg(_attrs._value.v);
+	}
 
 	return rc;
 }
@@ -753,7 +805,6 @@ void Main::dump_attr_stack()
 		show_reg32_attr_spec(attr);
 	}
 }
-
 
 void Main::find_xml_files()
 {

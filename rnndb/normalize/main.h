@@ -54,6 +54,7 @@ protected:
 	int handle_element(QXmlStreamReader &e);
 	int end_element(QXmlStreamReader &e);
 	QStack<QString> _current_element;
+	bool in_bitfield();
 
 	QSet<QString> _ignored_attributes;
 	QSet<QString> _ignored_elements;
