@@ -64,6 +64,7 @@
 		<choice minOccurs="0" maxOccurs="unbounded">
 			<group ref="rng:docGroup" />
 			<group ref="rng:topGroup" />
+            <group ref="rng:copyrightGroup" />
 		</choice>
 	</complexType>
 
@@ -71,21 +72,28 @@
 		<annotation>
 			<documentation>copyrightType</documentation>
 		</annotation>
+		<choice minOccurs="0" maxOccurs="unbounded">
+			<element ref="rng:author" />
+            <element ref="rng:license" />
+		</choice>
 		<attribute name="year" type="string" use="required" />
 	</complexType>
 
-	<complexType name="licenseType">
+	<complexType name="licenseType" mixed="true">
 		<annotation>
 			<documentation>licenseType</documentation>
 		</annotation>
 	</complexType>
 
-	<complexType name="authorType">
+	<complexType name="authorType" mixed="true">
 		<annotation>
 			<documentation>authorType</documentation>
 		</annotation>
+		<choice minOccurs="0" maxOccurs="unbounded">
+        	<element ref="rng:nick" />
+        </choice>
 		<attribute name="name" type="string" use="required" />
-		<attribute name="email" type="string" use="required" />
+		<attribute name="email" type="string" />
 	</complexType>
 
 	<complexType name="nickType">
@@ -113,7 +121,7 @@
 			<group ref="rng:regarrayGroup" />
 		</choice>
 		<attribute name="name" type="NMTOKEN" use="required" />
-		<attribute name="bare" type="boolean" use="optional" />
+		<attribute name="bare" type="rng:YesNo" use="optional" />
 		<attribute name="prefix" type="NMTOKENS" use="optional" />
 		<attribute name="width" type="rng:DomainWidth" use="optional" />
 		<attribute name="size" type="rng:Hexadecimal" use="optional" />
@@ -200,8 +208,8 @@
 			<group ref="rng:topGroup" />
 		</choice>
 		<attribute name="name" type="NMTOKEN" use="required" />
-		<attribute name="inline" type="boolean" use="optional" />
-		<attribute name="bare" type="boolean" use="optional" />
+		<attribute name="inline" type="rng:YesNo" use="optional" />
+		<attribute name="bare" type="rng:YesNo" use="optional" />
 		<attribute name="prefix" type="NMTOKENS" use="optional" />
 	</complexType>
 
@@ -239,8 +247,8 @@
 			<group ref="rng:topGroup" />
 		</choice>
 		<attribute name="name" type="NMTOKEN" use="required" />
-		<attribute name="inline" type="boolean" use="optional" />
-		<attribute name="bare" type="boolean" use="optional" />
+		<attribute name="inline" type="rng:YesNo" use="optional" />
+		<attribute name="bare" type="rng:YesNo" use="optional" />
 		<attribute name="prefix" type="NMTOKENS" use="optional" />
 	</complexType>
 
@@ -339,6 +347,16 @@
 
 	<!-- Attribute value types -->
 
+    <simpleType name="YesNo">
+      <annotation>
+        <documentation>Boolean disallows yes or no.</documentation>
+      </annotation>
+      <restriction base="token">
+        <enumeration value="yes"/>
+        <enumeration value="no"/>
+      </restriction>
+    </simpleType>
+
 	<simpleType name="Hexadecimal">
 		<restriction base="string">
 			<pattern value="0x[0-9a-f]+" />
@@ -402,6 +420,12 @@
 			<element ref="rng:use-group" />
 		</choice>
 	</group>
+
+    <group name="copyrightGroup">
+      <choice>
+        <element ref="rng:copyright" />
+      </choice>
+    </group>
 	
 	<group name="docGroup">
 		<choice>

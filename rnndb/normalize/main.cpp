@@ -15,10 +15,14 @@ int main (int argc, char **argv)
 	return app.exec();
 }
 
+
+
 Main::Main(int &argc, char **argv) :
-	QCoreApplication(argc, argv), _in(stdin), _out(stdout), _validator(_schema)
+	QCoreApplication(argc, argv), _in(stdin), _out(stdout), _err(stderr),
+	_validator(_schema), _validator_msg_handler(&_out, &_err, this)
 {
 	_root = "root.xml";
+	_validator.setMessageHandler(&_validator_msg_handler);
 }
 
 void Main::start()
@@ -48,9 +52,11 @@ void Main::start()
 				qDebug() << "info: read" << rf;
 			}
 		}
-		for ( auto xf : _all_xml_files ) {
-			if ( _read_files.find(xf) == _read_files.end() ) {
-				qDebug() << "warning: didn't use" << xf << "?";
+		if ( !rc ) { // don't bother if there was an error...
+			for ( auto xf : _all_xml_files ) {
+				if ( _read_files.find(xf) == _read_files.end() ) {
+					qDebug() << "warning: didn't use" << xf << "?";
+				}
 			}
 		}
 	}
@@ -113,13 +119,19 @@ int Main::read_file(QFile *file)
 	_read_files.insert("./" + file->fileName()); // is the "./" dodgy?
 
 	if (_validate_schema && _schema.isValid() ) {
-		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName())))
-			qDebug() << "instance document is valid";
-		else
-			qDebug() << "instance document is invalid";
+		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName()))) {
+			// ok
+		}
+		else {
+			err() << "error: instance document is invalid\n";
+			// should be a more verbose error coming out to stdout
+			return -1;
+		}
+		file->seek(0); // validator likely moved it :)
 	}
 
 	int rc = 0;
+
 	QXmlStreamReader xml(file);
 
 	// ...
@@ -890,4 +902,21 @@ template<> void spec_t<uint32_t>::from(const QStringRef &r)
 			v = ~(uint32_t)0;
 		}
 	}
+}
+
+void ValidatorMessageHandler::handleMessage(QtMsgType type, const QString & description,
+							   const QUrl & identifier, const QSourceLocation & sourceLocation)
+{
+	QString warning("warning");
+	QString error("error");
+	if ( type == QtFatalMsg ) {
+		(*_out) << "error: schema validation failure: [";
+	} else {
+		(*_out) << "warning: schema validation: ";
+	}
+	(*_out) << description << "] " <<
+		" id: " << identifier.toString() <<
+		" in " <<	sourceLocation.uri().toString() <<
+		" at line " << sourceLocation.line() <<
+		", column " << sourceLocation.column() << "\n";
 }

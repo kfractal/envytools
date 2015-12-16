@@ -12,10 +12,25 @@
 #include <QXmlStreamReader>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
+#include <QAbstractMessageHandler>
 
 typedef QSet<QString> QStringSet;
 
 #include "elements.h"
+
+class ValidatorMessageHandler : public QAbstractMessageHandler
+{
+	Q_OBJECT
+public:
+	ValidatorMessageHandler(QTextStream *o, QTextStream *e, QObject *p = 0) :
+		QAbstractMessageHandler(p), _out(o) { }
+
+protected:
+	QTextStream *_out;
+	QTextStream *_err;
+	virtual void handleMessage(QtMsgType type, const QString & description,
+							   const QUrl & identifier, const QSourceLocation & sourceLocation);
+};
 
 class Main : public QCoreApplication
 {
@@ -26,6 +41,7 @@ public:
 
 	QTextStream &out() { return _out; }
 	QTextStream &in()  { return _in;  }
+	QTextStream &err() { return _err; }
 
 public slots:
 	void start();
@@ -33,9 +49,11 @@ public slots:
 protected:
 	QTextStream _in;
 	QTextStream _out;
+	QTextStream _err;
 
 	QXmlSchema _schema;
 	QXmlSchemaValidator _validator;
+	ValidatorMessageHandler _validator_msg_handler;
 
 	static constexpr bool _debug   = false;
 	static constexpr bool _verbose = false;

@@ -83,7 +83,7 @@ template<class T> struct spec_t {
 
 };
 
-// conversio specializations
+// conversion specializations
 template<> void spec_t<bool>    ::from(const QStringRef &r);
 template<> void spec_t<QString> ::from(const QStringRef &r);
 template<> void spec_t<uint32_t>::from(const QStringRef &r);
