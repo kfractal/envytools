@@ -355,6 +355,7 @@
 		<bitfield pos="30" name="PDISPLAY_INTR" variants="GF119-"/> <!-- from PDISPLAY.INTR_DAEMON -->
 	</bitset>
 	<bitset name="gt215_pdaemon_input1" inline="yes">
+      <bitfield pos="0" name="dummy"/> <!-- was empty -->
 	</bitset>
 	<bitset name="gt215_pdaemon_output" inline="yes">
 		<bitfield pos="0" name="DAEMON2CTXCTL_REQ" variants="GF100-"/>

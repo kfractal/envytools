@@ -468,7 +468,7 @@
 		</array>
 	</array>
 
-	<array offset="0x70000" stride="0x1000" name="PFIFO_FLUSH" variants="G84-">
+	<array offset="0x70000" stride="0x1000" name="PFIFO_FLUSH" length="1" variants="G84-">
 		<!-- XXX: more stuff on GF100+ -->
 		<reg32 offset="0x000" name="FLUSH_CTRL" type="g80_pfifo_flush_ctrl"/>
 	</array>

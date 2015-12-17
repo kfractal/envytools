@@ -152,6 +152,7 @@
 </bitset>
 
 <bitset name="gf119_straps2" inline="yes">
+  <bitfield pos="0" name="dummy"/> <!-- was empty -->
 </bitset>
 
 <array offset="0x608000" name="PSTRAPS" stride="0x1000" length="1" variants="NV1:NV3">

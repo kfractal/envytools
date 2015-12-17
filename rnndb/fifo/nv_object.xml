@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <database xmlns="http://nouveau.freedesktop.org/"
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
 <import file="copyright.xml"/>
 
 <import file="nvchipsets.xml" />
 <import file="g80_defs.xml" />
 
-<spectype name="object" type="hex"/>
+<!-- required? never mentioned elsewhere -->
+<!-- spectype name="object" type="hex"/ -->
 
 <enum name="obj-class" varset="chipset" bare="yes">
 	<value value="0x0002" name="NV1_DMA_FROM_MEMORY"/>

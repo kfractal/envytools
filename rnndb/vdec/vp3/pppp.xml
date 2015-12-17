@@ -96,7 +96,7 @@
 		<reg32 offset="0x28" name="Y_PUT" shr="4"/>
 		<reg32 offset="0x38" name="UNK38"/> <!-- RO 0x07010001 -->
 	</array>
-	<array offset="0x480" stride="0x80" name="UNK480" variants="GT215:GF119">
+	<array offset="0x480" stride="0x80" name="UNK480" length="1" variants="GT215:GF119"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00"/>
 		<reg32 offset="0x04" name="UNK04_ADDR" shr="8"/>
 		<reg32 offset="0x08" name="UNK08_ADDR" shr="8"/>
@@ -106,7 +106,7 @@
 		</reg32>
 		<reg32 offset="0x18" name="UNK18" access="r"/>
 	</array>
-	<array offset="0x500" stride="0xc0" name="FG">
+	<array offset="0x500" stride="0xc0" length="1" name="FG"> <!-- length? -->
 		<reg32 offset="0x00" name="STATUS" type="g98_pppp_unit_status"/>
 		<reg32 offset="0x04" name="INTR_ENABLE">
 			<bitfield pos="0" name="ERR"/>
@@ -136,7 +136,7 @@
 		<reg32 offset="0x40" name="UNK40" stride="4" length="0x10"/><!-- a different program uploaded array for luma/chroma -->
 		<reg32 offset="0x80" name="UNK80" stride="4" length="0x10"/><!-- a different program uploaded array for luma/chroma -->
 	</array>
-	<array offset="0x5c0" stride="0x40" name="VC1">
+	<array offset="0x5c0" stride="0x40" length="1" name="VC1"> <!-- length? -->
 		<reg32 offset="0x00" name="STATUS" type="g98_pppp_unit_status"/>
 		<reg32 offset="0x04" name="INTR_ENABLE">
 			<bitfield pos="0" name="ERR"/>
@@ -160,7 +160,7 @@
 		</reg32>
 		<reg32 offset="0x3c" name="UNK3C"/> <!-- RO 0x40 -->
 	</array>
-	<array offset="0x640" stride="0x40" length="1" name="POUT">
+	<array offset="0x640" stride="0x40" length="1" name="POUT"> <!-- length? -->
 		<reg32 offset="0x00" name="STATUS" type="g98_pppp_unit_status"/>
 		<reg32 offset="0x04" name="INTR_ENABLE">
 			<bitfield pos="0" name="DONE_LUMA"/>
@@ -194,7 +194,7 @@
 		<reg32 offset="0x90" name="COUNT_INDEX" min="0" max="7" variants="GT215-"/>
 	</array>
 	<reg32 offset="0x740" name="JOE" variants="GT215-"/>
-	<array offset="0x780" stride="0x80" name="UNK780" variants="GF100-">
+	<array offset="0x780" stride="0x80" name="UNK780" length="1" variants="GF100-"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00">
 			<bitfield low="0" high="6" name="UNK0"/>
 			<bitfield low="8" high="14" name="UNK8"/>

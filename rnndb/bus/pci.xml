@@ -372,7 +372,7 @@
 	<reg32 offset="0x1b4" name="P2P_OUT_WRITE_WINDOW_ADDR_HIGH" stride="8" length="3" variants="G80:GF100"/>
 	<reg32 offset="0x1c8" name="P2P_OUT_READ_REQUEST_ADDR_LOW" stride="8" length="3" variants="G80:GF100"/>
 	<reg32 offset="0x1cc" name="P2P_OUT_READ_REQUEST_ADDR_HIGH" stride="8" length="3" variants="G80:GF100"/>
-	<array offset="0x200" stride="0x80" length="3">
+	<array offset="0x200" name="P2P_READ_REPLY" stride="0x80" length="3">
 		<reg32 offset="0" name="P2P_READ_REPLY" length="32"/>
 	</array>
 	<reg32 offset="0x380" name="P2P_OUT_WRITE_SETUP_0_LAST" stride="8" length="3" variants="G80:GF100">

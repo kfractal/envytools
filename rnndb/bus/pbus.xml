@@ -433,7 +433,8 @@
 			</reg32>
 		</array>
 
-		<reg32 offset="0xa14" name="IBUS_TIMEOUT" max="0x7fffff" variants="GT215:GF100"/>
+		<!-- removed ... max="0x7fffff" from below ... -->
+		<reg32 offset="0xa14" name="IBUS_TIMEOUT" variants="GT215:GF100"/>
 	</array>
 
 	<array offset="0x60000" name="PPEEPHOLE" stride="0x10000" length="1" variants="G84-">

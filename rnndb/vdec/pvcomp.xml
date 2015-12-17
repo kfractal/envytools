@@ -174,7 +174,7 @@
 		<reg32 offset="0x30" name="DATA" length="4"/>
 	</array>
 
-	<array offset="0x7c0" name="UC" stride="0x40">
+	<array offset="0x7c0" name="UC" stride="0x40" length="1"> <!-- length ? -->
 		<reg32 offset="0x00" name="CONTROL">
 			<bitfield pos="0" name="START_TRIGGER"/>
 			<bitfield pos="1" name="STOP_TRIGGER"/>

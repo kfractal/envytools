@@ -178,7 +178,7 @@
 			<bitfield pos="10" name="UNK10"/> <!-- not present on 0x17 -->
 		</reg32>
 		<reg32 offset="0x8d0" name="GPIO_UNK8D0"/> <!-- 5/7/0 -->
-		<array offset="0xc00" name="INTR_HOST" stride="0x100" variants="GK104-"> <!-- to PMC.INTR -->
+		<array offset="0xc00" name="INTR_HOST" stride="0x100" length="1" variants="GK104-"> <!-- to PMC.INTR length? -->
 			<reg32 offset="0x000" name="GPIO_INTR_0" type="g80_pnvio_gpio_intr_0"/>
 			<reg32 offset="0x004" name="GPIO_INTR_DISPATCH_0" type="g80_pnvio_gpio_intr_0"/>
 			<reg32 offset="0x008" name="GPIO_INTR_EN_0" type="g80_pnvio_gpio_intr_0"/>
@@ -195,7 +195,7 @@
 			<reg32 offset="0x084" name="GPIO_INTR_DISPATCH_1" type="g80_pnvio_gpio_intr_1"/>
 			<reg32 offset="0x088" name="GPIO_INTR_EN_1" type="g80_pnvio_gpio_intr_1"/>
 		</array>
-		<array offset="0xd00" name="INTR_DAEMON" stride="0x100" variants="GK104-"> <!-- to PDAEMON signal 8 -->
+		<array offset="0xd00" name="INTR_DAEMON" stride="0x100" length="1" variants="GK104-"> <!-- to PDAEMON signal 8 , length ?-->
 			<reg32 offset="0x000" name="GPIO_INTR_0" type="g80_pnvio_gpio_intr_0"/>
 			<reg32 offset="0x004" name="GPIO_INTR_DISPATCH_0" type="g80_pnvio_gpio_intr_0"/>
 			<reg32 offset="0x008" name="GPIO_INTR_INJECT_HOST_0" type="g80_pnvio_gpio_intr_0"/>
@@ -217,7 +217,7 @@
 			<reg32 offset="0x088" name="GPIO_INTR_INJECT_HOST_1" type="g80_pnvio_gpio_intr_1"/>
 			<reg32 offset="0x08c" name="GPIO_INTR_INJECT_DISPLAY_DAEMON_1" type="g80_pnvio_gpio_intr_1"/>
 		</array>
-		<array offset="0xe00" name="INTR_DISPLAY_DAEMON" stride="0x100" variants="GK104-">
+		<array offset="0xe00" name="INTR_DISPLAY_DAEMON" stride="0x100" length="1" variants="GK104-"> <!-- length? -->
 			<reg32 offset="0x000" name="GPIO_INTR_0" type="g80_pnvio_gpio_intr_0"/>
 			<reg32 offset="0x004" name="GPIO_INTR_DISPATCH_0" type="g80_pnvio_gpio_intr_0"/>
 			<reg32 offset="0x008" name="GPIO_INTR_INJECT_HOST_0" type="g80_pnvio_gpio_intr_0"/>
@@ -491,7 +491,7 @@
 			<reg32 name="SETUP" offset="0x40"/>
 		</array>
 
-		<array offset="0x720" name="FAN_TACH" stride="0xc" variants="GT215-">
+		<array offset="0x720" name="FAN_TACH" stride="0xc" length="1" variants="GT215-"> <!-- length? -->
 			<reg32 offset="0" name="CONFIG">
 				<bitfield pos="0" name="ENABLE"/>
 				<bitfield pos="1" name="CLEAR"/>

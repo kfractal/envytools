@@ -33,7 +33,7 @@
 	<stripe variants="GT215-">
 		<use-group name="falcon_crypt"/>
 	</stripe>
-	<array offset="0x400" name="VLD" stride="0x80">
+	<array offset="0x400" name="VLD" stride="0x80" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="MODE">
 			<bitfield low="0" high="7" name="WIDTH_MB"/>
 			<bitfield low="8" high="15" name="HEIGHT_MB"/>
@@ -225,7 +225,7 @@
 		<reg32 offset="0x60" name="UNK60"/>
 		<reg32 offset="0x64" name="UNK64" variants="GT215-"/><!-- MPEG4 writes 4 as part of recovery with resync_marker, and waits until it turns to 0 -->
 	</array>
-	<array offset="0x480" name="STREAM" stride="0x80">
+	<array offset="0x480" name="STREAM" stride="0x80" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="STREAM_0" stride="8" length="4">
 			<bitfield low="0" high="23" name="LENGTH"/>
 			<bitfield low="24" high="31" name="ADDR_HI"/>
@@ -241,7 +241,7 @@
 		</reg32>
 		<reg32 offset="0x44" name="RESET_TRIGGER"/><!-- write 1, read until you obtain 0 -->
 	</array>
-	<array offset="0x500" name="BSP2VP" stride="0x80">
+	<array offset="0x500" name="BSP2VP" stride="0x80" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="MBRING_ADDR" shr="8"/>
 		<reg32 offset="0x04" name="MBRING_GET"/>
 		<reg32 offset="0x08" name="MBRING_PUT"/>
@@ -270,7 +270,7 @@
 	<reg32 offset="0x580" name="BITPLANE_DATA" length="4" variants="GT215-"/> <!-- indexed, needs to be saved/restored for mpeg4 -->
 	<reg32 offset="0x640" name="JOE" variants="GT215-"/>
 	<reg32 offset="0x64c" name="UNK64C" length="5" variants="GF119-"/>
-	<array offset="0x680" name="UNK680" stride="0x40" variants="GF100-">
+	<array offset="0x680" name="UNK680" stride="0x40" length="1" variants="GF100-">  <!-- length? -->
 		<reg32 offset="0x04" name="UNK04">
 			<bitfield low="0" high="6" name="UNK0"/>
 			<bitfield pos="8" name="UNK8"/>

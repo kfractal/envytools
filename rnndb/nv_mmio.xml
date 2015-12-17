@@ -4,7 +4,7 @@
 	xsi:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
 <import file="copyright.xml"/>
 
-<import file="nvchipsets.xml" />
+<import file="nvchipsets.xml"/>
 
 <domain name="NV_MMIO" bare="yes" prefix="chipset" size="0x1000000">
 	<array offset="0x22000" name="PUNK022" stride="0x400" length="1" variants="G84:GF100">

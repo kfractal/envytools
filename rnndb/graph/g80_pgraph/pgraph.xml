@@ -724,6 +724,7 @@
 
 	<array offset="0x7c00" name="ZBAR" stride="0x100" length="1">
 		<enum name="g80_zbar_pm_sig" inline="yes">
+          <value name="dummy" value="0"/> <!-- was empty -->
 		</enum>
 		<reg32 offset="0x04" name="PM">
 			<bitfield low="0" high="7" name="PM_SEL_0" type="g80_zbar_pm_sig"/>
@@ -735,8 +736,10 @@
 
 	<array offset="0x7d00" name="CBAR" stride="0x100" length="1">
 		<enum name="g80_cbar_pm_sig_0" inline="yes">
+          <value name="dummy" value="0"/> <!-- was empty -->
 		</enum>
 		<enum name="g80_cbar_pm_sig_1" inline="yes">
+          <value name="dummy" value="0"/> <!-- was empty -->
 		</enum>
 		<reg32 offset="0x00" name="SAMPLECNT"/>
 		<reg32 offset="0x10" name="PM_0">

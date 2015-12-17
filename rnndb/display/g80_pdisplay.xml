@@ -452,6 +452,7 @@
 			</bitset>
 			<bitset name="gf119_pdisplay_intr_4" inline="yes">
 				<!-- 0-7, 16-19 -->
+				<bitfield pos="8" name="dummy"/> <!-- was empty -->
 			</bitset>
 			<reg32 offset="0x058" name="INTR_SUMMARY" type="gf119_pdisplay_intr_summary"/>
 			<reg32 offset="0x05c" name="INTR_FIFO_UNK0_STATUS" type="gf119_pdisplay_intr_fifo"/>

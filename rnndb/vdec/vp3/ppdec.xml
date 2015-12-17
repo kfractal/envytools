@@ -47,7 +47,7 @@
 	<stripe variants="GF100:GF119">
 		<use-group name="falcon_crypt"/>
 	</stripe>
-	<array offset="0x400" name="VUC" stride="0x100">
+	<array offset="0x400" name="VUC" stride="0x100" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="DATA" length="16"/> <!-- indexed -->
 		<!-- GF119+ data is: 0x60 5-bit cells, then 0x560 16-bit cells -->
 		<reg32 offset="0x40" name="CODE_CONTROL" variants="G98:GF119">
@@ -168,7 +168,7 @@
 		<reg32 offset="0xc8" name="UNKC8" variants="GT215-"/> <!-- XXX -->
 		<!-- XXX: more GF119+ regs -->
 	</array>
-	<array offset="0x500" name="TRANS" stride="0x80">
+	<array offset="0x500" name="TRANS" stride="0x80" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="CODE_SELECT" length="4">
 			<bitfield low="0" high="7" name="START"/>
 			<bitfield low="8" high="15" name="LENGTH"/>
@@ -208,7 +208,7 @@
 		<!-- first read returns: 8-15: address, 16-31: opcode 0-15; second read returns: 0-23: opcode 16-39; read CODE_CTRL to reset to addr 0 -->
 		<reg32 offset="0x3c" name="CODE_READBACK" access="r"/>
 	</array>
-	<array offset="0x540" name="UNK540" stride="0x40">
+	<array offset="0x540" name="UNK540" stride="0x40" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00">
 			<bitfield low="0" high="5" name="UNK0"/>
 			<bitfield low="6" high="10" name="UNK6"/>
@@ -221,7 +221,7 @@
 		<reg32 offset="0x20" name="UNK20" access="r"/>
 		<reg32 offset="0x24" name="UNK24" access="r"/>
 	</array>
-	<array offset="0x580" name="UNK580" stride="0x40">
+	<array offset="0x580" name="UNK580" stride="0x40" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00" length="3">
 			<bitfield low="0" high="5" name="UNK0"/>
 			<bitfield low="8" high="13" name="UNK8"/>
@@ -241,7 +241,7 @@
 		<reg32 offset="0x30" name="INTR_EN" type="g98_ppdec_unk580_intr" variants="G98:GF100 GF119-"/>
 		<reg32 offset="0x38" name="INTR" type="g98_ppdec_unk580_intr" variants="G98:GF100 GF119-"/>
 	</array>
-	<array offset="0x5c0" name="UNK5C0" stride="0x40">
+	<array offset="0x5c0" name="UNK5C0" stride="0x40" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00">
 			<bitfield low="0" high="9" name="UNK0"/>
 			<bitfield pos="10" name="UNK10" variants="GT215-"/>
@@ -264,10 +264,10 @@
 			<bitfield low="16" high="27" name="UNK16"/>
 		</reg32>
 	</group>
-	<array offset="0x630" name="UNK630" stride="0x10" variants="G98:GT215">
+	<array offset="0x630" name="UNK630" stride="0x10" length="1" variants="G98:GT215"> <!-- length? -->
 		<use-group name="g98_ppdec_unk630"/>
 	</array>
-	<array offset="0x640" name="UNK640" stride="0x40">
+	<array offset="0x640" name="UNK640" stride="0x40" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00">
 			<bitfield low="0" high="8" name="UNK0"/>
 			<bitfield low="16" high="31" name="UNK16"/>
@@ -280,7 +280,7 @@
 		<reg32 offset="0x0c" name="UNK0C"/> <!-- ffff -->
 		<reg32 offset="0x10" name="UNK10" length="8" access="r"/>
 	</array>
-	<array offset="0x680" name="UNK680" stride="0x80">
+	<array offset="0x680" name="UNK680" stride="0x80" length="1"> <!-- length? -->
 		<reg32 offset="0x00" name="UNK00" length="2">
 			<bitfield low="0" high="11" name="UNK0"/>
 			<bitfield low="16" high="27" name="UNK16"/>
@@ -319,10 +319,10 @@
 	<reg32 offset="0x700" name="JOE" variants="GT215-"/>
 	<reg32 offset="0x708" name="UNK708" variants="GF100-"/>
 	<reg32 offset="0x70c" name="UNK70C" length="5" variants="GF119-"/>
-	<array offset="0x740" name="UNK630" stride="0x40" variants="GT215-">
+	<array offset="0x740" name="UNK630" stride="0x40" length="1" variants="GT215-"> <!-- length? -->
 		<use-group name="g98_ppdec_unk630"/>
 	</array>
-	<array offset="0x780" name="UNK780" stride="0x40" variants="GF100:GF119">
+	<array offset="0x780" name="UNK780" stride="0x40" length="1" variants="GF100:GF119"> <!-- length? -->
 		<reg32 offset="0x04" name="UNK04">
 			<bitfield low="0" high="6" name="UNK0"/>
 			<bitfield pos="8" name="UNK8"/>
