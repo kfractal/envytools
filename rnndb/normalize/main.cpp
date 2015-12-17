@@ -16,7 +16,6 @@ int main (int argc, char **argv)
 }
 
 
-
 Main::Main(int &argc, char **argv) :
 	QCoreApplication(argc, argv), _in(stdin), _out(stdout), _err(stderr),
 	_validator(_schema), _validator_msg_handler(&_out, &_err, this)
@@ -39,23 +38,23 @@ void Main::start()
 
 	if ( (_warn || _verbose) ) {
 		for (auto e : _ignored_elements ) {
-			qDebug() << "warning: ignored element" << e;
+			out() << "warning: ignored element " << e << endl;
 		}
 		for (auto a : _ignored_attributes) {
-			qDebug() << "warning: ignored attribute" << a;
+			out() << "warning: ignored attribute " << a << endl;
 		}
 		for (auto ne: _nested_elements ) {
-			qDebug() << "warning: unexpected nesting of" << ne << "element";
+			out() << "warning: unexpected nesting of " << ne << " element" << endl;
 		}
 		if ( _verbose)  {
 			for ( auto rf : _read_files ) {
-				qDebug() << "info: read" << rf;
+				out() << "info: read " << rf << endl;
 			}
 		}
 		if ( !rc ) { // don't bother if there was an error...
 			for ( auto xf : _all_xml_files ) {
 				if ( _read_files.find(xf) == _read_files.end() ) {
-					qDebug() << "warning: didn't use" << xf << "?";
+					out() << "warning: didn't use " << xf << " ?" << endl;
 				}
 			}
 		}
@@ -68,7 +67,7 @@ void Main::start()
 int Main::read_root()
 {
 	_root_dir = QDir(QFileInfo(_root).dir());
-	if (_verbose) qDebug() << "info: root dir is " << _root_dir.absolutePath();
+	if (_verbose) out() << "info: root dir is " << _root_dir.absolutePath() << endl;
 
 	// this is used to check for files which might be improperly ignored.
 	// i.e.: it's not used to drive the hierarchy traversal...
@@ -82,50 +81,48 @@ int Main::read_root()
 // returns to current at the end
 int Main::cd_and_read(const QString &file_path)
 {
-	QDir  cur_dir = QDir::current();
-	QDir  file_dir = QFileInfo(file_path).dir();
-	QFile file(file_path);
+	QFileInfo file_info(file_path);
+	QString file_name = file_info.fileName();
 
-	if ( !file.open(QIODevice::ReadOnly | QIODevice::Text) ) {
-		QFileInfo fi(file_path);
-		bool retry_at_root = (fi.isRelative());
-		bool ok = false;
-		if ( retry_at_root ) {
-			QDir::setCurrent(_root_dir.absolutePath());
-			file.setFileName(file_path);
-			if ( file.open(QIODevice::ReadOnly | QIODevice::Text) ) {
-				ok = true;
-				file_dir = _root_dir;
-			}
-		}
-		if ( !ok ) {
-			qDebug() << "error: couldn't open" << file_path;
-			return -1;
-		}
+	out() << "info: file path " << file_path << endl;// << (relative?"(relative)":"") << endl;
+
+	QFile file(file_path);
+	bool ok;
+
+	ok = file.open(QIODevice::ReadOnly | QIODevice::Text);
+
+	int r = -1;
+	if ( ok ) {
+		r = read_file(&file);
+	} else {
+		out() << "error: couldn't open " << file_path << endl;
 	}
 
-	QDir::setCurrent( file_dir.path() );
-	int r = read_file(&file);
-	QDir::setCurrent( cur_dir.path() );
 	return r;
 }
 
 int Main::read_file(QFile *file)
 {
-	// do not return just anywhere...
-	// see "done:" label below
 	_current_file.push(QFileInfo(*file));
-
-	_read_files.insert("./" + file->fileName()); // is the "./" dodgy?
+	_read_files.insert(file->fileName());
 
 	if (_validate_schema && _schema.isValid() ) {
-		if (_validator.validate(file, QUrl::fromLocalFile(file->fileName()))) {
+
+		if ( _verbose) out() << "info: validating " << file->fileName() << endl;
+		// note: the url here has some sort of namespace impact?
+		// names like "bus/pmc.xml"/ make the validator choke in weird places.
+		// i have no idea why yet (using external web-based checkers say they're
+		// fine).  just hacking it for now while i try to understand it.
+		QFileInfo fi(*file);
+		if (_validator.validate(file , QUrl::fromLocalFile(fi.fileName()))) {
 			// ok
 		}
 		else {
-			err() << "error: instance document is invalid\n";
-			// should be a more verbose error coming out to stdout
+			out() << "error: instance document " << file->fileName() << " is invalid" << endl;
+			// more verbose error coming out of the validator already.
+			_current_file.pop();
 			return -1;
+			
 		}
 		file->seek(0); // validator likely moved it :)
 	}
@@ -141,10 +138,10 @@ int Main::read_file(QFile *file)
 
 		switch (token_type) {
 			case QXmlStreamReader::StartDocument:
-				if ( _verbose ) qDebug() << "info: root start doc";
+				if ( _verbose ) out() << "info: root start doc" << endl;
 				break;
 			case QXmlStreamReader::EndDocument:
-				if ( _verbose ) qDebug() << "info: root end doc";
+				if ( _verbose ) out() << "info: root end doc" << endl;
 				break;
 			case QXmlStreamReader::StartElement:
 				rc = handle_element(xml);
@@ -157,26 +154,26 @@ int Main::read_file(QFile *file)
 					goto done;
 				break;
 			case QXmlStreamReader::Characters:
-				if ( _verbose ) qDebug() << "info: root chars";
+				if ( _verbose ) out() << "info: root chars" << endl;
 				break;
 			case QXmlStreamReader::Comment:
-				if ( _verbose ) qDebug() << "info: root comment";
+				if ( _verbose ) out() << "info: root comment" << endl;
 				break;
 			case QXmlStreamReader::DTD:
-				if ( _verbose ) qDebug() << "info: root dtd";
+				if ( _verbose ) out() << "info: root dtd" << endl;
 				break;
 			case QXmlStreamReader::EntityReference:
-				if ( _verbose ) qDebug() << "info: root entity ref";
+				if ( _verbose ) out() << "info: root entity ref" << endl;
 				break;
 			case QXmlStreamReader::ProcessingInstruction:
-				if ( _verbose ) qDebug() << "info: root processing instr";
+				if ( _verbose ) out() << "info: root processing instr" << endl;
 				break;
 			case QXmlStreamReader::NoToken:
-				if ( _verbose ) qDebug() << "info: root no token";
+				if ( _verbose ) out() << "info: root no token" << endl;
 				break;
 			case QXmlStreamReader::Invalid:
 			default:
-				qDebug() << "error: root invalid/unk token";
+				out() << "error: root invalid/unk token" << endl;
 				rc = -1;
 				goto done;
 				break; /*NOTREACHED*/
@@ -184,11 +181,11 @@ int Main::read_file(QFile *file)
 	}
  done:
 	if (xml.hasError()) {
-		qDebug() << "error: xml has error?";
+		out() << "error: xml has error?\n";
 		rc = -1;
 	}
-	if (_debug) {
-		qDebug()  << "debug: file complete" << _current_file.top().fileName();
+	if (true || _debug) {
+		out()  << "debug: file complete " << _current_file.top().fileName() << endl;
 	}
 	_current_file.pop();
 	return rc;
@@ -252,8 +249,8 @@ int Main::handle_element(QXmlStreamReader &e)
 	auto f = _element_handlers.find(name_str(e));
 	if ( f == _element_handlers.end() ) {
 		_ignored_elements.insert(name_str(e));
-		qDebug() << "error: unknown element" << name_str(e) << "at line" <<
-			e.lineNumber() << "of" << _current_file.top().filePath();
+		out() << "error: unknown element " << name_str(e) << " at line " <<
+			e.lineNumber() << " of " << _current_file.top().filePath() << endl;
 		return -1;
 	}
 
@@ -261,8 +258,8 @@ int Main::handle_element(QXmlStreamReader &e)
 		for ( auto si : _current_element ) {
 			if ( si == name_str(e) ) {
 				_nested_elements.insert(si);
-				qDebug() << "warning: nested" << si << "at line" <<
-					e.lineNumber() << "of" << _current_file.top().filePath();
+				out() << "warning: nested " << si << " at line " <<
+					e.lineNumber() << " of " << _current_file.top().filePath() << endl;
 			}
 		}
 	}
@@ -283,8 +280,8 @@ int Main::handle_element(QXmlStreamReader &e)
 	int rc = (this->**f)(e); // records attrs seen in top()
 
 	if (rc) {
-		qDebug() << "error: failed handler for" << name_str(e) << "at line" <<
-			e.lineNumber() << "of" << _current_file.top().filePath();
+		out() << "error: failed handler for " << name_str(e) << " at line " <<
+			e.lineNumber() << " of " << _current_file.top().filePath() << endl;
 	}
 	return rc;
 }
@@ -294,7 +291,7 @@ int Main::end_element(QXmlStreamReader &e)
 	int rc;
 	auto f = _element_closers.find(name_str(e));
 	if ( f == _element_closers.end() ) {
-		qDebug() << "failed to find closer for" << name_str(e);
+		out() << "error: failed to find closer for " << name_str(e) << endl;
 		_ignored_elements.insert(name_str(e));
 		rc = -1;
 		goto done;
@@ -303,18 +300,18 @@ int Main::end_element(QXmlStreamReader &e)
 	rc = (this->**f)(e);
 
 	if (rc) {
-		qDebug() << "error: failed closer for" << name_str(e) << "at line" <<
-			e.lineNumber() << "of" << _current_file.top().filePath();
+		out() << "error: failed closer for " << name_str(e) << " at line " <<
+			e.lineNumber() << " of " << _current_file.top().filePath() << endl;
 	}
 
  done:
 	if ( _current_element.size() == 0 ) {
-		qDebug() << "error: about to pop empty element stack?";
+		out() << "error: about to pop empty element stack?" << endl;
 	}
 	_current_element.pop();
 
 	if ( _attr_stack.size() <= 1 ) {
-		qDebug() << "error: about to hit empty attr stack?";
+		out() << "error: about to hit empty attr stack?" << endl;
 	}
 	_attr_stack.pop();
 	_attrs = _attr_stack.top();
@@ -326,7 +323,7 @@ int Main::handle_import(QXmlStreamReader &e)
 	int rc = 0;
 	for ( auto a: e.attributes() ) {
 		if ( a.name() == "file" ) {
-			if ( _verbose ) qDebug() << "info: importing file" << a.value();
+			if ( _verbose ) out() << "info: importing file " << a.value().toString() << endl;
 			rc = cd_and_read(a.value().toString());
 			if ( rc )
 				return rc;
@@ -337,7 +334,7 @@ int Main::handle_import(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_import(QXmlStreamReader &e)
+int Main::close_import(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -403,7 +400,7 @@ void Main::flatten_attrs(const attr_spec_t &a)
 			else { rc = -1; ignored_attr(e,a); }	\
 		}											\
 		if ( rc )	{								\
-			qDebug() << "rc failed in" << __func__;	\
+			out() << "error: rc failed in " << __func__	<< endl;	\
 			return rc;								\
 		}											\
 		flatten_attrs(local_attrs);					\
@@ -420,12 +417,12 @@ int Main::handle_array(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(array);
 	out() << QString("array: %1 0x%2").arg(_attrs._name.v).
-		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
 
 	return rc;
 }
 
-int Main::close_array(QXmlStreamReader &e)
+int Main::close_array(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -433,12 +430,12 @@ int Main::close_array(QXmlStreamReader &e)
 int Main::handle_domain(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(domain);
-	out() << QString("domain: %1").arg(_attrs._name.v) << '\n';
+	out() << QString("domain: %1").arg(_attrs._name.v) << endl;
 
 	return rc;
 }
 
-int Main::close_domain(QXmlStreamReader &e)
+int Main::close_domain(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -449,7 +446,7 @@ int Main::handle_doc(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_doc(QXmlStreamReader &e)
+int Main::close_doc(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -460,7 +457,7 @@ int Main::handle_spectype(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_spectype(QXmlStreamReader &e)
+int Main::close_spectype(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -471,7 +468,7 @@ int Main::handle_b(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_b(QXmlStreamReader &e)
+int Main::close_b(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -485,12 +482,12 @@ int Main::handle_reg16(QXmlStreamReader &e)
 	QString name    = _attrs._name.v;
 
 	out() << QString("reg16: %1 0x%2").arg(name).
-		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
 
 	return rc;
 }
 
-int Main::close_reg16(QXmlStreamReader &e)
+int Main::close_reg16(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -518,10 +515,10 @@ int Main::handle_database(QXmlStreamReader &e)
 						if (sfi.exists()) {
 							QFile file(sfi.absoluteFilePath());
 							if ( file.open(QIODevice::ReadOnly | QIODevice::Text) ) {
-								if (_verbose) qDebug() << "info: loading db schema from" << file.fileName();
+								if (_verbose) out() << "info: loading db schema from " << file.fileName() << endl;
 								_schema.load(&file, QUrl::fromLocalFile(file.fileName()));
 								if ( !_schema.isValid()) {
-									qDebug() << "warning: invalid schema" << sfi.absoluteFilePath();
+									out() << "warning: invalid schema " << sfi.absoluteFilePath() << endl;
 								}
 								schema_cache[attr_val] = true;
 							}
@@ -542,7 +539,7 @@ int Main::handle_database(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_database(QXmlStreamReader &e)
+int Main::close_database(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -553,7 +550,7 @@ int Main::handle_bitset(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_bitset(QXmlStreamReader &e)
+int Main::close_bitset(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -564,7 +561,7 @@ int Main::handle_copyright(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_copyright(QXmlStreamReader &e)
+int Main::close_copyright(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -578,12 +575,12 @@ int Main::handle_reg8(QXmlStreamReader &e)
 	QString name    = _attrs._name.v;
 
 	out() << QString("reg8: %1 0x%2").arg(name).
-		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
 
 	return rc;
 }
 
-int Main::close_reg8(QXmlStreamReader &e)
+int Main::close_reg8(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -593,7 +590,7 @@ int Main::handle_nick(QXmlStreamReader &e)
 	STACK_ELEMENT_ATTRS(nick);
 	return rc;
 }
-int Main::close_nick(QXmlStreamReader &e)
+int Main::close_nick(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -604,7 +601,7 @@ int Main::handle_license(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_license(QXmlStreamReader &e)
+int Main::close_license(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -615,7 +612,7 @@ int Main::handle_enum(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_enum(QXmlStreamReader &e)
+int Main::close_enum(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -626,7 +623,7 @@ int Main::handle_use_group(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_use_group(QXmlStreamReader &e)
+int Main::close_use_group(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -637,7 +634,7 @@ int Main::handle_li(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_li(QXmlStreamReader &e)
+int Main::close_li(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -651,12 +648,12 @@ int Main::handle_reg64(QXmlStreamReader &e)
 	QString name    = _attrs._name.v;
 
 	out() << QString("reg64: %1 0x%2").arg(name).
-		arg(offset, 16, 16, QChar('0')) << '\n';
+		arg(offset, 16, 16, QChar('0')) << endl;
 
 	return rc;
 }
 
-int Main::close_reg64(QXmlStreamReader &e)
+int Main::close_reg64(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -670,7 +667,7 @@ int Main::handle_reg32(QXmlStreamReader &e)
 	QString name    = _attrs._name.v;
 
 	out() << QString("reg32: %1 0x%2").arg(name).
-		arg(offset, 8, 16, QChar('0')) << '\n';
+		arg(offset, 8, 16, QChar('0')) << endl;
 
 	return rc;
 }
@@ -678,7 +675,7 @@ int Main::handle_reg32(QXmlStreamReader &e)
 //
 // note: not all reg32_ELEMENT_ATTRS() are processed yet.
 //
-int Main::close_reg32(QXmlStreamReader &e)
+int Main::close_reg32(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -689,7 +686,7 @@ int Main::handle_brief(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_brief(QXmlStreamReader &e)
+int Main::close_brief(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -700,7 +697,7 @@ int Main::handle_author(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_author(QXmlStreamReader &e)
+int Main::close_author(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -711,7 +708,7 @@ int Main::handle_ul(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_ul(QXmlStreamReader &e)
+int Main::close_ul(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -722,12 +719,12 @@ int Main::handle_bitfield(QXmlStreamReader &e)
 	STACK_ELEMENT_ATTRS(bitfield);
 
 	out() << QString("bitfield: %1 %2:%3").arg(_attrs._name.v).
-		arg(_attrs._high.v).arg(_attrs._low.v) << '\n';
+		arg(_attrs._high.v).arg(_attrs._low.v) << endl;
 
 	return rc;
 }
 
-int Main::close_bitfield(QXmlStreamReader &e)
+int Main::close_bitfield(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -736,12 +733,12 @@ int Main::handle_stripe(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(stripe);
 	out() << QString("stripe: %1 0x%2").arg(_attrs._name.v).
-		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << '\n';
+		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
 
 	return rc;
 }
 
-int Main::close_stripe(QXmlStreamReader &e)
+int Main::close_stripe(QXmlStreamReader &)
 {
 	return 0;
 }
@@ -752,14 +749,14 @@ int Main::handle_group(QXmlStreamReader &e)
 	return rc;
 }
 
-int Main::close_group(QXmlStreamReader &e)
+int Main::close_group(QXmlStreamReader &)
 {
 	return 0;
 }
 
 bool Main::in_bitfield()
 {
-	for ( size_t i = 0; i < _current_element.length(); i++)
+	for ( auto i = 0; i < _current_element.length(); i++)
 		if ( _current_element[i] == "bitfield" )
 			return true;
 	return false;
@@ -774,20 +771,21 @@ int Main::handle_value(QXmlStreamReader &e)
 		c_str += QString(" %1:%2").arg(_attrs._high.v).arg(_attrs._low.v);
 	}
 	if ( in_bitfield() ) {
-		out() << QString("bitfield value: %1 %2%3\n").
-			arg(_attrs._name.v).arg(_attrs._value.v).arg(c_str);
+		out() << QString("bitfield value: %1 %2%3").
+			arg(_attrs._name.v).arg(_attrs._value.v).arg(c_str) << endl;
 	} else {
-		out() << QString("value: %1 %2\n").
-			arg(_attrs._name.v).arg(_attrs._value.v);
+		out() << QString("value: %1 %2").
+			arg(_attrs._name.v).arg(_attrs._value.v) << endl;
 	}
 
 	return rc;
 }
 
-int Main::close_value(QXmlStreamReader &e)
+int Main::close_value(QXmlStreamReader &)
 {
 	return 0;
 }
+#undef ATTR
 
 // e.g.: const std::vector<std::string> Main::array_element_attrs { "length", ... };
 #define ELEMENT(X) const std::vector<std::string> Main:: X ##_element_attrs { X ## _ELEMENT_ATTRS() };
@@ -868,7 +866,15 @@ void Main::find_xml_files()
 
 	while ( fileq.size() ) {
 		QFileInfo *fi = fileq.dequeue();
-		_all_xml_files.insert(fi->filePath());
+		QString root_rel_path = fi->filePath();
+		if ( fi->filePath().startsWith("./") ) {
+			root_rel_path.remove(0,2);
+		}
+		_all_xml_files.insert(root_rel_path);
+	}
+	out () << "info: the number of xml files is " << _all_xml_files.size() << endl;
+	for ( auto v: _all_xml_files ) {
+		out() << v << endl;
 	}
 }
 
@@ -898,7 +904,8 @@ template<> void spec_t<uint32_t>::from(const QStringRef &r)
 	if ( !ok && r.startsWith("0x", Qt::CaseInsensitive) ) {
 		v = r.toUInt(&ok, 16);
 		if ( !ok ) {
-			qDebug() << "error: couldn't turn this into a number:" << v;
+			QTextStream out(stdout); // hack
+			out  << "error: couldn't turn this: \"" << v << "\" into a number." << endl;
 			v = ~(uint32_t)0;
 		}
 	}
@@ -916,7 +923,7 @@ void ValidatorMessageHandler::handleMessage(QtMsgType type, const QString & desc
 	}
 	(*_out) << description << "] " <<
 		" id: " << identifier.toString() <<
-		" in " <<	sourceLocation.uri().toString() <<
 		" at line " << sourceLocation.line() <<
-		", column " << sourceLocation.column() << "\n";
+		" of " <<	sourceLocation.uri().toString() <<
+		" column " << sourceLocation.column() << endl;
 }

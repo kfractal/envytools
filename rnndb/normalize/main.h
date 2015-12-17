@@ -23,7 +23,7 @@ class ValidatorMessageHandler : public QAbstractMessageHandler
 	Q_OBJECT
 public:
 	ValidatorMessageHandler(QTextStream *o, QTextStream *e, QObject *p = 0) :
-		QAbstractMessageHandler(p), _out(o) { }
+		QAbstractMessageHandler(p), _out(o), _err(e) { }
 
 protected:
 	QTextStream *_out;
@@ -58,7 +58,7 @@ protected:
 	static constexpr bool _debug   = false;
 	static constexpr bool _verbose = false;
 	static constexpr bool _warn    = true;
-	static constexpr bool _validate_schema = false;
+	static constexpr bool _validate_schema = true;
 
 	bool _error;
 	QString _root;
