@@ -23,10 +23,11 @@ expecting a warning will be issued.  Likewise any xml files found at the root
 dir of rnndb which *aren't* used by the hierarchy at root.xml will also
 be warned of.
 
-The XML schema found in rules-ng.xsd is fairly up to date, but there are
-still problems which preclude its rigorous use.  But, there *is* code in the
-tool to enable schema validation.  At some point it'd be nice to turn that
-on unconditionally... [tbd: bug/issue reference]
+The XML schema in rules-ng.xsd is used to validate the set of xml files
+referenced by root.xml without error.  A few changes to the schema and
+the xml files were needed to make that happen.  In some cases, taking care
+of missing attributes or elements.  And in some, changes to the schema were
+necessary.  But, nothing major.
 
 The next large step here is to take this code base and bring it up at run-time
 alongside the tool which I used to generate the nvgpu->nouveau headers.
