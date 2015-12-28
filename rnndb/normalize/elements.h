@@ -45,19 +45,16 @@
 #define doc_ELEMENT_ATTRS()
 #define domain_ELEMENT_ATTRS()		ATTR(bare) ATTR(name) ATTR(prefix) ATTR(size) ATTR(variants) \
 									ATTR(varset) ATTR(width)
-#define enum_ELEMENT_ATTRS()		ATTR(bare) ATTR(inline) ATTR(name) ATTR(varset)
+#define enum_ELEMENT_ATTRS()		ATTR(bare) ATTR(inline) ATTR(name) ATTR(prefix) ATTR(varset)
 #define group_ELEMENT_ATTRS()		ATTR(name)
 #define import_ELEMENT_ATTRS()		ATTR(file)
 #define li_ELEMENT_ATTRS()
 #define license_ELEMENT_ATTRS()
 #define nick_ELEMENT_ATTRS()		ATTR(name)
-#define reg16_ELEMENT_ATTRS()		ATTR(name) ATTR(offset)
-#define reg32_ELEMENT_ATTRS()		ATTR(access) ATTR(align) ATTR(length) ATTR(max) ATTR(min) \
-									ATTR(name) ATTR(offset) ATTR(shr) ATTR(stride) ATTR(type) \
-									ATTR(variants) ATTR(varset)
-#define reg64_ELEMENT_ATTRS()		ATTR(length) ATTR(name) ATTR(offset) ATTR(shr) ATTR(variants)
-#define reg8_ELEMENT_ATTRS()		ATTR(access) ATTR(length) ATTR(name) ATTR(offset) ATTR(shr) \
-									ATTR(type) ATTR(variants)
+#define reg16_ELEMENT_ATTRS()		ATTR(name) ATTR(offset) ATTR(access) ATTR(type) ATTR(shr) ATTR(varset) ATTR(variants) ATTR(stride) ATTR(length) ATTR(align) ATTR(max) ATTR(min)
+#define reg32_ELEMENT_ATTRS()		ATTR(name) ATTR(offset) ATTR(access) ATTR(type) ATTR(shr) ATTR(varset) ATTR(variants) ATTR(stride) ATTR(length) ATTR(align) ATTR(max) ATTR(min)
+#define reg64_ELEMENT_ATTRS()		ATTR(name) ATTR(offset) ATTR(access) ATTR(type) ATTR(shr) ATTR(varset) ATTR(variants) ATTR(stride) ATTR(length) ATTR(align) ATTR(max) ATTR(min)
+#define reg8_ELEMENT_ATTRS()		ATTR(name) ATTR(offset) ATTR(access) ATTR(type) ATTR(shr) ATTR(varset) ATTR(variants) ATTR(stride) ATTR(length) ATTR(align) ATTR(max) ATTR(min)
 #define spectype_ELEMENT_ATTRS()	ATTR(name) ATTR(type)
 #define stripe_ELEMENT_ATTRS()		ATTR(length) ATTR(name) ATTR(offset) ATTR(prefix) ATTR(stride) \
 									ATTR(variants) ATTR(varset)
