@@ -1,4 +1,7 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
+/*
+ *  >insert nvidia open source copyright<
+ */
 
 #include <vector>
 #include <string>
@@ -10,6 +13,7 @@
 #include <QString>
 #include <QStack>
 #include <QXmlStreamReader>
+#include <QXmlStreamWriter>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
 #include <QAbstractMessageHandler>
@@ -17,6 +21,15 @@
 typedef QSet<QString> QStringSet;
 
 #include "elements.h"
+
+struct file_content_t {
+	QList<xml_node_t *> nodes;
+	QStack<xml_node_t *> current_node;
+	QString _path;
+	file_content_t () : _path(QString()) { }
+	file_content_t (const QString &path) : _path(path) { }
+};
+
 
 class ValidatorMessageHandler : public QAbstractMessageHandler
 {
@@ -43,7 +56,7 @@ public:
 	QTextStream &in()  { return _in;  }
 	QTextStream &err() { return _err; }
 
-public slots:
+public Q_SLOTS:
 	void start();
 
 protected:
@@ -59,13 +72,15 @@ protected:
 	static constexpr bool _verbose = false;
 	static constexpr bool _warn    = true;
 	static constexpr bool _validate_schema = true;
+	static constexpr bool _skip_multiple_file_scans = true;
+	static constexpr bool _emit_normalized_hierarchy = true;
 
 	bool _error;
 	QString _root;
 	QDir _root_dir;
 
 	int read_root();
-	int cd_and_read(const QString &);
+	int read_path(const QString &);
 	int read_file(QFile *);
 	QStack<QFileInfo> _current_file; // for error reporting
 
@@ -85,7 +100,6 @@ protected:
 	static QMap<QString, element_handler_t> _element_handlers;
 	static QMap<QString, element_handler_t> _element_closers;
 
-
 	// element handler/closer prototypes
 #define ELEMENT(X)	int handle_ ## X (QXmlStreamReader &);
 	ELEMENTS()
@@ -93,7 +107,6 @@ protected:
 #define ELEMENT(X)	int close_ ## X (QXmlStreamReader &);
 	ELEMENTS()
 #undef ELEMENT
-
 
 	// element attribute sets
 	// e.g.: array_element_attrs[...]
@@ -117,4 +130,18 @@ protected:
 	QSet<QString> _read_files;
 	QSet<QString> _ignored_xml_files;
 	void find_xml_files();
+
+	file_content_t * current_file_content();
+	QMap<QString, file_content_t> _xml_file_content;
+	void emit_file(const QString &file);
+
+	int handle_document(QXmlStreamReader &e);
+	int end_document(QXmlStreamReader &e);
+
+	int handle_chars(QXmlStreamReader &e);
+	int handle_comment(QXmlStreamReader &e);
+	int handle_dtd(QXmlStreamReader &e);
+	int handle_entity_reference(QXmlStreamReader &e);
+	int handle_processing_instruction(QXmlStreamReader &e);
+	int handle_no_token(QXmlStreamReader &e);
 };

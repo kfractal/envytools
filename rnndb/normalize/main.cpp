@@ -1,4 +1,9 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
+/*
+ *  >insert nvidia open source copyright<
+ */
+
+#include <stdexcept>
 
 #include <QDebug>
 #include <QQueue>
@@ -7,14 +12,14 @@
 #include <QRegularExpression>
 
 #include "main.h"
-
+#include "chipids.h"
+#include "../../include/rnn.h"
 int main (int argc, char **argv)
 {
 	Main app(argc, argv);
 	QTimer::singleShot(0, &app, SLOT(start()));
 	return app.exec();
 }
-
 
 Main::Main(int &argc, char **argv) :
 	QCoreApplication(argc, argv), _in(stdin), _out(stdout), _err(stderr),
@@ -26,6 +31,23 @@ Main::Main(int &argc, char **argv) :
 
 void Main::start()
 {
+	// read in nv chip defs, results are the symbol whitelist
+	chipids_main();
+
+	out() << "processed nvidia headers for";
+	for ( auto &t: target_gpus ) {
+		out() << QString::fromStdString(t->name()) << endl;
+	}
+	out() << "found " <<
+		chip_groups.size()    << " groups, " <<
+		chip_regs.size()      << " registers, " <<
+		chip_fields.size()    << " fields and " <<
+		chip_constants.size() << " constants overall." << endl;
+
+	for ( auto cr : chip_regs ) {
+
+	}
+
 	// XXX: defaults not actually set yet...
 	// should almost certainly involve the schema.
 	attr_spec_t defaults;
@@ -60,6 +82,19 @@ void Main::start()
 		}
 	}
 
+
+	for (auto t : target_gpus ) {
+		//out() << QString("info: found ") << t->defines()->size() << QString(" whitelisted definitions for ") << QString::fromStdString(t->name()) << endl;
+	}
+
+	if ( _emit_normalized_hierarchy ) {
+		for ( auto xf : _all_xml_files ) {
+			emit_file(xf);
+		}
+	}
+
+
+
 	exit(rc); // Main::exit() sets *intent* to exit w/rc.
 	return;
 }
@@ -69,22 +104,24 @@ int Main::read_root()
 	_root_dir = QDir(QFileInfo(_root).dir());
 	if (_verbose) out() << "info: root dir is " << _root_dir.absolutePath() << endl;
 
-	// this is used to check for files which might be improperly ignored.
-	// i.e.: it's not used to drive the hierarchy traversal...
+	// this is used to create a superset of files which can be
+	// re-written in normalized form.  however, the xml file list isn't
+	// used to drive the discovery of elements.  that happens by way
+	// of the element parser... (through import statements).
 	find_xml_files();
 
-	int rc = cd_and_read(_root);
+	int rc = read_path(_root);
 
 	return rc;
 }
 
 // returns to current at the end
-int Main::cd_and_read(const QString &file_path)
+int Main::read_path(const QString &file_path)
 {
 	QFileInfo file_info(file_path);
 	QString file_name = file_info.fileName();
 
-	out() << "info: file path " << file_path << endl;// << (relative?"(relative)":"") << endl;
+	if (_verbose) out() << "info: file path " << file_path << endl;
 
 	QFile file(file_path);
 	bool ok;
@@ -103,6 +140,10 @@ int Main::cd_and_read(const QString &file_path)
 
 int Main::read_file(QFile *file)
 {
+	if (_skip_multiple_file_scans && 
+		(_read_files.find(file->fileName()) != _read_files.end()) ) {
+		return 0;
+	}
 	_current_file.push(QFileInfo(*file));
 	_read_files.insert(file->fileName());
 
@@ -122,7 +163,6 @@ int Main::read_file(QFile *file)
 			// more verbose error coming out of the validator already.
 			_current_file.pop();
 			return -1;
-			
 		}
 		file->seek(0); // validator likely moved it :)
 	}
@@ -138,10 +178,14 @@ int Main::read_file(QFile *file)
 
 		switch (token_type) {
 			case QXmlStreamReader::StartDocument:
-				if ( _verbose ) out() << "info: root start doc" << endl;
+				rc = handle_document(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::EndDocument:
-				if ( _verbose ) out() << "info: root end doc" << endl;
+				rc = end_document(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::StartElement:
 				rc = handle_element(xml);
@@ -154,22 +198,34 @@ int Main::read_file(QFile *file)
 					goto done;
 				break;
 			case QXmlStreamReader::Characters:
-				if ( _verbose ) out() << "info: root chars" << endl;
+				rc = handle_chars(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::Comment:
-				if ( _verbose ) out() << "info: root comment" << endl;
+				rc = handle_comment(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::DTD:
-				if ( _verbose ) out() << "info: root dtd" << endl;
+				rc = handle_dtd(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::EntityReference:
-				if ( _verbose ) out() << "info: root entity ref" << endl;
+				rc = handle_entity_reference(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::ProcessingInstruction:
-				if ( _verbose ) out() << "info: root processing instr" << endl;
+				rc = handle_processing_instruction(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::NoToken:
-				if ( _verbose ) out() << "info: root no token" << endl;
+				rc = handle_no_token(xml);
+				if (rc)
+					goto done;
 				break;
 			case QXmlStreamReader::Invalid:
 			default:
@@ -184,7 +240,7 @@ int Main::read_file(QFile *file)
 		out() << "error: xml has error?\n";
 		rc = -1;
 	}
-	if (true || _debug) {
+	if (_debug) {
 		out()  << "debug: file complete " << _current_file.top().fileName() << endl;
 	}
 	_current_file.pop();
@@ -276,19 +332,28 @@ int Main::handle_element(QXmlStreamReader &e)
 	//
 	_current_element.push(name_str(e));
 	_attr_stack.push(_attr_stack.top());
-
+	//----------------------------------------------------------------------
+	e.attributes();
+	xml_element_node_t *enode = new xml_element_node_t(name_str(e), e.attributes());
+	file_content_t *content = current_file_content();
+	//content->nodes.append(enode);
+	content->current_node.top()->nodes.append(enode);
+	content->current_node.push(enode);
+	//----------------------------------------------------------------------
 	int rc = (this->**f)(e); // records attrs seen in top()
 
 	if (rc) {
 		out() << "error: failed handler for " << name_str(e) << " at line " <<
 			e.lineNumber() << " of " << _current_file.top().filePath() << endl;
 	}
+
 	return rc;
 }
 
 int Main::end_element(QXmlStreamReader &e)
 {
 	int rc;
+	file_content_t *content = current_file_content();
 	auto f = _element_closers.find(name_str(e));
 	if ( f == _element_closers.end() ) {
 		out() << "error: failed to find closer for " << name_str(e) << endl;
@@ -309,6 +374,7 @@ int Main::end_element(QXmlStreamReader &e)
 		out() << "error: about to pop empty element stack?" << endl;
 	}
 	_current_element.pop();
+	content->current_node.pop();
 
 	if ( _attr_stack.size() <= 1 ) {
 		out() << "error: about to hit empty attr stack?" << endl;
@@ -324,7 +390,14 @@ int Main::handle_import(QXmlStreamReader &e)
 	for ( auto a: e.attributes() ) {
 		if ( a.name() == "file" ) {
 			if ( _verbose ) out() << "info: importing file " << a.value().toString() << endl;
-			rc = cd_and_read(a.value().toString());
+#if 0
+			file_content_t *content = current_file_content();
+			xml_import_element_t *import = new xml_import_element_t(a.value().toString());
+			content->nodes.append(import);
+			content->current_node.push(import);
+#endif
+
+			rc = read_path(a.value().toString());
 			if ( rc )
 				return rc;
 		} else {
@@ -336,6 +409,10 @@ int Main::handle_import(QXmlStreamReader &e)
 
 int Main::close_import(QXmlStreamReader &)
 {
+#if 0
+	file_content_t *content = current_file_content();
+	content->current_node.pop();
+#endif
 	return 0;
 }
 
@@ -416,8 +493,10 @@ void Main::flatten_attrs(const attr_spec_t &a)
 int Main::handle_array(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(array);
-	out() << QString("array: %1 0x%2").arg(_attrs._name.v).
-		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	if (false) { 
+		out() << QString("array: %1 0x%2").arg(_attrs._name.v).
+			arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	}
 
 	return rc;
 }
@@ -430,7 +509,9 @@ int Main::close_array(QXmlStreamReader &)
 int Main::handle_domain(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(domain);
-	out() << QString("domain: %1").arg(_attrs._name.v) << endl;
+	if (false) {
+		out() << QString("domain: %1").arg(_attrs._name.v) << endl;
+	}
 
 	return rc;
 }
@@ -440,7 +521,7 @@ int Main::close_domain(QXmlStreamReader &)
 	return 0;
 }
 
-int Main::handle_doc(QXmlStreamReader &e)
+int Main::handle_doc(QXmlStreamReader &e) //element, not structure
 {
 	STACK_ELEMENT_ATTRS(doc);
 	return rc;
@@ -481,8 +562,10 @@ int Main::handle_reg16(QXmlStreamReader &e)
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 
-	out() << QString("reg16: %1 0x%2").arg(name).
-		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	if (false) {
+		out() << QString("reg16: %1 0x%2").arg(name).
+			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	}
 
 	return rc;
 }
@@ -574,8 +657,10 @@ int Main::handle_reg8(QXmlStreamReader &e)
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 
-	out() << QString("reg8: %1 0x%2").arg(name).
-		arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	if (false) {
+		out() << QString("reg8: %1 0x%2").arg(name).
+			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	}
 
 	return rc;
 }
@@ -647,8 +732,10 @@ int Main::handle_reg64(QXmlStreamReader &e)
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 
-	out() << QString("reg64: %1 0x%2").arg(name).
-		arg(offset, 16, 16, QChar('0')) << endl;
+	if (false) {
+		out() << QString("reg64: %1 0x%2").arg(name).
+			arg(offset, 16, 16, QChar('0')) << endl;
+	}
 
 	return rc;
 }
@@ -666,8 +753,32 @@ int Main::handle_reg32(QXmlStreamReader &e)
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 
-	out() << QString("reg32: %1 0x%2").arg(name).
-		arg(offset, 8, 16, QChar('0')) << endl;
+	//
+	//e.g.:
+	// NV_MMIO::PDISPLAY::INTR_DISPLAY_DAEMON_4_REDIRECT_ONE_HOST
+	//
+	
+	//	QStringList name_pieces = name.split("::");
+	QVector<QString> name_pieces = name.split("::").toVector();
+	if ( (name_pieces.size() > 2) && (name_pieces[0] == "NV_MMIO") ) {
+
+
+		// offset
+		QString val = QString("0x%1").arg(offset, 8, 8, QChar('0'));
+		std::string val_str = val.toStdString();
+		//		out() << "reg32: engine " << name_pieces[1] << " def " << name_pieces[2] <<
+		//			" val " << val << endl;
+		auto ri = reg_val_index.equal_range(offset);
+		for ( auto rii = ri.first; rii != ri.second; ++rii) {
+			out() << "reg32: match on engine " << name_pieces[1] << " def " << name_pieces[2] << " " <<
+				QString::fromStdString(rii->second->symbol) << " " << val << endl;
+		}
+	} else {
+		//out() << QString("reg32: %1 0x%2").arg(name).
+		//	arg(offset, 8, 16, QChar('0')) << endl;
+	}
+
+	// lookup offset
 
 	return rc;
 }
@@ -718,8 +829,10 @@ int Main::handle_bitfield(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(bitfield);
 
-	out() << QString("bitfield: %1 %2:%3").arg(_attrs._name.v).
-		arg(_attrs._high.v).arg(_attrs._low.v) << endl;
+	if (false) {
+		out() << QString("bitfield: %1 %2:%3").arg(_attrs._name.v).
+			arg(_attrs._high.v).arg(_attrs._low.v) << endl;
+	}
 
 	return rc;
 }
@@ -732,8 +845,10 @@ int Main::close_bitfield(QXmlStreamReader &)
 int Main::handle_stripe(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(stripe);
-	out() << QString("stripe: %1 0x%2").arg(_attrs._name.v).
-		arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	if (false) {
+		out() << QString("stripe: %1 0x%2").arg(_attrs._name.v).
+			arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	}
 
 	return rc;
 }
@@ -771,11 +886,15 @@ int Main::handle_value(QXmlStreamReader &e)
 		c_str += QString(" %1:%2").arg(_attrs._high.v).arg(_attrs._low.v);
 	}
 	if ( in_bitfield() ) {
-		out() << QString("bitfield value: %1 %2%3").
-			arg(_attrs._name.v).arg(_attrs._value.v).arg(c_str) << endl;
+		if (false) {
+			out() << QString("bitfield value: %1 %2%3").
+				arg(_attrs._name.v).arg(_attrs._value.v).arg(c_str) << endl;
+		}
 	} else {
-		out() << QString("value: %1 %2").
-			arg(_attrs._name.v).arg(_attrs._value.v) << endl;
+		if (false) {
+			out() << QString("value: %1 %2").
+				arg(_attrs._name.v).arg(_attrs._value.v) << endl;
+		}
 	}
 
 	return rc;
@@ -874,7 +993,7 @@ void Main::find_xml_files()
 	}
 	out () << "info: the number of xml files is " << _all_xml_files.size() << endl;
 	for ( auto v: _all_xml_files ) {
-		out() << v << endl;
+		// out() << "info:" << v << endl;
 	}
 }
 
@@ -926,4 +1045,124 @@ void ValidatorMessageHandler::handleMessage(QtMsgType type, const QString & desc
 		" at line " << sourceLocation.line() <<
 		" of " <<	sourceLocation.uri().toString() <<
 		" column " << sourceLocation.column() << endl;
+}
+
+file_content_t *Main::current_file_content()
+{
+	if ( _current_file.isEmpty() )
+		throw std::runtime_error("missing current file context");
+
+	QString current_file_path = _current_file.top().filePath();
+	if ( _xml_file_content.find(current_file_path) == _xml_file_content.end() ) {
+		_xml_file_content[current_file_path] = file_content_t(current_file_path);
+	}
+	return &_xml_file_content[current_file_path];
+}
+
+int Main::handle_document(QXmlStreamReader &e) // the xml structure, not the "document" element
+{
+	file_content_t *content = current_file_content();
+	xml_document_node_t *doc = new xml_document_node_t();
+	content->nodes.append(doc);
+	content->current_node.push(doc);
+
+	if (false) {
+		out() << _current_file.top().filePath() << ".document[" << e.text().toString() << endl;
+	}
+	return 0;
+}
+
+int Main::end_document(QXmlStreamReader &e)
+{
+	if (false) {
+		out() << e.text().toString() << "]end document " << _current_file.top().filePath() << endl;
+	}
+	return 0;
+}
+
+int Main::handle_chars(QXmlStreamReader &e)
+{
+	if ( e.isWhitespace() )
+		return 0;
+	QString file = _current_file.top().filePath();
+
+	if (false) {
+		out() << "chars[" << e.text().toString() << "]\n";
+	}
+	return 0;
+}
+
+int Main::handle_comment(QXmlStreamReader &e)
+{
+	if (false) {
+		out() << "comment[" << e.text().toString() << "]\n";
+	}
+	return 0;
+}
+
+int Main::handle_dtd(QXmlStreamReader &e)
+{
+	if (false) {
+		out() << "dtd[]\n";
+	}
+	return 0;
+}
+
+int Main::handle_entity_reference(QXmlStreamReader &e)
+{
+	if (false) {
+		out() << "entity ref[]\n";
+	}
+	return 0;
+}
+
+int Main::handle_processing_instruction(QXmlStreamReader &e)
+{
+	if (false) {
+		out() << "processing instruction[]\n";
+	}
+	return 0;
+}
+
+int Main::handle_no_token(QXmlStreamReader &e)
+{
+	if (false) {
+		out() << "no token[]\n";
+	}
+	return 0;
+}
+
+
+void Main::emit_file(const QString &rel_name)
+{
+	if ( _xml_file_content.find(rel_name) == _xml_file_content.end() ) {
+		out() << "info: no content for " << rel_name << endl;
+		return;
+	}
+	file_content_t &c = _xml_file_content[rel_name];
+	//out() << "info: found content for " << rel_name << " <-> " << c._path << endl;
+	QFileInfo fi("results/" + rel_name);
+	QDir fi_dir = fi.dir();
+	if ( !fi_dir.exists() ) {
+		if ( !fi_dir.mkpath(fi_dir.path()) ) {
+			out() << "error: couldn't make path " << fi_dir.path() << endl;
+			return;
+		}
+	}
+	QFile of("results/"+rel_name);
+	if ( !of.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text) ) {
+		out() << "error: couldn't open result file " << of.fileName() << endl;
+	}
+
+	//QString ns("http://nouveau.freedesktop.org/");
+	QString ns;
+
+
+	QXmlStreamWriter ox(&of);
+	ox.setAutoFormatting(true);
+	for ( auto d : c.nodes ) {
+		d->write(ox);
+	}
+	of.close();
+
 }

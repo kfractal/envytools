@@ -85,6 +85,8 @@ template<> void spec_t<bool>    ::from(const QStringRef &r);
 template<> void spec_t<QString> ::from(const QStringRef &r);
 template<> void spec_t<uint32_t>::from(const QStringRef &r);
 
+typedef spec_t<QString> file_attr_spec_t;
+typedef spec_t<QString> schemaLocation_attr_spec_t;
 typedef spec_t<bool>   bare_attr_spec_t;
 typedef spec_t<bool>   inline_attr_spec_t;
 
@@ -113,6 +115,26 @@ typedef spec_t<uint32_t> radix_attr_spec_t;
 typedef spec_t<uint32_t> high_attr_spec_t;
 typedef spec_t<uint32_t> low_attr_spec_t;
 
+
+#if 0
+// unused as of yet.  but just in case... the following
+// can be generated to provide a struct to hold any
+// particular element's attrs.
+struct import_attrs_t {
+	import_ELEMENT_ATTRS()
+};
+struct array_attrs_t {
+	array_ELEMENT_ATTRS()
+};
+struct author_attrs_t {
+	author_ELEMENT_ATTRS()
+};
+// ^+-- vs. automatic below --+v
+#define ELEMENT(X) 	struct X##_attrs_t { X##_ELEMENT_ATTRS() };
+#define ATTR(X) X ## _attr_spec_t _##X;
+ELEMENTS()
+#undef ELEMENT
+#endif
 
 // records all possible attr specifications
 struct attr_spec_t {
@@ -177,4 +199,81 @@ struct attr_spec_t {
 			false;
 	}
 	attr_spec_t() { zap_spec_bits(); }
+};
+
+
+//
+// representation of the xml content of a file.
+//
+class xml_node_t {
+public:
+	QXmlStreamReader::TokenType t;
+	QList<xml_node_t *> nodes;
+	xml_node_t (QXmlStreamReader::TokenType t) : t(t) { }
+	virtual ~xml_node_t(){ }
+	virtual void write(QXmlStreamWriter &ox) {
+		for ( auto n : nodes ) {
+			n->write(ox);
+		}
+	}
+};
+
+class xml_document_node_t : public xml_node_t {
+public:
+	xml_document_node_t() : xml_node_t(QXmlStreamReader::StartDocument) { }
+	virtual ~xml_document_node_t(){ }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeStartDocument();
+		for (auto n : nodes ) {
+			n->write(ox);
+		}
+		ox.writeEndDocument();
+	}
+};
+
+class xml_element_node_t : public xml_node_t {
+public:
+	QString name;
+	QXmlStreamAttributes attrs;
+	xml_element_node_t(const QString &name, const QXmlStreamAttributes &attrs) :
+		xml_node_t(QXmlStreamReader::StartElement), name(name), attrs(attrs) { }
+	virtual ~xml_element_node_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeStartElement(QString(), name);
+		ox.writeAttributes(attrs);
+		for (auto n: nodes) {
+			n->write(ox);
+		}
+		ox.writeEndElement();
+	}
+};
+
+class xml_chars_node_t : public xml_node_t {
+public:
+	QString text;
+	xml_chars_node_t(const QString &text) : xml_node_t(QXmlStreamReader::Characters), text(text) { }
+	virtual ~xml_chars_node_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeCharacters(text);
+	}
+};
+
+class xml_import_element_t : public xml_element_node_t {
+public:
+	xml_import_element_t(const QString &filel, QXmlStreamAttributes &attrs) :
+		xml_element_node_t("import", attrs)
+	{
+
+	}
+	virtual ~xml_import_element_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeStartElement(QString(), "import");
+		for (auto a : attrs ) {
+			ox.writeAttribute(a);
+		}
+		for (auto n : nodes) { 
+			n->write(ox); // e.g. chars
+		}
+		ox.writeEndElement();
+	}
 };
