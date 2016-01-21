@@ -1084,11 +1084,16 @@ int Main::handle_chars(QXmlStreamReader &e)
 {
 	if ( e.isWhitespace() )
 		return 0;
-	QString file = _current_file.top().filePath();
 
+	QString file = _current_file.top().filePath();
 	if (false) {
 		out() << "chars[" << e.text().toString() << "]\n";
 	}
+
+	file_content_t *content = current_file_content();
+	xml_chars_node_t *chars = new xml_chars_node_t(e.text().toString(), e.isCDATA());
+	content->current_node.top()->nodes.append(chars);
+	//	content->current_node.push(chars); would just pop afterward.
 	return 0;
 }
 
@@ -1097,6 +1102,9 @@ int Main::handle_comment(QXmlStreamReader &e)
 	if (false) {
 		out() << "comment[" << e.text().toString() << "]\n";
 	}
+	file_content_t *content = current_file_content();
+	xml_comment_node_t *comment = new xml_comment_node_t(e.text().toString());
+	content->current_node.top()->nodes.append(comment);
 	return 0;
 }
 
@@ -1105,6 +1113,12 @@ int Main::handle_dtd(QXmlStreamReader &e)
 	if (false) {
 		out() << "dtd[]\n";
 	}
+	file_content_t *content = current_file_content();
+	xml_dtd_node_t *dtd = new xml_dtd_node_t(e.text().toString(),
+											 e.notationDeclarations(),
+											 e.entityDeclarations());
+	content->current_node.top()->nodes.append(dtd);
+
 	return 0;
 }
 
@@ -1113,6 +1127,11 @@ int Main::handle_entity_reference(QXmlStreamReader &e)
 	if (false) {
 		out() << "entity ref[]\n";
 	}
+	file_content_t *content = current_file_content();
+	xml_entity_reference_node_t *ref =
+		new xml_entity_reference_node_t(e.name().toString(), e.text().toString());
+	content->current_node.top()->nodes.append(ref);
+	// should this be an error?
 	return 0;
 }
 
@@ -1121,6 +1140,12 @@ int Main::handle_processing_instruction(QXmlStreamReader &e)
 	if (false) {
 		out() << "processing instruction[]\n";
 	}
+	file_content_t *content = current_file_content();
+	xml_processing_instruction_node_t *pi =
+		new xml_processing_instruction_node_t(e.processingInstructionTarget().toString(),
+											  e.processingInstructionData().toString());
+	content->current_node.top()->nodes.append(pi);
+
 	return 0;
 }
 

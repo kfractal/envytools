@@ -250,11 +250,62 @@ public:
 
 class xml_chars_node_t : public xml_node_t {
 public:
+	bool isCDATA;
 	QString text;
-	xml_chars_node_t(const QString &text) : xml_node_t(QXmlStreamReader::Characters), text(text) { }
+	xml_chars_node_t(const QString &text, bool isCDATA) :
+		xml_node_t(QXmlStreamReader::Characters), text(text), isCDATA(isCDATA) { }
 	virtual ~xml_chars_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeCharacters(text);
+	}
+};
+
+class xml_comment_node_t : public xml_node_t {
+public:
+	QString text;
+	xml_comment_node_t(const QString &text) : xml_node_t(QXmlStreamReader::Comment), text(text) { }
+	virtual ~xml_comment_node_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeComment(text);
+	}
+};
+
+class xml_dtd_node_t : public xml_node_t {
+public:
+	QXmlStreamNotationDeclarations n_decls;
+	QXmlStreamEntityDeclarations  e_decls;
+	QString text;
+	xml_dtd_node_t(const QString &text, const QXmlStreamNotationDeclarations &n,
+				   const QXmlStreamEntityDeclarations &e) :
+		xml_node_t(QXmlStreamReader::DTD), text(text), n_decls(n), e_decls(e) { }
+
+	virtual ~xml_dtd_node_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeDTD(text);
+	}
+};
+
+class xml_entity_reference_node_t : public xml_node_t {
+public:
+	QString ref;
+	QString text;
+	xml_entity_reference_node_t(const QString &text, const QString &ref) :
+		xml_node_t(QXmlStreamReader::EntityReference), text(text), ref(ref) { }
+	virtual ~xml_entity_reference_node_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeEntityReference(text);
+	}
+};
+
+class xml_processing_instruction_node_t : public xml_node_t {
+public:
+	QString target;
+	QString data;
+	xml_processing_instruction_node_t(const QString &target, const QString &data) :
+		xml_node_t(QXmlStreamReader::ProcessingInstruction), target(target), data(data) { }
+	virtual ~xml_processing_instruction_node_t() { }
+	virtual void write(QXmlStreamWriter &ox) {
+		ox.writeProcessingInstruction(target, data);
 	}
 };
 
