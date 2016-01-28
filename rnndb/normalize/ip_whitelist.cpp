@@ -9,7 +9,7 @@
 
 using namespace std;
 
-#include "gen_registers.h"
+#include "ip_whitelist.h"
 
 namespace ip_whitelist {
 

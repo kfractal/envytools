@@ -20,7 +20,7 @@
 
 typedef QSet<QString> QStringSet;
 
-#include "chipids.h"
+#include "ip_def.h"
 #include "elements.h"
 
 struct file_content_t {

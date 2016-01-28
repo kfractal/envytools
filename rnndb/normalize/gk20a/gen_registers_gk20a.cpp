@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2013-2016, NVIDIA CORPORATION.  All rights reserved.
  */
-#include "gen_registers.h"
+#include "ip_whitelist.h"
 #if 0
 #include "dev_bus.h"
 #include "dev_ce2_pri.h"

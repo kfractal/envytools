@@ -18,7 +18,7 @@
 #include <QFileInfo>
 #include <QFile>
 
-#include "gen_registers.h"
+#include "ip_whitelist.h"
 
 #define yyFlexLexer exprFlexLexer
 #include <FlexLexer.h>
@@ -26,7 +26,7 @@
 #include "expr.h"
 FooLexer* lexer = 0;
 
-#include "chipids.h"
+#include "ip_def.h"
 
 using namespace std;
 

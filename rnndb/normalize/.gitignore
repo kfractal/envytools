@@ -3,4 +3,5 @@ Makefile
 *.o
 normalize_rnndb
 .qmake.stash
+expr_lex.cpp
 

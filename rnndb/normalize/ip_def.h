@@ -8,7 +8,7 @@
 #include <string>
 #include <sstream>
 
-#include "gen_registers.h"
+#include "ip_whitelist.h"
 
 using namespace std;
 

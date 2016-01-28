@@ -23,11 +23,11 @@ macx {
 SOURCES += main.cpp
 HEADERS += main.h
 
-HEADERS += chipids.h
-SOURCES += chipids.cpp
+HEADERS += ip_def.h
+SOURCES += ip_def.cpp
 
-HEADERS += gen_registers.h
-SOURCES += gen_registers.cpp
+HEADERS += ip_whitelist.h
+SOURCES += ip_whitelist.cpp
 
 SOURCES += gk20a/gen_registers_gk20a.cpp
 SOURCES += gm20b/gen_registers_gm20b.cpp

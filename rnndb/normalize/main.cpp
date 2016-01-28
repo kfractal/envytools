@@ -14,7 +14,7 @@
 #include <QRegularExpression>
 
 #include "main.h"
-#include "chipids.h"
+#include "ip_def.h"
 
 //#include "../../include/rnn.h"
 
