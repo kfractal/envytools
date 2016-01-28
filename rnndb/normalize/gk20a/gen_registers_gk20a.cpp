@@ -30,7 +30,7 @@
 #include "dev_ctxsw_prog_addendum.h"
 #endif
 #endif
-
+using namespace ip_whitelist;
 static void emit_bus_group()
 {
 	begin_group( G_SPEC( bus ) );
@@ -2942,7 +2942,7 @@ static void emit_timer_group()
 
 }
 
-void emit_groups_gk20a()
+void ip_whitelist::emit_groups_gk20a()
 {
 	emit_bus_group();
 	emit_ccsr_group();

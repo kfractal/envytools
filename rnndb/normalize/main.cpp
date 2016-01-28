@@ -4,6 +4,8 @@
  */
 
 #include <stdexcept>
+#include <queue>
+
 
 #include <QDebug>
 #include <QQueue>
@@ -13,7 +15,11 @@
 
 #include "main.h"
 #include "chipids.h"
-#include "../../include/rnn.h"
+
+//#include "../../include/rnn.h"
+
+QSet<gpuid_t *> var_all_gpus;
+
 int main (int argc, char **argv)
 {
 	Main app(argc, argv);
@@ -31,22 +37,23 @@ Main::Main(int &argc, char **argv) :
 
 void Main::start()
 {
-	// read in nv chip defs, results are the symbol whitelist
+	// read nvidia's hwref definitions.
 	chipids_main();
 
-	out() << "processed nvidia headers for";
+	out() << "info: processed nvidia hwref files for";
 	for ( auto &t: target_gpus ) {
-		out() << QString::fromStdString(t->name()) << endl;
+		out() << "info:\t" << QString::fromStdString(t->name()) << endl;
 	}
-	out() << "found " <<
-		chip_groups.size()    << " groups, " <<
-		chip_regs.size()      << " registers, " <<
-		chip_fields.size()    << " fields and " <<
-		chip_constants.size() << " constants overall." << endl;
+	out() << "info: found " <<
+		ip_whitelist::chip_groups.size()    << " groups, " <<
+		ip_whitelist::chip_regs.size()      << " registers, " <<
+		ip_whitelist::chip_fields.size()    << " fields and " <<
+		ip_whitelist::chip_constants.size() << " constants overall." << endl;
 
-	for ( auto cr : chip_regs ) {
+	for ( auto t : target_gpus ) 
+		var_all_gpus.insert(t);
 
-	}
+	// now read in the xml hierarchy (starting with root.xml).
 
 	// XXX: defaults not actually set yet...
 	// should almost certainly involve the schema.
@@ -59,6 +66,8 @@ void Main::start()
 	int rc = read_root();
 
 	if ( (_warn || _verbose) ) {
+		// some of these aren't actually possible any longer because schema
+		// validation catches them earlier.  to be removed later...
 		for (auto e : _ignored_elements ) {
 			out() << "warning: ignored element " << e << endl;
 		}
@@ -82,18 +91,20 @@ void Main::start()
 		}
 	}
 
-
 	for (auto t : target_gpus ) {
-		//out() << QString("info: found ") << t->defines()->size() << QString(" whitelisted definitions for ") << QString::fromStdString(t->name()) << endl;
+		out() << QString("info: found ") << t->defines()->size() <<
+			QString(" whitelisted definitions for ") <<
+			QString::fromStdString(t->name()) << endl;
 	}
 
+	update_defs();
+	
+	// write out the xml files.
 	if ( _emit_normalized_hierarchy ) {
 		for ( auto xf : _all_xml_files ) {
 			emit_file(xf);
 		}
 	}
-
-
 
 	exit(rc); // Main::exit() sets *intent* to exit w/rc.
 	return;
@@ -463,6 +474,7 @@ void Main::flatten_attrs(const attr_spec_t &a)
 	assign_attr(min);
 	assign_attr(add);
 	assign_attr(radix);
+	assign_attr(variants);
 }
 
 
@@ -561,12 +573,27 @@ int Main::handle_reg16(QXmlStreamReader &e)
 
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
-
-	if (false) {
-		out() << QString("reg16: %1 0x%2").arg(name).
-			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	QSet<gpuid_t *> var_gpus;
+	if ( _attrs._variants.v.size() ) {
+		var_gpus = variants_to_gpus(_attrs._variants.v);
+	} else {
+		var_gpus = var_all_gpus;
 	}
 
+	QVector<QString> name_pieces = name.split("::").toVector();
+	if ( name_pieces.size() && (name_pieces[0] == "NV_MMIO") ) {
+		auto ri = reg_val_index.equal_range(offset);
+		for ( auto rii = ri.first; rii != ri.second; ++rii) {
+			out() << "reg16: symbol [" << QString::fromStdString(rii->second->symbol) << "]";
+			for ( auto dv_ii : rii->second->vals ) {
+				out() << "\n\tval [" << QString::fromStdString(dv_ii->val) << "] -> [ " << 
+					gpus_to_variants(dv_ii->gpus) << " ]";
+			}
+			out() << endl;
+		}
+	} else {
+		// out() << QString("reg16: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0')) << endl;
+	}
 	return rc;
 }
 
@@ -656,10 +683,26 @@ int Main::handle_reg8(QXmlStreamReader &e)
 
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
+	QSet<gpuid_t *> var_gpus;
+	if ( _attrs._variants.v.size() ) {
+		var_gpus = variants_to_gpus(_attrs._variants.v);
+	} else {
+		var_gpus = var_all_gpus;
+	}
 
-	if (false) {
-		out() << QString("reg8: %1 0x%2").arg(name).
-			arg(offset, 8 /*note: 32b still*/, 16, QChar('0')) << endl;
+	QVector<QString> name_pieces = name.split("::").toVector();
+	if ( name_pieces.size() && (name_pieces[0] == "NV_MMIO") ) {
+		auto ri = reg_val_index.equal_range(offset);
+		for ( auto rii = ri.first; rii != ri.second; ++rii) {
+			out() << "reg8: symbol [" << QString::fromStdString(rii->second->symbol) << "]";
+			for ( auto dv_ii : rii->second->vals ) {
+				out() << "\n\tval [" << QString::fromStdString(dv_ii->val) << "] -> [ " << 
+					gpus_to_variants(dv_ii->gpus) << " ]";
+			}
+			out() << endl;
+		}
+	} else {
+		//out() << QString("reg8: %1 0x%2").arg(name). arg(offset, 8, 16, QChar('0')) << endl;
 	}
 
 	return rc;
@@ -752,33 +795,30 @@ int Main::handle_reg32(QXmlStreamReader &e)
 
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
-
-	//
-	//e.g.:
-	// NV_MMIO::PDISPLAY::INTR_DISPLAY_DAEMON_4_REDIRECT_ONE_HOST
-	//
+	QSet<gpuid_t *> var_gpus;
+	if ( _attrs._variants.v.size() ) {
+		var_gpus = variants_to_gpus(_attrs._variants.v);
+	} else {
+		var_gpus = var_all_gpus;
+	}
 	
-	//	QStringList name_pieces = name.split("::");
 	QVector<QString> name_pieces = name.split("::").toVector();
-	if ( (name_pieces.size() > 2) && (name_pieces[0] == "NV_MMIO") ) {
-
-
-		// offset
-		QString val = QString("0x%1").arg(offset, 8, 8, QChar('0'));
-		std::string val_str = val.toStdString();
-		//		out() << "reg32: engine " << name_pieces[1] << " def " << name_pieces[2] <<
-		//			" val " << val << endl;
+	if ( name_pieces.size() && (name_pieces[0] == "NV_MMIO") ) {
 		auto ri = reg_val_index.equal_range(offset);
 		for ( auto rii = ri.first; rii != ri.second; ++rii) {
-			out() << "reg32: match on engine " << name_pieces[1] << " def " << name_pieces[2] << " " <<
-				QString::fromStdString(rii->second->symbol) << " " << val << endl;
+			// each rii is a defn_t
+			// in each defn_t is a set of defn_val_t
+			// each defn_val_t has a val and a set of gpus.
+			out() << "reg32: symbol [" << QString::fromStdString(rii->second->symbol) << "]";
+			for ( auto dv_ii : rii->second->vals ) {
+				out() << "\n\tval [" << QString::fromStdString(dv_ii->val) << "] -> [ " << 
+					gpus_to_variants(dv_ii->gpus) << " ]";
+			}
+			out() << endl;
 		}
 	} else {
-		//out() << QString("reg32: %1 0x%2").arg(name).
-		//	arg(offset, 8, 16, QChar('0')) << endl;
+		//out() << QString("reg32: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0')) << endl;
 	}
-
-	// lookup offset
 
 	return rc;
 }
@@ -828,6 +868,14 @@ int Main::close_ul(QXmlStreamReader &)
 int Main::handle_bitfield(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(bitfield);
+
+	QSet<gpuid_t *> var_gpus;
+
+	if ( _attrs._variants.v.size() ) {
+		var_gpus = variants_to_gpus(_attrs._variants.v);
+	} else {
+		var_gpus = var_all_gpus;
+	}
 
 	if (false) {
 		out() << QString("bitfield: %1 %2:%3").arg(_attrs._name.v).
@@ -879,6 +927,15 @@ bool Main::in_bitfield()
 int Main::handle_value(QXmlStreamReader &e)
 {
 	STACK_ELEMENT_ATTRS(value);
+
+	QSet<gpuid_t *> var_gpus;
+
+	if ( _attrs._variants.v.size() ) {
+		var_gpus = variants_to_gpus(_attrs._variants.v);
+	} else {
+		var_gpus = var_all_gpus;
+	}
+
 	QString c_str; if ( _attrs._offset.b ) {
 		c_str = QString(" 0x%1").arg(_attrs._offset.v, 8 /*note: 32b still*/, 16, QChar('0'));
 	}
@@ -1164,6 +1221,7 @@ void Main::emit_file(const QString &rel_name)
 		out() << "info: no content for " << rel_name << endl;
 		return;
 	}
+
 	file_content_t &c = _xml_file_content[rel_name];
 	//out() << "info: found content for " << rel_name << " <-> " << c._path << endl;
 	QFileInfo fi("results/" + rel_name);
@@ -1189,5 +1247,298 @@ void Main::emit_file(const QString &rel_name)
 		d->write(ox);
 	}
 	of.close();
+}
+
+
+// - variants [optional]: space-separated list of and variant ranges that this
+//   register is present on. The items of this list can be:
+//    - var1: a single variant
+//    - var1-var2: all variants starting with var1 up to and including var2
+//    - var1:var2: all variants starting with var1 up to, but not including var2
+//    - :var1: all variants before var1
+//    - -var1: all variants up to and including var1
+//    - var1-: all variants starting from var1
+
+
+
+gpuid_t *target_gpu_by_name(const QString &gpu_name)
+{
+	auto f = target_gpus_by_name.find(gpu_name.toLower().toStdString());
+	if ( f == target_gpus_by_name.end() )
+		return 0;
+	return f->second;
+}
+
+
+
+QString Main::gpus_to_variants(gpu_set_t &gpus)
+{
+	uint64_t e = enumerate_gpu_set(gpus);
+
+	auto f = gpu_set_variant_map.find(e);
+	if ( f != gpu_set_variant_map.end() ) {
+		return *f;
+	}
+
+	QString var_gpus, delim;
+	size_t max_gpus = target_gpus_by_ordering.size();
+	bool b = false;
+	std::queue<int> q;
+	for ( size_t l = 0; l < max_gpus; l++ ) {
+		if ( b ^ !!(e & (uint64_t(1)<<l)) ) {
+			q.push(l);
+			b = !b;
+		}
+	}
+	while ( !q.empty() ) {
+		if ( q.size() > 1 ) {
+			gpuid_t *lo = target_gpus_by_ordering[q.front()];   q.pop();
+			gpuid_t *hi = target_gpus_by_ordering[q.front()-1]; q.pop(); // inclusive
+			if ( lo != hi ) {
+				var_gpus += QString("%1%2-%3").
+					arg(delim).
+					arg(QString::fromStdString(lo->name()).toUpper()).
+					arg(QString::fromStdString(hi->name()).toUpper());
+			} else {
+				var_gpus += QString("%1%2").arg(delim).
+					arg(QString::fromStdString(lo->name()).toUpper());
+			}
+			delim = " ";
+		}
+		else {
+			gpuid_t *lo = target_gpus_by_ordering[q.front()]; q.pop();
+			var_gpus += QString("%1%2-").
+				arg(delim).
+				arg(QString::fromStdString(lo->name()).toUpper());
+		}
+	}
+	gpu_set_variant_map[e] = var_gpus;
+	return var_gpus;
+}
+
+//
+// we need to handle < g80 specially.
+// e.g. nv4, nv10 aren't represented in the target_gpus.
+//
+QSet<gpuid_t *> Main::variants_to_gpus(const QString &variants)
+{
+	// lookup cache.  frequently used, enough to worry about...
+	auto f = variant_map.find(variants);
+	if ( f != variant_map.end() ) {
+		return *f;
+	}
+	QRegularExpression single           ("^\\s*(\\w+)\\s*$");
+	QRegularExpression range_inclusive  ("^\\s*(\\w+)\\s*-\\s*(\\w+)\\s*$");
+	QRegularExpression range_exclusive  ("^\\s*(\\w+)\\s*:\\s*(\\w+)\\s*$");
+	QRegularExpression before_exclusive ("^\\s*:\\s*(\\w+)\\s*$");
+	QRegularExpression before_inclusive ("^\\s*-\\s*(\\w+)\\s*$");
+	QRegularExpression after_inclusive  ("^\\s*(\\w+)-\\s*$");
+
+	QSet<gpuid_t *> var_gpus;
+
+	// target gpus is the set of all being gpus being considered.
+
+	QStringList groups = variants.split(" ");
+	QStringList pieces;
+	for ( auto g: groups ) {
+		pieces << g.split(",");
+	}
+	for (auto p : pieces ) {
+		// out() << "info: piece " << p << endl;
+		QRegularExpressionMatch m = single.match(p);
+		if ( m.hasMatch() ) {
+			QString var_gpu = m.captured(1);
+			// out() << "info: single matched " << var_gpu << endl;
+			gpuid_t *gpu = target_gpu_by_name(var_gpu);
+			if ( gpu ) {
+				var_gpus.insert(gpu);
+			} else {
+				// now what? warn?
+				out() << "warning: unrecognized variant spec [" << p << "]" << endl;
+			}
+			continue;
+		}
+		m = range_inclusive.match(p);
+		if ( m.hasMatch() ) {
+
+			//    - var1-var2: all variants starting with var1 up to and including var2
+			QString low  = m.captured(1);
+			QString high = m.captured(2);
+			// out() << "info: range inclusive matched " << low << " " << high << endl;
+			gpuid_t *gpu_low  = target_gpu_by_name(low);
+			gpuid_t *gpu_high = target_gpu_by_name(high);
+			size_t  lowid = 0, highid = 0;
+			if (!gpu_low ) {
+				lowid = 0;
+			} else {
+				lowid = gpu_low->ordering_index();
+			}
+			if (!gpu_high) {
+				highid = 0;
+			} else {
+				highid = gpu_high->ordering_index();
+			}
+			for ( size_t gi = lowid; gi <= highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+				var_gpus.insert(target_gpus_by_ordering[gi]);
+			}
+			if ( !var_gpus.size() ) {
+				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			}
+			continue;
+		}
+
+		m = range_exclusive.match(p);
+		if ( m.hasMatch() ) {
+			//    - var1:var2: all variants starting with var1 up to, but not including var2
+			QString low  = m.captured(1);
+			QString high = m.captured(2);
+			// out() << "info: range exclusive matched " << low << " " << high << endl;
+			gpuid_t *gpu_low  = target_gpu_by_name(low);
+			gpuid_t *gpu_high = target_gpu_by_name(high);
+			size_t lowid = 0, highid = 0;
+			if (gpu_low)  lowid  = gpu_low->ordering_index();
+			if (gpu_high) highid = gpu_high->ordering_index();
+			for ( size_t gi = lowid; (gi < highid) && (gi < target_gpus_by_ordering.size()); gi++ ) {
+				var_gpus.insert(target_gpus_by_ordering[gi]);
+			}
+			if ( !var_gpus.size() ) {
+				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			}
+			continue;
+		}
+
+		m = before_inclusive.match(p);
+		if ( m.hasMatch() ) {
+			//    - -var1: all variants up to and including var1
+			QString high = m.captured(1);
+			// out() << "info: before inclusive matched " << high << endl;
+			gpuid_t *gpu_high = target_gpu_by_name(high);
+			size_t lowid = 0, highid = 0;
+			//if (gpu_low) lowid = gpu_low->ordering_index();
+			if (gpu_high) highid = gpu_high->ordering_index();
+			for ( size_t gi = lowid; gi <= highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+				var_gpus.insert(target_gpus_by_ordering[gi]);
+			}
+			if ( !var_gpus.size() ) {
+				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			}
+			continue;
+		}
+
+		m = before_exclusive.match(p);
+		if ( m.hasMatch() ) {
+			//    - :var1: all variants before var1
+			QString high = m.captured(1);
+			// out() << "info: before exclusive matched " << high << endl;
+			gpuid_t *gpu_high = target_gpu_by_name(high);
+			size_t lowid = 0, highid = 0;
+			//			if (gpu_low) lowid = gpu_low->ordering_index();
+			if (gpu_high) highid = gpu_high->ordering_index();
+			for ( size_t gi = lowid; gi < highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+				var_gpus.insert(target_gpus_by_ordering[gi]);
+			}
+			if ( !var_gpus.size() ) {
+				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			}
+
+			continue;
+		}
+
+		m = after_inclusive.match(p);
+		if ( m.hasMatch() ) {
+			//    - var1-: all variants starting from var1
+			QString low = m.captured(1);
+			// out() << "info: after inclusive matched " << low << endl;
+			gpuid_t *gpu_low = target_gpu_by_name(low);
+			size_t lowid = 0, highid;
+			if (gpu_low) lowid = gpu_low->ordering_index();
+			highid = target_gpus_by_ordering.size();
+			for ( size_t gi = lowid; gi < highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+				var_gpus.insert(target_gpus_by_ordering[gi]);
+			}
+			if ( !var_gpus.size() ) {
+				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			}
+			continue;
+		}
+		// never matched?  bogus.
+		out() << "error: failed to match variant piece " << p << " from " << variants << endl;
+	}
+	variant_map[variants] = var_gpus;
+	//gpu_set_variant_map[var_gpus] = variants;
+	return var_gpus;
+}
+
+
+uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus)
+{
+	if ( target_gpus_by_ordering.size() > 64 ) {
+		qFatal("error: too many gpus to enumerate!");
+		return ~(uint64_t)0;
+	}
+	uint64_t v = 0;
+	for ( auto gpu : gpus ) {
+		v |= uint64_t(1) << gpu->ordering_index();
+	}
+	return v;
+}
+
+uint64_t enumerate_gpu_set(const set<gpuid_t *> &gpus)
+{
+	if ( target_gpus_by_ordering.size() > 64 ) {
+		qFatal("error: too many gpus to enumerate!");
+		return ~(uint64_t)0;
+	}
+	uint64_t v = 0;
+	for ( auto gpu : gpus ) {
+		v |= uint64_t(1) << gpu->ordering_index();
+	}
+	return v;
+
+}
+
+
+// this operation doesn't necessarily need to be meaningful, just consistent.
+// it's for use in the gpuid set -> variant string map.
+bool operator < (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
+{
+	uint64_t a_val, b_val;
+	a_val = enumerate_gpu_set(a);
+	b_val = enumerate_gpu_set(b);
+	return a_val < b_val;
+}
+
+bool operator == (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
+{
+	uint64_t a_val, b_val;
+	a_val = enumerate_gpu_set(a);
+	b_val = enumerate_gpu_set(b);
+	return a_val == b_val;
+}
+
+bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
+{
+	uint64_t a_val, b_val;
+	a_val = enumerate_gpu_set(a);
+	b_val = enumerate_gpu_set(b);
+	return a_val > b_val;
+}
+
+void Main::update_defs()
+{
+#if 0
+	out() << "info: found " <<
+		chip_groups.size()    << " groups, " <<
+		chip_regs.size()      << " registers, " <<
+		chip_fields.size()    << " fields and " <<
+		chip_constants.size() << " constants overall." << endl;
+
+	group_t * pgraph;
+
+	auto f_pgraph = chip_groups.equal_range("gr");
+	for ( auto fi = f_pgraph.first; fi != f_pgraph.second; fi++ ) {
+	}
+#endif
+
 
 }

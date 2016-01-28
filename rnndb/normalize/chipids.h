@@ -4,13 +4,9 @@
  */
 #pragma once
 
-#include <string>
 #include <set>
-#include <list>
-#include <map>
-#include <vector>
+#include <string>
 #include <sstream>
-#include <iostream>
 
 #include "gen_registers.h"
 
@@ -27,7 +23,7 @@ class gpuid_t {
 	set<string> _hwref_files;
 	defn_set_t   _defines;
 	defn_index_t _defn_index;
-
+	size_t _ordering_index;
 public:
 	defn_set_t *defines() { return &_defines; }
 	defn_index_t *defns_index() { return &_defn_index; }
@@ -36,16 +32,17 @@ public:
         string   name;
         uint16_t id;
         string   hwref_dir;
-        bool     nouveau;
 		gpu_family_t *family;
     } _d;
 
     const string &       name()        const { return _d.name;      }
           uint16_t       id()          const { return _d.id;        }
-          bool           nouveau()     const { return _d.nouveau;   }
     const string &       hwref_dir()   const { return _d.hwref_dir; }
     const set<string> &  hwref_files() const { return _hwref_files; }
           gpu_family_t * family()      const { return _d.family;    }
+
+	size_t ordering_index() const { return _ordering_index; }
+	void set_ordering_index(size_t i) { _ordering_index = i; }
 
 	const string ref() const { return "__nv_" + _d.name +"__"; } 
 
@@ -159,20 +156,10 @@ public:
 	static gpu_equiv_class_t * snapshot_at(int i) { return _snapshot.at(i); }
 };
 
-
-
-void calculate_equiv_classes(defn_set_t *defs,  string def_file_name = string());
-void emit_equiv_classes( ostream &out = std::cout );
-
-bool existing_copyright_in_stream(std::istream &in, int &year_begin, int &year_end);
-void emit_copyright(std::ostream &out, int year_begin, int year_end);
-
 int chipids_main();
 
 extern list<gpuid_t*> target_gpus;
-extern std::multimap<std::string, group_t *>    chip_groups;
-extern std::multimap<std::string, reg_t *>      chip_regs;
-extern std::multimap<std::string, field_t *>    chip_fields;
-extern std::multimap<std::string, constant_t *> chip_constants;
+extern map<string, gpuid_t *> target_gpus_by_name;
+extern vector<gpuid_t*> target_gpus_by_ordering;
 
-extern std::multimap<uint32_t, defn_t *> reg_val_index;
+extern multimap<uint64_t, defn_t *> reg_val_index;

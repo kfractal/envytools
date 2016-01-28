@@ -20,6 +20,7 @@
 
 typedef QSet<QString> QStringSet;
 
+#include "chipids.h"
 #include "elements.h"
 
 struct file_content_t {
@@ -45,6 +46,7 @@ protected:
 							   const QUrl & identifier, const QSourceLocation & sourceLocation);
 };
 
+class gpuid_t;
 class Main : public QCoreApplication
 {
 	Q_OBJECT
@@ -144,4 +146,20 @@ protected:
 	int handle_entity_reference(QXmlStreamReader &e);
 	int handle_processing_instruction(QXmlStreamReader &e);
 	int handle_no_token(QXmlStreamReader &e);
+
+	QSet<gpuid_t *>variants_to_gpus(const QString &);
+	QString gpus_to_variants(gpu_set_t &);
+
+	QMap<QString, QSet<gpuid_t *>> variant_map;
+	QMap<uint64_t, QString> gpu_set_variant_map;
+
+	void update_defs();
+
 };
+
+uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);
+uint64_t enumerate_gpu_set(const set<gpuid_t*> &gpus);
+bool operator < (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
+bool operator == (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
+bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
+
