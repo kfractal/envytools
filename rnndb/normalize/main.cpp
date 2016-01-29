@@ -1,6 +1,24 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
 /*
- *  >insert nvidia open source copyright<
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #include <stdexcept>
@@ -15,8 +33,6 @@
 
 #include "main.h"
 #include "ip_def.h"
-
-//#include "../../include/rnn.h"
 
 QSet<gpuid_t *> var_all_gpus;
 
@@ -38,7 +54,7 @@ Main::Main(int &argc, char **argv) :
 void Main::start()
 {
 	// read nvidia's hwref definitions.
-	chipids_main();
+	defn_set_t *defns = read_ip_defs();
 
 	out() << "info: processed nvidia hwref files for";
 	for ( auto &t: target_gpus ) {
@@ -63,7 +79,7 @@ void Main::start()
 	defaults.zap_spec_bits(); // mark as inherited values...
 	_attr_stack.push(defaults);
 
-	int rc = read_root();
+	int rc = read_rnndb_root();
 
 	if ( (_warn || _verbose) ) {
 		// some of these aren't actually possible any longer because schema
@@ -97,6 +113,19 @@ void Main::start()
 			QString::fromStdString(t->name()) << endl;
 	}
 
+
+
+	for ( auto defn : *defns ) {
+		for ( auto &val : defn->vals ) {
+			out() << "defn: " << QString::fromStdString(defn->symbol) << " = " <<
+				QString::fromStdString(val->val) <<
+				" for " << gpus_to_variants(val->gpus) << endl;
+			//			gpu_equiv_class_t tmp_eq_class;
+			//			for ( auto &g : val->gpus ) { tmp_eq_class.insert(g); }
+			//			val->eq_class = tmp_eq_class.snap(tag(def_file_name));
+		}
+	}
+
 	update_defs();
 	
 	// write out the xml files.
@@ -110,7 +139,7 @@ void Main::start()
 	return;
 }
 
-int Main::read_root()
+int Main::read_rnndb_root()
 {
 	_root_dir = QDir(QFileInfo(_root).dir());
 	if (_verbose) out() << "info: root dir is " << _root_dir.absolutePath() << endl;
@@ -1131,9 +1160,11 @@ int Main::handle_document(QXmlStreamReader &e) // the xml structure, not the "do
 
 int Main::end_document(QXmlStreamReader &e)
 {
+	file_content_t *content = current_file_content();
 	if (false) {
 		out() << e.text().toString() << "]end document " << _current_file.top().filePath() << endl;
 	}
+	content->current_node.pop();
 	return 0;
 }
 
@@ -1150,7 +1181,6 @@ int Main::handle_chars(QXmlStreamReader &e)
 	file_content_t *content = current_file_content();
 	xml_chars_node_t *chars = new xml_chars_node_t(e.text().toString(), e.isCDATA());
 	content->current_node.top()->nodes.append(chars);
-	//	content->current_node.push(chars); would just pop afterward.
 	return 0;
 }
 
@@ -1206,7 +1236,7 @@ int Main::handle_processing_instruction(QXmlStreamReader &e)
 	return 0;
 }
 
-int Main::handle_no_token(QXmlStreamReader &e)
+int Main::handle_no_token(QXmlStreamReader &/*e*/)
 {
 	if (false) {
 		out() << "no token[]\n";
@@ -1222,31 +1252,29 @@ void Main::emit_file(const QString &rel_name)
 		return;
 	}
 
-	file_content_t &c = _xml_file_content[rel_name];
-	//out() << "info: found content for " << rel_name << " <-> " << c._path << endl;
-	QFileInfo fi("results/" + rel_name);
-	QDir fi_dir = fi.dir();
-	if ( !fi_dir.exists() ) {
-		if ( !fi_dir.mkpath(fi_dir.path()) ) {
-			out() << "error: couldn't make path " << fi_dir.path() << endl;
+	file_content_t &file_content = _xml_file_content[rel_name];
+	QFileInfo file_info("results/" + rel_name);
+	QDir file_dir = file_info.dir();
+	if ( !file_dir.exists() ) {
+		if ( !file_dir.mkpath(file_dir.path()) ) {
+			out() << "error: couldn't make path " << file_dir.path() << endl;
 			return;
 		}
 	}
-	QFile of("results/"+rel_name);
-	if ( !of.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text) ) {
-		out() << "error: couldn't open result file " << of.fileName() << endl;
+	QFile out_file("results/" + rel_name);
+	if ( !out_file.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text) ) {
+		out() << "error: couldn't open result file " << out_file.fileName() << endl;
 	}
 
 	//QString ns("http://nouveau.freedesktop.org/");
 	QString ns;
 
-
-	QXmlStreamWriter ox(&of);
-	ox.setAutoFormatting(true);
-	for ( auto d : c.nodes ) {
-		d->write(ox);
+	QXmlStreamWriter out_xml(&out_file);
+	out_xml.setAutoFormatting(true);
+	for ( auto node : file_content.nodes ) {
+		node->write(out_xml);
 	}
-	of.close();
+	out_file.close();
 }
 
 

@@ -1,4 +1,26 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
+/*
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 #include <QDebug>
 
 //
@@ -117,9 +139,7 @@ typedef spec_t<uint32_t> low_attr_spec_t;
 
 
 #if 0
-// unused as of yet.  but just in case... the following
-// can be generated to provide a struct to hold any
-// particular element's attrs.
+// the following can be used to provide a struct to hold any element's attrs.
 struct import_attrs_t {
 	import_ELEMENT_ATTRS()
 };
@@ -253,7 +273,7 @@ public:
 	bool isCDATA;
 	QString text;
 	xml_chars_node_t(const QString &text, bool isCDATA) :
-		xml_node_t(QXmlStreamReader::Characters), text(text), isCDATA(isCDATA) { }
+		xml_node_t(QXmlStreamReader::Characters), isCDATA(isCDATA), text(text)  { }
 	virtual ~xml_chars_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeCharacters(text);
@@ -277,7 +297,7 @@ public:
 	QString text;
 	xml_dtd_node_t(const QString &text, const QXmlStreamNotationDeclarations &n,
 				   const QXmlStreamEntityDeclarations &e) :
-		xml_node_t(QXmlStreamReader::DTD), text(text), n_decls(n), e_decls(e) { }
+		xml_node_t(QXmlStreamReader::DTD), n_decls(n), e_decls(e), text(text) { }
 
 	virtual ~xml_dtd_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
@@ -290,7 +310,7 @@ public:
 	QString ref;
 	QString text;
 	xml_entity_reference_node_t(const QString &text, const QString &ref) :
-		xml_node_t(QXmlStreamReader::EntityReference), text(text), ref(ref) { }
+		xml_node_t(QXmlStreamReader::EntityReference), ref(ref), text(text) { }
 	virtual ~xml_entity_reference_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeEntityReference(text);
@@ -311,7 +331,7 @@ public:
 
 class xml_import_element_t : public xml_element_node_t {
 public:
-	xml_import_element_t(const QString &filel, QXmlStreamAttributes &attrs) :
+	xml_import_element_t(const QString &/*file*/, QXmlStreamAttributes &attrs) :
 		xml_element_node_t("import", attrs)
 	{
 

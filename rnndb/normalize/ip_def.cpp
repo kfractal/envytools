@@ -1,18 +1,28 @@
 // -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
 /*
- *  >insert nvidia open source copyright<
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
+
 #include <unordered_map>
 #include <fstream>
-
-#if 0
-#include <array>
-#include <list>
-#include <cstdint>
-#include <stdexcept>
-#include <locale>
-#include <ctime>
-#endif
 
 #include <QDir>
 #include <QFileInfo>
@@ -53,6 +63,7 @@ static gpu_family_t
 	maxwell_family {"maxwell"},
 	pascal_family  {"pascal"};
 
+#if 0
 static gpu_family_t *family_order[] {
 	&g8x_family,
 	&tesla_family,
@@ -61,7 +72,7 @@ static gpu_family_t *family_order[] {
 	&maxwell_family,
 	&pascal_family
 };
-
+#endif
 
 // files which are of a different format (not registers/fields)
 // or which otherwise aren't applicable.
@@ -538,7 +549,7 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 
 		defn_val_index_t::iterator find_val = symbol_defn->val_index.find(val_match);
 		defn_val_t *defn_val = 0;
-		if ( find_val == symbol_defn->val_index.end() ) { // first encounter with value (for the symbol)
+		if ( find_val == symbol_defn->val_index.end() ) { // first encounter with this value (for the symbol)
 			defn_val = symbol_defn->val_index[val_match] = new defn_val_t(val_match);
 			symbol_defn->vals.insert(defn_val);
 
@@ -557,8 +568,8 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 	}
 }
 
-
-int chipids_main()
+static void calculate_equiv_classes(defn_set_t *defs,  string def_file_name );
+defn_set_t *read_ip_defs()
 {
 	init_symbols();
 	init_gpuids();
@@ -580,7 +591,12 @@ int chipids_main()
 		}
 	}
 
-	return 0;
+	for ( auto def : __defines ) {
+		defn_set_t defs;  defs.insert(def);
+		calculate_equiv_classes(&defs, "uh");
+	}
+
+	return &__defines;
 }
 
 
