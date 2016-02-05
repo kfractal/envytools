@@ -207,12 +207,14 @@ struct symbol_t {
 	}
 };
 
+#if 0
 typedef std::map<std::string, constant_t *> constant_db_t;
 typedef std::map<std::string, field_t *>    field_db_t;
 typedef std::map<std::string, group_t *>    group_db_t;
 typedef std::map<std::string, reg_t *>      reg_db_t;
 typedef std::map<std::string, symbol_t *>   symbol_db_t;
 typedef std::map<std::string, symbol_t *>::iterator symbol_db_iter_t;
+#endif
 
 std::map<std::string, group_t *>    * get_groups();
 std::map<std::string, reg_t *>      * get_regs();
@@ -222,10 +224,36 @@ std::map<std::string, reg_t *>      * get_deleted();
 std::map<std::string, field_t *>    * get_fields();
 std::map<std::string, constant_t *> * get_constants();
 
-extern std::map<std::string, bool> symbol_whitelist;
+extern std::map<std::string, bool>         symbol_whitelist;
+extern std::map<std::string, reg_t *>      register_whitelist;
+extern std::map<std::string, field_t *>    field_whitelist;
+extern std::map<std::string, constant_t *> constant_whitelist;
+
 extern std::multimap<std::string, ip_whitelist::group_t *>    chip_groups;
 extern std::multimap<std::string, ip_whitelist::reg_t *>      chip_regs;
 extern std::multimap<std::string, ip_whitelist::field_t *>    chip_fields;
 extern std::multimap<std::string, ip_whitelist::constant_t *> chip_constants;
+
+
+typedef std::pair <std::multimap<std::string,ip_whitelist::group_t*>::iterator,
+				   std::multimap<std::string,ip_whitelist::group_t*>::iterator>    group_mm_it_t;
+typedef std::pair <std::multimap<std::string,ip_whitelist::reg_t*>::iterator,
+				   std::multimap<std::string,ip_whitelist::reg_t*>::iterator>      reg_mm_it_t;
+typedef std::pair <std::multimap<std::string,ip_whitelist::field_t*>::iterator,
+				   std::multimap<std::string,ip_whitelist::field_t*>::iterator>    field_mm_it_t;
+typedef std::pair <std::multimap<std::string,ip_whitelist::constant_t*>::iterator,
+				   std::multimap<std::string,ip_whitelist::constant_t*>::iterator> constant_mm_it_t;
+
+
+//typedef std::multimap<std::string, ip_whitelist::group_t *>::iterator    group_mm_it_t;
+//typedef std::multimap<std::string, ip_whitelist::reg_t *>::iterator      reg_mm_it_t;
+//typedef std::multimap<std::string, ip_whitelist::field_t *>::iterator    field_mm_it_t;
+//typedef std::multimap<std::string, ip_whitelist::constant_t *>::iterator constant_mm_it_t;
+
+#if 0
+std::list<std::string> get_group_registers(string &group);
+std::list<std::string> get_register_fields(string &symbol);
+std::list<std::string> get_field_constants(string &symbol);
+#endif
 
 }

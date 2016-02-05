@@ -50,6 +50,16 @@ using namespace std::regex_constants;
 defn_set_t __defines;
 defn_index_t __defn_index;
 
+defn_set_t __regs;
+defn_index_t __register_index;
+
+defn_set_t __fields;
+defn_index_t __field_index;
+
+defn_set_t __constants;
+defn_index_t __constant_index;
+
+
 list<gpuid_t*> target_gpus;
 map<string, gpuid_t*> target_gpus_by_name;
 vector<gpuid_t*> target_gpus_by_ordering;
@@ -507,11 +517,13 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 			idstring = "(" + ident_match + ")";
 		}
 
-		if ( ip_whitelist::symbol_whitelist.find(def_match) == ip_whitelist::symbol_whitelist.end() ) {
+		// this is where non-whitelisted symbols are rejected...
+		if ( ip_whitelist::symbol_whitelist.find(def_match) == 
+			 ip_whitelist::symbol_whitelist.end() ) {
 			continue;
 		}
 
-		// is it a register or a field or a constant? (theoretically could be multiple types?)
+		// is it a register or a field or a constant?
 		// the whitelist has that information.
 		bool is_reg = false, is_field = false, is_constant = false;
 		if ( ip_whitelist::chip_regs.find(def_match) != ip_whitelist::chip_regs.end() ) {
@@ -522,44 +534,83 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 			is_constant = true;
 		}
 
-		//XXX is this correct?
+
 		// now, add the (i) to the symbol if it should be.
 		// () should match (i) and (i,j) as well since they would collide.
 		def_match += idstring;
 
-		defn_t *symbol_defn       = 0;
-		//defn_index_t *gpu_defns_index = g->defns_index();
-		defn_set_t *gpu_defns         = g->defines();
+		defn_t     *symbol_defn   = 0;
+		defn_set_t *gpu_defns     = g->defines();
 
-		defn_index_t *defns_index = &__defn_index;
-		defn_set_t *defns = &__defines;
+		defn_index_t *defns_index    = &__defn_index;
+		defn_index_t *register_index = &__register_index;
+		defn_index_t *field_index    = &__field_index;
+		defn_index_t *constant_index = &__constant_index;
+
+		defn_set_t   *defns     = &__defines;
+		defn_set_t   *regs      = &__regs;
+		defn_set_t   *fields    = &__fields;
+		defn_set_t   *constants = &__constants;
 
 		defn_index_t::iterator find_defn = defns_index->find(def_match);
-		if ( find_defn == defns_index->end() ) { // first (global) encounter with the symbol
+		if ( find_defn == defns_index->end() ) {
+			// first (global) encounter with the symbol
 			symbol_defn = (*defns_index)[def_match] = new defn_t(def_match);
 			symbol_defn->is_reg      = is_reg;
 			symbol_defn->is_field    = is_field;
 			symbol_defn->is_constant = is_constant;
+
 			defns->insert(symbol_defn);
+
+			if ( is_reg ) {
+				(*register_index)[def_match] = symbol_defn;
+				regs->insert(symbol_defn);
+				ip_whitelist::reg_mm_it_t Ri = ip_whitelist::chip_regs.equal_range(def_match);
+				for ( auto Rii = Ri.first; Rii != Ri.second; Rii++ ) {
+					symbol_defn->regs.insert(Rii->second);
+				}
+			}
+			if ( is_field ) {
+				(*field_index)[def_match]    = symbol_defn;
+				fields->insert(symbol_defn);
+				ip_whitelist::field_mm_it_t Fi = ip_whitelist::chip_fields.equal_range(def_match);
+				for ( auto Fii = Fi.first; Fii != Fi.second; Fii++ ) {
+					symbol_defn->fields.insert(Fii->second);
+				}
+
+			}
+			if ( is_constant) {
+				(*constant_index)[def_match] = symbol_defn;
+				constants->insert(symbol_defn);
+				ip_whitelist::constant_mm_it_t Ci = ip_whitelist::chip_constants.equal_range(def_match);
+				for ( auto Cii = Ci.first; Cii != Ci.second; Cii++ ) {
+					symbol_defn->constants.insert(Cii->second);
+				}
+			}
 		} else {
 			symbol_defn = find_defn->second;
 		}
-		gpu_defns->insert(symbol_defn);
 
+		gpu_defns->insert(symbol_defn);
 
 		defn_val_index_t::iterator find_val = symbol_defn->val_index.find(val_match);
 		defn_val_t *defn_val = 0;
-		if ( find_val == symbol_defn->val_index.end() ) { // first encounter with this value (for the symbol)
+		if ( find_val == symbol_defn->val_index.end() ) {
+			// first encounter with this value (for this specific symbol)
 			defn_val = symbol_defn->val_index[val_match] = new defn_val_t(val_match);
 			symbol_defn->vals.insert(defn_val);
-
 			if ( symbol_defn->is_reg ) {
 				try {
 					uint32_t vnum = stoull (val_match, nullptr, 0);
-					reg_val_index.insert(make_pair( vnum, symbol_defn ));
+					reg_val_index.insert( make_pair(vnum, symbol_defn) );
+					//reg_val_index.insert( make_pair(val_match, symbol_defn) );
 				} catch ( invalid_argument w) {
 					// bogus val... might want to complain here?
 				}
+			} else if ( symbol_defn->is_field ) {
+				//				field_val_index.insert( make_pair(val_match, symbol_defn) );
+			} else if ( symbol_defn->is_constant) {
+				//				constant_val_index.insert( make_pair(val_match, symbol_defn) );
 			}
 		} else {
 			defn_val = find_val->second;
@@ -569,7 +620,8 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 }
 
 static void calculate_equiv_classes(defn_set_t *defs,  string def_file_name );
-defn_set_t *read_ip_defs()
+
+void read_ip_defs()
 {
 	init_symbols();
 	init_gpuids();
@@ -591,14 +643,16 @@ defn_set_t *read_ip_defs()
 		}
 	}
 
+#if 0
 	for ( auto def : __defines ) {
 		defn_set_t defs;  defs.insert(def);
 		calculate_equiv_classes(&defs, "uh");
 	}
+#endif
 
-	return &__defines;
 }
-
+defn_index_t *get_defn_index() { return &__defn_index; }
+defn_set_t   *get_defns()      { return &__defines; }
 
 void FooLexer::push_hex_literal(const char *s) {
 	_tokens.push_back(token_t(token_type_e::hex_literal, string(s)));

@@ -229,7 +229,8 @@ class xml_node_t {
 public:
 	QXmlStreamReader::TokenType t;
 	QList<xml_node_t *> nodes;
-	xml_node_t (QXmlStreamReader::TokenType t) : t(t) { }
+	xml_node_t *parent;
+	xml_node_t (QXmlStreamReader::TokenType t, xml_node_t * parent = 0) : t(t), parent(parent) { }
 	virtual ~xml_node_t(){ }
 	virtual void write(QXmlStreamWriter &ox) {
 		for ( auto n : nodes ) {
@@ -240,7 +241,7 @@ public:
 
 class xml_document_node_t : public xml_node_t {
 public:
-	xml_document_node_t() : xml_node_t(QXmlStreamReader::StartDocument) { }
+	xml_document_node_t(xml_node_t *parent = 0) : xml_node_t(QXmlStreamReader::StartDocument, parent) { }
 	virtual ~xml_document_node_t(){ }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeStartDocument();
@@ -255,8 +256,8 @@ class xml_element_node_t : public xml_node_t {
 public:
 	QString name;
 	QXmlStreamAttributes attrs;
-	xml_element_node_t(const QString &name, const QXmlStreamAttributes &attrs) :
-		xml_node_t(QXmlStreamReader::StartElement), name(name), attrs(attrs) { }
+	xml_element_node_t(const QString &name, const QXmlStreamAttributes &attrs, xml_node_t *parent = 0) :
+		xml_node_t(QXmlStreamReader::StartElement, parent), name(name), attrs(attrs) { }
 	virtual ~xml_element_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeStartElement(QString(), name);
@@ -272,8 +273,8 @@ class xml_chars_node_t : public xml_node_t {
 public:
 	bool isCDATA;
 	QString text;
-	xml_chars_node_t(const QString &text, bool isCDATA) :
-		xml_node_t(QXmlStreamReader::Characters), isCDATA(isCDATA), text(text)  { }
+	xml_chars_node_t(const QString &text, bool isCDATA, xml_node_t *parent = 0) :
+		xml_node_t(QXmlStreamReader::Characters, parent), isCDATA(isCDATA), text(text)  { }
 	virtual ~xml_chars_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeCharacters(text);
@@ -283,7 +284,7 @@ public:
 class xml_comment_node_t : public xml_node_t {
 public:
 	QString text;
-	xml_comment_node_t(const QString &text) : xml_node_t(QXmlStreamReader::Comment), text(text) { }
+	xml_comment_node_t(const QString &text, xml_node_t *parent = 0) : xml_node_t(QXmlStreamReader::Comment, parent), text(text) { }
 	virtual ~xml_comment_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeComment(text);
@@ -296,8 +297,8 @@ public:
 	QXmlStreamEntityDeclarations  e_decls;
 	QString text;
 	xml_dtd_node_t(const QString &text, const QXmlStreamNotationDeclarations &n,
-				   const QXmlStreamEntityDeclarations &e) :
-		xml_node_t(QXmlStreamReader::DTD), n_decls(n), e_decls(e), text(text) { }
+				   const QXmlStreamEntityDeclarations &e, xml_node_t *parent = 0) :
+		xml_node_t(QXmlStreamReader::DTD, parent), n_decls(n), e_decls(e), text(text) { }
 
 	virtual ~xml_dtd_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
@@ -309,8 +310,8 @@ class xml_entity_reference_node_t : public xml_node_t {
 public:
 	QString ref;
 	QString text;
-	xml_entity_reference_node_t(const QString &text, const QString &ref) :
-		xml_node_t(QXmlStreamReader::EntityReference), ref(ref), text(text) { }
+	xml_entity_reference_node_t(const QString &text, const QString &ref, xml_node_t *parent = 0) :
+		xml_node_t(QXmlStreamReader::EntityReference, parent), ref(ref), text(text) { }
 	virtual ~xml_entity_reference_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeEntityReference(text);
@@ -321,8 +322,8 @@ class xml_processing_instruction_node_t : public xml_node_t {
 public:
 	QString target;
 	QString data;
-	xml_processing_instruction_node_t(const QString &target, const QString &data) :
-		xml_node_t(QXmlStreamReader::ProcessingInstruction), target(target), data(data) { }
+	xml_processing_instruction_node_t(const QString &target, const QString &data, xml_node_t *parent = 0) :
+		xml_node_t(QXmlStreamReader::ProcessingInstruction, parent), target(target), data(data) { }
 	virtual ~xml_processing_instruction_node_t() { }
 	virtual void write(QXmlStreamWriter &ox) {
 		ox.writeProcessingInstruction(target, data);
@@ -331,8 +332,8 @@ public:
 
 class xml_import_element_t : public xml_element_node_t {
 public:
-	xml_import_element_t(const QString &/*file*/, QXmlStreamAttributes &attrs) :
-		xml_element_node_t("import", attrs)
+	xml_import_element_t(const QString &/*file*/, QXmlStreamAttributes &attrs, xml_node_t *parent = 0) :
+		xml_element_node_t("import", attrs, parent)
 	{
 
 	}

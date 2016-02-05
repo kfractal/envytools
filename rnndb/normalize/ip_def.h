@@ -122,6 +122,10 @@ private:
 };
 typedef set<defn_val_t *> defn_val_set_t;
 typedef map<string/*val*/, defn_val_t *> defn_val_index_t;
+typedef set<ip_whitelist::group_t *>    group_set_t;
+typedef set<ip_whitelist::reg_t *>      register_set_t;
+typedef set<ip_whitelist::field_t *>    field_set_t;
+typedef set<ip_whitelist::constant_t *> constant_set_t;
 
 class defn_t {
 public:
@@ -130,10 +134,16 @@ public:
 	defn_val_index_t val_index;
 	int line_nr; // earliest line_nr found
 	defn_t(const string &s) : symbol(s), is_reg(0), is_field(0), is_constant(0) { }
-	bool is_reg;
-	bool is_field;
-	bool is_constant;
 
+	/* elements of the whitelist info this symbol plays a part in. */
+	group_set_t    groups;
+	register_set_t regs;
+	field_set_t    fields;
+	constant_set_t constants;
+
+	bool is_reg; 
+	bool is_field; 
+	bool is_constant;
 private:
 	defn_t(){ }
 };
@@ -173,10 +183,18 @@ public:
 	static gpu_equiv_class_t * snapshot_at(int i) { return _snapshot.at(i); }
 };
 
-defn_set_t *read_ip_defs();
+void read_ip_defs();
+defn_index_t *get_defn_index();
+defn_set_t   *get_defns();
+
 
 extern list<gpuid_t*> target_gpus;
 extern map<string, gpuid_t *> target_gpus_by_name;
 extern vector<gpuid_t*> target_gpus_by_ordering;
 
 extern multimap<uint64_t, defn_t *> reg_val_index;
+extern multimap<string, defn_t *> field_val_index;
+extern multimap<string, defn_t *> constant_index;
+extern defn_index_t __register_index;
+extern defn_index_t __field_index;
+extern defn_index_t __constant_index;

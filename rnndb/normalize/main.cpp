@@ -23,7 +23,7 @@
 
 #include <stdexcept>
 #include <queue>
-
+#include <sstream>
 
 #include <QDebug>
 #include <QQueue>
@@ -53,18 +53,25 @@ Main::Main(int &argc, char **argv) :
 
 void Main::start()
 {
-	// read nvidia's hwref definitions.
-	defn_set_t *defns = read_ip_defs();
+	//
+	// read nvidia's hwref definitions.  only whitelisted definitions
+	// are returned from this operation.
+	//
+	read_ip_defs();
+	_defns = get_defns();
+	_defn_index = get_defn_index();
+
 
 	out() << "info: processed nvidia hwref files for";
 	for ( auto &t: target_gpus ) {
 		out() << "info:\t" << QString::fromStdString(t->name()) << endl;
 	}
-	out() << "info: found " <<
+	out() << "info: the ip whitelist contains " <<
 		ip_whitelist::chip_groups.size()    << " groups, " <<
 		ip_whitelist::chip_regs.size()      << " registers, " <<
 		ip_whitelist::chip_fields.size()    << " fields and " <<
 		ip_whitelist::chip_constants.size() << " constants overall." << endl;
+
 
 	for ( auto t : target_gpus ) 
 		var_all_gpus.insert(t);
@@ -113,9 +120,7 @@ void Main::start()
 			QString::fromStdString(t->name()) << endl;
 	}
 
-
-
-	for ( auto defn : *defns ) {
+	for ( auto defn : *_defns ) {
 		for ( auto &val : defn->vals ) {
 			out() << "defn: " << QString::fromStdString(defn->symbol) << " = " <<
 				QString::fromStdString(val->val) <<
@@ -134,6 +139,53 @@ void Main::start()
 			emit_file(xf);
 		}
 	}
+
+	QFileInfo file_info("results/additions.xml");
+	QDir file_dir = file_info.dir();
+	if ( !file_dir.exists() ) {
+		if ( !file_dir.mkpath(file_dir.path()) ) {
+			out() << "error: couldn't make path " << file_dir.path() << endl;
+			return;
+		}
+	}
+	QFile out_file("results/additions.xml");
+	if ( !out_file.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text) ) {
+		out() << "error: couldn't open result file " << out_file.fileName() << endl;
+	}
+
+	//QString ns("http://nouveau.freedesktop.org/");
+	QString ns;
+
+	file_content_t addit("results/additions.xml");
+	//struct file_content_t {
+	//	QList<xml_node_t *> nodes;
+	//	QStack<xml_node_t *> current_node;
+	//	QString _path;
+	//	xml_node_t *last_node;
+	//	file_content_t () : _path(QString()), last_node(0) { }
+	//	file_content_t (const QString &path) : _path(path), last_node(0) { }
+	//};
+
+
+	// any information which hasn't already been added, do so now.
+	for ( auto reg_i : __register_index ) {
+
+		defn_t *r = reg_i.second;
+
+		if ( hit_regs.find(r->symbol) != hit_regs.end() ) {
+			// done already
+			continue;
+		}
+		produce_register_content(r, &addit);
+	}
+	QXmlStreamWriter out_xml(&out_file);
+	out_xml.setAutoFormatting(true);
+
+	for ( auto node : addit.nodes ) {
+		node->write(out_xml);
+	}
+	out_file.close();
+
 
 	exit(rc); // Main::exit() sets *intent* to exit w/rc.
 	return;
@@ -349,7 +401,7 @@ int Main::handle_element(QXmlStreamReader &e)
 			e.lineNumber() << " of " << _current_file.top().filePath() << endl;
 		return -1;
 	}
-
+#if 0
 	if ( ! _nestable_elements.contains(name_str(e)) ) {
 		for ( auto si : _current_element ) {
 			if ( si == name_str(e) ) {
@@ -359,7 +411,7 @@ int Main::handle_element(QXmlStreamReader &e)
 			}
 		}
 	}
-
+#endif
 	//
 	// the attribute stack records where attributes have been
 	// specified, both values as well as bits for true/false
@@ -372,14 +424,16 @@ int Main::handle_element(QXmlStreamReader &e)
 	//
 	_current_element.push(name_str(e));
 	_attr_stack.push(_attr_stack.top());
+
 	//----------------------------------------------------------------------
-	e.attributes();
-	xml_element_node_t *enode = new xml_element_node_t(name_str(e), e.attributes());
 	file_content_t *content = current_file_content();
-	//content->nodes.append(enode);
+	xml_element_node_t *enode = new xml_element_node_t( name_str(e), e.attributes(),
+														content->current_node.top() );
+
 	content->current_node.top()->nodes.append(enode);
 	content->current_node.push(enode);
 	//----------------------------------------------------------------------
+
 	int rc = (this->**f)(e); // records attrs seen in top()
 
 	if (rc) {
@@ -414,6 +468,7 @@ int Main::end_element(QXmlStreamReader &e)
 		out() << "error: about to pop empty element stack?" << endl;
 	}
 	_current_element.pop();
+	content->last_node = content->current_node.top();
 	content->current_node.pop();
 
 	if ( _attr_stack.size() <= 1 ) {
@@ -598,6 +653,8 @@ int Main::close_b(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg16(QXmlStreamReader &e)
 {
+	uint64_t inherited_offset = _attrs._offset.v;
+
 	STACK_ELEMENT_ATTRS(reg16);
 
 	uint64_t offset = _attrs._offset.v;
@@ -607,21 +664,6 @@ int Main::handle_reg16(QXmlStreamReader &e)
 		var_gpus = variants_to_gpus(_attrs._variants.v);
 	} else {
 		var_gpus = var_all_gpus;
-	}
-
-	QVector<QString> name_pieces = name.split("::").toVector();
-	if ( name_pieces.size() && (name_pieces[0] == "NV_MMIO") ) {
-		auto ri = reg_val_index.equal_range(offset);
-		for ( auto rii = ri.first; rii != ri.second; ++rii) {
-			out() << "reg16: symbol [" << QString::fromStdString(rii->second->symbol) << "]";
-			for ( auto dv_ii : rii->second->vals ) {
-				out() << "\n\tval [" << QString::fromStdString(dv_ii->val) << "] -> [ " << 
-					gpus_to_variants(dv_ii->gpus) << " ]";
-			}
-			out() << endl;
-		}
-	} else {
-		// out() << QString("reg16: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0')) << endl;
 	}
 	return rc;
 }
@@ -708,6 +750,8 @@ int Main::close_copyright(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg8(QXmlStreamReader &e)
 {
+	uint64_t inherited_offset = _attrs._offset.v;
+
 	STACK_ELEMENT_ATTRS(reg8);
 
 	uint64_t offset = _attrs._offset.v;
@@ -717,21 +761,6 @@ int Main::handle_reg8(QXmlStreamReader &e)
 		var_gpus = variants_to_gpus(_attrs._variants.v);
 	} else {
 		var_gpus = var_all_gpus;
-	}
-
-	QVector<QString> name_pieces = name.split("::").toVector();
-	if ( name_pieces.size() && (name_pieces[0] == "NV_MMIO") ) {
-		auto ri = reg_val_index.equal_range(offset);
-		for ( auto rii = ri.first; rii != ri.second; ++rii) {
-			out() << "reg8: symbol [" << QString::fromStdString(rii->second->symbol) << "]";
-			for ( auto dv_ii : rii->second->vals ) {
-				out() << "\n\tval [" << QString::fromStdString(dv_ii->val) << "] -> [ " << 
-					gpus_to_variants(dv_ii->gpus) << " ]";
-			}
-			out() << endl;
-		}
-	} else {
-		//out() << QString("reg8: %1 0x%2").arg(name). arg(offset, 8, 16, QChar('0')) << endl;
 	}
 
 	return rc;
@@ -799,15 +828,12 @@ int Main::close_li(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg64(QXmlStreamReader &e)
 {
+	uint64_t inherited_offset = _attrs._offset.v;
+
 	STACK_ELEMENT_ATTRS(reg64);
 
 	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
-
-	if (false) {
-		out() << QString("reg64: %1 0x%2").arg(name).
-			arg(offset, 16, 16, QChar('0')) << endl;
-	}
 
 	return rc;
 }
@@ -820,9 +846,13 @@ int Main::close_reg64(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg32(QXmlStreamReader &e)
 {
+	uint64_t inherited_offset = _attrs._offset.v;
+
 	STACK_ELEMENT_ATTRS(reg32);
 
+	// this offset is the flattened version...
 	uint64_t offset = _attrs._offset.v;
+
 	QString name    = _attrs._name.v;
 	QSet<gpuid_t *> var_gpus;
 	if ( _attrs._variants.v.size() ) {
@@ -830,20 +860,121 @@ int Main::handle_reg32(QXmlStreamReader &e)
 	} else {
 		var_gpus = var_all_gpus;
 	}
-	
+
 	QVector<QString> name_pieces = name.split("::").toVector();
 	if ( name_pieces.size() && (name_pieces[0] == "NV_MMIO") ) {
+		file_content_t *content = current_file_content();
+
+		// content->current_node.top()->nodes.append(enode);
+
+		xml_element_node_t *enode = dynamic_cast<xml_element_node_t*>(content->current_node.top());
+
+		if ( !enode ) {
+			throw std::logic_error("expected to find an element (xml_element_node_t*) at top");
+		}
+
+		//
+		// find all register defns with the same offset.
+		// the point here is to trigger an update of exising information.
+		// a later pass adds the rest of the information in a single file.
+		//
+
 		auto ri = reg_val_index.equal_range(offset);
 		for ( auto rii = ri.first; rii != ri.second; ++rii) {
-			// each rii is a defn_t
-			// in each defn_t is a set of defn_val_t
-			// each defn_val_t has a val and a set of gpus.
-			out() << "reg32: symbol [" << QString::fromStdString(rii->second->symbol) << "]";
-			for ( auto dv_ii : rii->second->vals ) {
-				out() << "\n\tval [" << QString::fromStdString(dv_ii->val) << "] -> [ " << 
-					gpus_to_variants(dv_ii->gpus) << " ]";
+
+			defn_t *reg_defn = rii->second;
+			// emit any particular register symbol only once.
+			// below we'll check for specific offset values (and so we may
+			// ultimately emit more than one version anyway, but as appropriate).
+			if ( hit_regs.find(reg_defn->symbol) != hit_regs.end() ) {
+				continue;
 			}
-			out() << endl;
+			hit_regs.insert(reg_defn->symbol);
+
+			for ( auto vali : reg_defn->vals ) {
+				defn_val_t *reg_defn_val = vali;
+
+				map<string, set<string>> field_accum;
+				set<string> field_defns;
+				set<string> constant_defns;
+
+				// mixed-in versions instead of new ones for each gpuset?
+				// the whitelist isn't available to point out the items
+				// available to each gpu.  only those used to create the
+				// whitelist.  but, the defn_t creators kept records
+				// per-gpu.  so if there's a scheme to put them all down
+				// accurately it's possible.
+
+				for ( auto reg_i : reg_defn->regs ) {
+					ip_whitelist::reg_t *reg = reg_i;
+					for ( auto bf_i : reg->fields ) {
+						ip_whitelist::field_t *bf = bf_i.second;
+						field_defns.insert(bf->def);
+						hit_fields.insert(bf->def);
+						for ( auto co_i : bf->constants ) {
+							ip_whitelist::constant_t *co = co_i.second;
+							constant_defns.insert(co->def);
+							field_accum[bf->def].insert(co->def);
+							hit_constants.insert(co->def);
+						}
+					}
+				}
+
+
+				QXmlStreamAttributes attrs;
+				// attrs.append( qStr("offset"),   qStr(reg_defn_val->val));
+				uint64_t show_offset = offset - inherited_offset;
+				attrs.append( qStr("offset"),   qStr(to_hex(show_offset)));
+				attrs.append( qStr("name"),     qStr(reg_defn->symbol));
+				attrs.append( qStr("variants"), gpus_to_variants(reg_defn_val->gpus));
+				xml_element_node_t *new_reg32 = new xml_element_node_t("reg32", attrs);
+				enode->parent->nodes.append( new_reg32 );
+
+				//				out() << "info: reg " << qStr(reg_defn->symbol) << " " <<
+				//					qStr(reg_defn_val->val) << endl;
+
+				for ( auto field : field_defns ) {
+					//					out() << "info: field " << qStr(field) << endl;
+					auto find_field_defn = __field_index.find(field);
+					if ( find_field_defn != __field_index.end() ) {
+						defn_t *field_defn = find_field_defn->second;
+						for ( auto field_val_i : field_defn->vals ) {
+
+							QXmlStreamAttributes field_attrs;
+							field_attrs.append( qStr("name"), qStr(field) );
+							field_attrs.append( qStr("value"), qStr(field_val_i->val) );
+							QString variants = gpus_to_variants(field_val_i->gpus);
+							field_attrs.append( qStr("variants") , variants);
+							xml_element_node_t *new_field = 
+								new xml_element_node_t("bitfield", field_attrs, new_reg32);
+							new_reg32->nodes << new_field;
+
+							for ( auto constant : field_accum[field] ) {
+								//		out() << "info: constant " << qStr(constant) << endl;
+
+								auto find_constant_def = __constant_index.find(constant);
+								if ( find_constant_def != __constant_index.end() ) {
+									defn_t *constant_def = find_constant_def->second;
+									for ( auto constant_val_i : constant_def->vals ) {
+										defn_val_t *constant_val = constant_val_i;
+										QXmlStreamAttributes co_attrs;
+										co_attrs.append( qStr("name"), qStr(constant) );
+										co_attrs.append( qStr("value"), qStr(constant_val->val));
+										QString variants = gpus_to_variants(constant_val->gpus);
+										co_attrs.append( qStr("variants") , variants);
+										xml_element_node_t *new_constant =
+											new xml_element_node_t("constant", co_attrs, new_field);
+										new_field->nodes << new_constant;
+									}
+								}
+							}
+						}
+					} else {
+
+					}
+
+				}
+			}
 		}
 	} else {
 		//out() << QString("reg32: %1 0x%2").arg(name).arg(offset, 8, 16, QChar('0')) << endl;
@@ -1189,9 +1320,20 @@ int Main::handle_comment(QXmlStreamReader &e)
 	if (false) {
 		out() << "comment[" << e.text().toString() << "]\n";
 	}
+
 	file_content_t *content = current_file_content();
-	xml_comment_node_t *comment = new xml_comment_node_t(e.text().toString());
-	content->current_node.top()->nodes.append(comment);
+
+	if ( content->last_node ) {
+		// kind of a hack.  shift comments into the actual text.  they can't
+		// really be manipulated wrt the auto-formatting otherwise.
+		xml_chars_node_t * chars = new xml_chars_node_t (e.text().toString() ,false,
+														 content->last_node);
+		content->last_node->nodes.append(chars);
+	} else {
+		xml_comment_node_t *comment = new xml_comment_node_t(e.text().toString());
+		content->current_node.top()->nodes.append(comment);
+	}
+
 	return 0;
 }
 
@@ -1552,21 +1694,130 @@ bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 	return a_val > b_val;
 }
 
+
 void Main::update_defs()
 {
-#if 0
 	out() << "info: found " <<
-		chip_groups.size()    << " groups, " <<
-		chip_regs.size()      << " registers, " <<
-		chip_fields.size()    << " fields and " <<
-		chip_constants.size() << " constants overall." << endl;
-
-	group_t * pgraph;
-
-	auto f_pgraph = chip_groups.equal_range("gr");
-	for ( auto fi = f_pgraph.first; fi != f_pgraph.second; fi++ ) {
+		ip_whitelist::chip_groups.size()    << " groups";
+	for ( auto g: ip_whitelist::chip_groups ) {
+		out() << "\t" << qStr(g.second->name) << endl;
 	}
+	//	chip_regs.size()      << " registers, " <<
+	//		chip_fields.size()    << " fields and " <<
+	//		chip_constants.size() << " constants overall." << endl;
+
+
+#if 0
+	map<string, string> group_to_file_unit = {
+		{"bus", "bus/pbus.xml"},
+		{"ccsr", },
+		{"ce2", },
+		{"ctxsw_prog", },
+		{"fb", "memory/g80_pfb.xml"},
+		{"fifo", "fifo/pfifo.xml"},
+		{"flush", },
+		{"fuse", "bus/pfuse.xml"},
+		{"gmmu", "memory/g80_vm.xml"},
+		{"gr", "graph/g80_pgraph/pgraph.xml"},
+		{"ltc", },
+		{"mc", "bus/pmc.xml"},
+		{"pbdma", },
+		{"pri_ringmaster", },
+		{"pri_ringstation_sys", },
+		{"proj", },
+		{"pwr", },
+		{"ram", },
+		{"therm", },
+		{"timer", "bus/ptimer.xml"},
+		{"top", },
+		{"trim", }
+	};
 #endif
+	ip_whitelist::group_t * pgraph;
+	auto f_pgraph = ip_whitelist::chip_groups.equal_range("gr");
+	for ( auto fi = f_pgraph.first; fi != f_pgraph.second; fi++ ) {
+		ip_whitelist::group_t *group = fi->second;
+		for ( auto ri : group->regs ) {
+			ip_whitelist::reg_t *reg = ri.second;
+			if ( intersected_defns.find(reg->def) != intersected_defns.end() ) {
+				out() << "info: update " << qStr(reg->def) << endl;
+			} else {
+				out() << "info: add    " << qStr(reg->def) << endl;
+			}
+		}
+	}
+}
 
 
+
+
+void Main::produce_register_content(defn_t *reg_defn, file_content_t *content)
+{
+	hit_regs.insert(reg_defn->symbol);
+
+	for ( defn_val_t *reg_defn_val : reg_defn->vals ) {
+
+		map<string, set<string>> field_accum;
+		set<string> field_defns;
+		set<string> constant_defns;
+
+		for ( auto reg_i : reg_defn->regs ) {
+			ip_whitelist::reg_t *reg = reg_i;
+			for ( auto bf_i : reg->fields ) {
+				ip_whitelist::field_t *bf = bf_i.second;
+				field_defns.insert(bf->def);
+				for ( auto co_i : bf->constants ) {
+					ip_whitelist::constant_t *co = co_i.second;
+					constant_defns.insert(co->def);
+					field_accum[bf->def].insert(co->def);
+				}
+			}
+		}
+
+		QXmlStreamAttributes attrs;
+		attrs.append( qStr("offset"),   qStr(reg_defn_val->val));
+		//uint64_t show_offset = offset - inherited_offset;
+		//attrs.append( qStr("offset"),   qStr(to_hex(show_offset)));
+		attrs.append( qStr("name"),     qStr(reg_defn->symbol));
+		attrs.append( qStr("variants"), gpus_to_variants(reg_defn_val->gpus));
+		xml_element_node_t *new_reg32 = new xml_element_node_t("reg32", attrs);
+		content->nodes.append( new_reg32 );
+
+		for ( auto field : field_defns ) {
+			auto find_field_defn = __field_index.find(field);
+			if ( find_field_defn != __field_index.end() ) {
+				defn_t *field_defn = find_field_defn->second;
+				for ( auto field_val_i : field_defn->vals ) {
+
+					QXmlStreamAttributes field_attrs;
+					field_attrs.append( qStr("name"), qStr(field) );
+					field_attrs.append( qStr("value"), qStr(field_val_i->val) );
+					QString variants = gpus_to_variants(field_val_i->gpus);
+					field_attrs.append( qStr("variants") , variants);
+					xml_element_node_t *new_field = 
+						new xml_element_node_t("bitfield", field_attrs, new_reg32);
+					new_reg32->nodes << new_field;
+
+					for ( auto constant : field_accum[field] ) {
+
+						auto find_constant_def = __constant_index.find(constant);
+						if ( find_constant_def != __constant_index.end() ) {
+							defn_t *constant_def = find_constant_def->second;
+							for ( auto constant_val_i : constant_def->vals ) {
+								defn_val_t *constant_val = constant_val_i;
+								QXmlStreamAttributes co_attrs;
+								co_attrs.append( qStr("name"), qStr(constant) );
+								co_attrs.append( qStr("value"), qStr(constant_val->val));
+								QString variants = gpus_to_variants(constant_val->gpus);
+								co_attrs.append( qStr("variants") , variants);
+								xml_element_node_t *new_constant =
+									new xml_element_node_t("constant", co_attrs, new_field);
+								new_field->nodes << new_constant;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }

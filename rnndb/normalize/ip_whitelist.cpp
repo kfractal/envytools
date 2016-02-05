@@ -31,7 +31,11 @@ using namespace std;
 
 namespace ip_whitelist {
 
-map<string, bool> symbol_whitelist;
+map<string, bool>         symbol_whitelist;
+map<string, reg_t *>      register_whitelist;
+map<string, field_t *>    field_whitelist;
+map<string, constant_t *> constant_whitelist;
+
 vector<string> whitelist_gpus{ "gk20a", "gm20b" };
 void emit_groups_gk20a();
 void emit_groups_gm20b();
@@ -48,11 +52,12 @@ void init()
 
 static void init_gpu_symbol_whitelist(const string &wl_gpu)
 {
-	if ( wl_gpu == "gk20a" ){
+	if ( wl_gpu == "gk20a" ) {
 		ip_whitelist::emit_groups_gk20a();
 	} else {
 		ip_whitelist::emit_groups_gm20b();
 	}
+
 	map<string, ip_whitelist::group_t *>    * groups    = ip_whitelist::get_groups();
 	map<string, ip_whitelist::reg_t *>      * regs      = ip_whitelist::get_regs();
 	map<string, ip_whitelist::field_t *>    * fields    = ip_whitelist::get_fields();
@@ -154,8 +159,10 @@ void emit_register(reg_t *r)
 		emit_x   = R->emit.find_first_of("x") != string::npos;
 	}
 
-	if (R->def.size())
+	if (R->def.size()) {
 		symbol_whitelist[R->def] = true;
+		register_whitelist[R->def] = r;
+	}
 
 	R->group = G;
 	G->regs[ R->def ] = R;
@@ -192,8 +199,10 @@ void begin_scope(reg_t *r)
 void emit_field(field_t *f)
 {
 	F = f;
-	if (F->def.size())
+	if (F->def.size()) {
 		symbol_whitelist[F->def] = true;
+		field_whitelist[F->def] = f;
+	}
 
 	if ( R ) {
 		R->fields[F->def] = F;
@@ -213,8 +222,10 @@ void emit_field(field_t *f)
 void emit_constant(constant_t *c)
 {
 	C = c;
-	if ( C->def.size() )
+	if ( C->def.size() ) {
 		symbol_whitelist[C->def] = true;
+		constant_whitelist[C->def] = c;
+	}
 
 	if ( at_scope == G ) {
 		G->constants[C->def] = C;

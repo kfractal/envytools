@@ -45,8 +45,9 @@ struct file_content_t {
 	QList<xml_node_t *> nodes;
 	QStack<xml_node_t *> current_node;
 	QString _path;
-	file_content_t () : _path(QString()) { }
-	file_content_t (const QString &path) : _path(path) { }
+	xml_node_t *last_node;
+	file_content_t () : _path(QString()), last_node(0) { }
+	file_content_t (const QString &path) : _path(path), last_node(0) { }
 };
 
 
@@ -173,6 +174,15 @@ protected:
 
 	void update_defs();
 
+	multimap<string, defn_t *> intersected_defns;
+	multimap<string, defn_t *> _symbol_defns;
+	defn_set_t *_defns;
+	defn_index_t *_defn_index;
+
+	set<string> hit_regs;
+	set<string> hit_fields;
+	set<string> hit_constants;
+	void produce_register_content(defn_t *reg_defn, file_content_t *content);
 };
 
 uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);
@@ -180,4 +190,13 @@ uint64_t enumerate_gpu_set(const set<gpuid_t*> &gpus);
 bool operator < (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
 bool operator == (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
 bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
+
+#define qStr(X) QString::fromStdString(X)
+
+template <typename T>
+inline string to_hex(const T &n) {
+	stringstream ss;
+	ss << "0x" << std::hex << n;
+	return ss.str();
+}
 
