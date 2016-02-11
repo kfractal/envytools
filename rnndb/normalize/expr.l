@@ -38,11 +38,12 @@ WS        [\t ]
 NL        \n
 LOP       :
 UOP       (\+\+|\-\-)
-MOP       [\+\-\*/]
+MOP       [\+\-\*/%]
 GROUP     [()]
 IDENT     [_a-zA-Z0-9]
 SIDENT    [_a-zA-Z]
 HASHOP    #
+COMMA     ,
 KEYWORD   (defined|define|ifndef|ifdef|endif|else)
 SQUOT     '
 DQUOT     \"
@@ -84,6 +85,7 @@ BSLASH    \\
 {LOP}            { push_lop(YYText()); }
 {UOP}            { push_uop(YYText()); }
 {MOP}            { push_mop(YYText()); }
+{COMMA}          { push_comma(); }
 .                { push_unk(YYText()); }
 %%
 

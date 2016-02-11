@@ -116,7 +116,16 @@ struct defn_val_t {
 	gpu_equiv_class_t *eq_class;
 	defn_t *defn;
 	int line_nr; // earliest line_nr found
-	defn_val_t(const string &s) : val(s), eq_class(0) { }
+	vector<string> idents;
+	bool evaluated;
+	union {
+		struct {
+			int64_t high;
+			int64_t low;
+		} field;
+		int64_t val;
+	} evaluation;
+	defn_val_t(const string &s) : val(s), eq_class(0), evaluated(false) { }
 private:
 	defn_val_t();
 };

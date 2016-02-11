@@ -23,10 +23,15 @@
 
 #include <unordered_map>
 #include <fstream>
+#include <cstdlib>
+#include <cstdio>
 
 #include <QDir>
 #include <QFileInfo>
 #include <QFile>
+#include <QDataStream>
+#include <QString>
+#include <QMap>
 
 #include "ip_whitelist.h"
 
@@ -309,6 +314,9 @@ string FooLexer::simplified()
 			case token_type_e::newline :
 				r << endl;
 				break;
+			case token_type_e::comma :
+				r << ",";
+				break;
 			case token_type_e::unk :
 			default:
 				cerr << "error: unknown or unrecognized token/parse result:" << t._s;
@@ -383,6 +391,44 @@ static string tag(const string &def_file_name)
 	return foo.substr(0, foo.length() - 2);
 }
 
+struct evaluation_result_t {
+	bool field;
+	union {
+		struct {
+			int64_t low;
+			int64_t high;
+		} field;
+		int64_t val;
+	} evaluation;
+};
+
+QDataStream & operator<< (QDataStream& stream, const evaluation_result_t &r)
+{
+	stream << r.field;
+	if ( r.field ) {
+		stream << r.evaluation.field.low;
+		stream << r.evaluation.field.high;
+	} else {
+		stream << r.evaluation.val;
+	}
+	return stream;
+}
+
+QDataStream & operator>> (QDataStream& stream, evaluation_result_t &r)
+{
+	stream >> r.field;
+	if ( r.field ) {
+		stream >> r.evaluation.field.low;
+		stream >> r.evaluation.field.high;
+	} else {
+		stream >> r.evaluation.val;
+	}
+	return stream;
+}
+
+static QMap<QString, evaluation_result_t> prior_evaluations;
+int prior_evaluation_hits = 0;
+int prior_evaluation_misses = 0;
 
 static void process_gpu_defs(gpuid_t *g, string def_file_name)
 {
@@ -433,6 +479,7 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 	vector< list<FooLexer::token_t>::iterator > line_toks;
 	while ( t != lexer->end() ) {
 		string def_match, val_match, ident_match;
+		vector<string> idents;
 		line_toks.clear();
 		
 		auto l = t;
@@ -445,11 +492,13 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 		// line_toks has no comments, and only covers a single line (incl continuations)
 		// we care about a few patterns...
 		// []* [hashop] []* [define] []+ [ident] ( []* [ident]? []* ) []+ ![]*
+		// []* [hashop] []* [define] []+ [ident] ( []* [ident]? [,[]* [ident]]+ []* ) []+ ![]*
 		// []* [hashop] []* [define] []+ [ident] []* ![]*
 		//
-		int hash = -1, define = -1, define_ident = -1, open = -1, ident = -1, close = -1;
+		int hash = -1, define = -1, define_ident = -1, open = -1, /*ident = -1, */close = -1;
 		int cur = 0, end = line_toks.size();
 		int matches = false;
+		vector<int> ident;
 		do {
 			if ( cur == end ) break;
 			if ( lexer->is_whitespace(line_toks[cur]) ) if ( ++cur == end) break;
@@ -461,23 +510,44 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 			if ( lexer->is_whitespace(line_toks[cur])) if (++cur == end) break;
 			if ( !lexer->is_identifier(line_toks[cur])) break;
 			define_ident = cur++; if ( cur == end ) break;
+
 			// if '(' immediately follows the identifier, then it is a fn-like macro.
 			// otherwise it's an object like macro.
 
 			if ( lexer->is_grouping(line_toks[cur], "(" ) ) {
 				open = cur++; if ( cur == end ) break;
+
+			next_arg_ident: // for each new argument to the definition...
+
 				if ( lexer->is_whitespace(line_toks[cur]) ) if ( ++cur == end ) break;
+
 				if ( lexer->is_identifier(line_toks[cur]) )
-					ident = cur++; if ( cur == end ) break;
+					ident.push_back(cur++); if ( cur == end ) break;
+
 				if ( lexer->is_whitespace(line_toks[cur]) ) if ( ++cur == end ) break;
+				//
+				// a macro definition can't have any other grouping inside the argument
+				// declaration list.  so, though generally dodgy, looking for ","
+				// and the ending ")" here is ok.
+				//
 				if ( lexer->is_grouping(line_toks[cur], ")") ) {
 					close = cur++; if ( cur == end ) break;
+				} else if ( lexer->is_comma(line_toks[cur]) ) {
+					if ( ++cur == end ) break;
+					goto next_arg_ident;
 				} else break;
-				// TBD: multiple vars...
 			}
 
 			def_match = lexer->token_str(line_toks[define_ident]);
-			if ( ident != -1 ) ident_match = lexer->token_str(line_toks[ident]);
+			if ( ident.size() ) {
+				ident_match = lexer->token_str(line_toks[ident[0]]);
+				idents.push_back(lexer->token_str(line_toks[ident[0]]));
+
+				for ( size_t ii = 1; ii < ident.size(); ii++) {
+					ident_match += "," + lexer->token_str(line_toks[ident[ii]]);
+					idents.push_back(lexer->token_str(line_toks[ident[ii]]));
+				}
+			}
 			matches = true;
 
 			if ( lexer->is_whitespace(line_toks[cur]) ) if ( ++cur == end ) break;
@@ -497,27 +567,20 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 		t = l;
 
 		if ( !matches ) {
-			// cerr << "warning: mismatch on line [" <<
+			// ??? cerr << "warning: mismatch on line [" <<
+			// happens when we encounter anything other than
+			// #define ...
 			continue;
 		}
 
 		string idstring;
 		if ( ident_match.size() ) {
-			// quick assumption check: one symbol: == "i";
-#if 0
-			//XXX need to add a way to handle multiple macro args!
-			if ( ident_match != "i" && ident_match != "G" ) {
-				cerr << "warning: not expecting anything other than \"i\" or"
-					" \"G\" as macro argument." << endl;
-				cerr << "warning : saw \"" << ident_match <<
-					"\" in def'n for [" << def_match << "]" << endl;
-
-			}
-#endif
 			idstring = "(" + ident_match + ")";
 		}
 
-		// this is where non-whitelisted symbols are rejected...
+		//
+		// !!! this is where non-whitelisted symbols are rejected... !!!
+		//
 		if ( ip_whitelist::symbol_whitelist.find(def_match) == 
 			 ip_whitelist::symbol_whitelist.end() ) {
 			continue;
@@ -526,19 +589,21 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 		// is it a register or a field or a constant?
 		// the whitelist has that information.
 		bool is_reg = false, is_field = false, is_constant = false;
-		if ( ip_whitelist::chip_regs.find(def_match) != ip_whitelist::chip_regs.end() ) {
+		if ( ip_whitelist::chip_regs.find(def_match) !=
+			 ip_whitelist::chip_regs.end() ) {
 			is_reg = true;
-		} else if (ip_whitelist::chip_fields.find(def_match) != ip_whitelist::chip_fields.end()) {
+		} else if (ip_whitelist::chip_fields.find(def_match) !=
+				   ip_whitelist::chip_fields.end()) {
 			is_field = true;
-		} else if (ip_whitelist::chip_constants.find(def_match) != ip_whitelist::chip_constants.end()) {
+		} else if (ip_whitelist::chip_constants.find(def_match) !=
+				   ip_whitelist::chip_constants.end()) {
 			is_constant = true;
 		}
 
-
-		// now, add the (i) to the symbol if it should be.
-		// () should match (i) and (i,j) as well since they would collide.
-		def_match += idstring;
-
+		//
+		// note: the symbols are treated for name collision w/o
+		// indexing (macro) arguments
+		//
 		defn_t     *symbol_defn   = 0;
 		defn_set_t *gpu_defns     = g->defines();
 
@@ -553,8 +618,9 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 		defn_set_t   *constants = &__constants;
 
 		defn_index_t::iterator find_defn = defns_index->find(def_match);
+
+		// first (global) encounter with the symbol?
 		if ( find_defn == defns_index->end() ) {
-			// first (global) encounter with the symbol
 			symbol_defn = (*defns_index)[def_match] = new defn_t(def_match);
 			symbol_defn->is_reg      = is_reg;
 			symbol_defn->is_field    = is_field;
@@ -565,24 +631,21 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 			if ( is_reg ) {
 				(*register_index)[def_match] = symbol_defn;
 				regs->insert(symbol_defn);
-				ip_whitelist::reg_mm_it_t Ri = ip_whitelist::chip_regs.equal_range(def_match);
+				auto Ri = ip_whitelist::chip_regs.equal_range(def_match);
 				for ( auto Rii = Ri.first; Rii != Ri.second; Rii++ ) {
 					symbol_defn->regs.insert(Rii->second);
 				}
-			}
-			if ( is_field ) {
+			} else if ( is_field ) {
 				(*field_index)[def_match]    = symbol_defn;
 				fields->insert(symbol_defn);
-				ip_whitelist::field_mm_it_t Fi = ip_whitelist::chip_fields.equal_range(def_match);
+				auto Fi = ip_whitelist::chip_fields.equal_range(def_match);
 				for ( auto Fii = Fi.first; Fii != Fi.second; Fii++ ) {
 					symbol_defn->fields.insert(Fii->second);
 				}
-
-			}
-			if ( is_constant) {
+			} else if ( is_constant ) {
 				(*constant_index)[def_match] = symbol_defn;
 				constants->insert(symbol_defn);
-				ip_whitelist::constant_mm_it_t Ci = ip_whitelist::chip_constants.equal_range(def_match);
+				auto Ci = ip_whitelist::chip_constants.equal_range(def_match);
 				for ( auto Cii = Ci.first; Cii != Ci.second; Cii++ ) {
 					symbol_defn->constants.insert(Cii->second);
 				}
@@ -595,34 +658,194 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 
 		defn_val_index_t::iterator find_val = symbol_defn->val_index.find(val_match);
 		defn_val_t *defn_val = 0;
+
+		// first encounter with this value? (for this specific symbol)
 		if ( find_val == symbol_defn->val_index.end() ) {
-			// first encounter with this value (for this specific symbol)
 			defn_val = symbol_defn->val_index[val_match] = new defn_val_t(val_match);
+			defn_val->defn = symbol_defn;
+			// any argument identifiers in the definition.
+			defn_val->idents = idents;
+
 			symbol_defn->vals.insert(defn_val);
+
+			auto pef = prior_evaluations.find(QString::fromStdString(val_match));
+
+			if (  pef != prior_evaluations.end() ) {
+				prior_evaluation_hits++;
+				defn_val->evaluated = true;
+				if ( symbol_defn->is_reg || symbol_defn->is_constant ) {
+					defn_val->evaluation.val  = pef->evaluation.val;
+				} else if (symbol_defn->is_field) {
+					defn_val->evaluation.field.low  = pef->evaluation.field.low;
+					defn_val->evaluation.field.high = pef->evaluation.field.high;
+				}
+				continue;
+			}
+			prior_evaluation_misses++;
+
+			// hmm.
+			string compile_me = "clang++ -xc++ -o foo2 foo2.cpp";
+			string run_me = "./foo2";
+			string evaluate_me;
+			evaluate_me += "#include <iostream>\n";
+			evaluate_me += "#include <string>\n";
+
 			if ( symbol_defn->is_reg ) {
-				try {
-					uint32_t vnum = stoull (val_match, nullptr, 0);
-					reg_val_index.insert( make_pair(vnum, symbol_defn) );
-					//reg_val_index.insert( make_pair(val_match, symbol_defn) );
-				} catch ( invalid_argument w) {
-					// bogus val... might want to complain here?
+				//evaluate_me += "int64_t evaluate_me(){\n";
+				evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
+				if ( !idents.size() ) {
+					evaluate_me += "int64_t evaluate_me(){ return " + def_match + ";}\n";
+				} else if (idents.size() == 1) {
+					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0);}\n";
+				} else if (idents.size() == 2) {
+					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0,0);}\n";
+				} else {
+					throw std::runtime_error("how many reg idents?");
+				}
+				evaluate_me += "int main(int argc, char **argv) {"
+					" std::cout << evaluate_me() << std::endl; std::cout.flush(); "
+					"return 0;}\n";
+			} else if ( symbol_defn->is_field) {
+				evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
+				if ( !idents.size() ) {
+					evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + ";}\n";
+					evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + ";}\n";
+				} else if (idents.size() == 1) {
+					evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0);}\n";
+					evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0);}\n";
+				} else if (idents.size() == 2) {
+					evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0,0);}\n";
+					evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0,0);}\n";
+				} else {
+					throw std::runtime_error("how many field idents?");
+				}
+				evaluate_me += "int main(int argc, char **argv) {"
+					" std::cout << evaluate_low() << std::endl <<"
+					" evaluate_high() << std::endl; std::cout.flush(); "
+					"return 0; }\n";
+			} else if ( symbol_defn->is_constant ) {
+				evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
+				if ( !idents.size() ) {
+					evaluate_me += "int64_t evaluate_me(){ return " + def_match + ";}\n";
+				} else if (idents.size() == 1) {
+					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0);}\n";
+				} else if (idents.size() == 2) {
+					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0,0);}\n";
+				} else {
+					throw std::runtime_error("how many constant idents?");
+				}
+				evaluate_me += "int main(int argc, char **argv) {"
+					" std::cout << evaluate_me() << std::endl; std::cout.flush(); "
+					"return 0;}\n";
+			} else {
+				evaluate_me += "int main(int argc, char **argv) {"
+					" std::cout << -1 << std::endl; std::cout.flush(); "
+					"return 0;}\n";
+
+			}
+
+			ofstream progf("foo2.cpp");
+			progf << evaluate_me;
+			progf.close();
+			string result; 
+			bool evaluated = false;
+			vector<int64_t> vals;
+			try {
+				int rc = system(compile_me.c_str());
+				if ( rc ) {
+					cerr << "error: evaluation program for " << def_match << " failed to compile" << endl;
+					throw std::runtime_error("compilation rc wasn't zero");
+				}
+				FILE *eval_out = popen(run_me.c_str(), "r");
+				if ( !eval_out ) {
+					cerr << "error: evaluation program for " << def_match << " didn't run propely" << endl;
+					throw std::runtime_error("busted evaluation program?");
+				}
+				int c;
+				do {
+					c = fgetc (eval_out);
+					if ( c != EOF ) result += (char)c;
+				} while (c != EOF);
+				if ( ferror(eval_out) ) {
+					perror("error:");
+					throw std::runtime_error("error reading stream");
+				}
+				pclose (eval_out); // careful, pclose is required.
+				evaluated = true;
+			} catch ( runtime_error w ) {
+			}
+
+			if ( evaluated ){
+				stringstream ss(result);
+				do {
+					int64_t val;
+					ss >> val;
+					if (!ss.fail()) vals.push_back(val);
+				} while (!ss.fail());
+			}
+
+			if ( symbol_defn->is_reg ) {
+				if ( vals.size() ) {
+					defn_val->evaluated      = true;
+					defn_val->evaluation.val = vals[0];
+					//if ( vals[0] != -1 && vals[0] != 0) {
+					reg_val_index.insert( make_pair(vals[0], symbol_defn) );
+						//}
+					prior_evaluations[QString::fromStdString(val_match)].field = false;
+					prior_evaluations[QString::fromStdString(val_match)].evaluation.val = vals[0];
 				}
 			} else if ( symbol_defn->is_field ) {
-				//				field_val_index.insert( make_pair(val_match, symbol_defn) );
-			} else if ( symbol_defn->is_constant) {
-				//				constant_val_index.insert( make_pair(val_match, symbol_defn) );
+				if ( vals.size() == 2 ) {
+					defn_val->evaluated = true;
+					defn_val->evaluation.field.low  = vals[0];
+					defn_val->evaluation.field.high = vals[1];
+					prior_evaluations[QString::fromStdString(val_match)].field = true;
+					prior_evaluations[QString::fromStdString(val_match)].evaluation.field.low  = vals[0];
+					prior_evaluations[QString::fromStdString(val_match)].evaluation.field.high = vals[1];
+				}
+			} else if ( symbol_defn->is_constant ) {
+				if ( vals.size() ) {
+					defn_val->evaluated = true;
+					defn_val->evaluation.val = vals[0];
+					prior_evaluations[QString::fromStdString(val_match)].field = false;
+					prior_evaluations[QString::fromStdString(val_match)].evaluation.val = vals[0];
+				}
 			}
 		} else {
+			// XXX careful here if idents changes from one val to the next?
 			defn_val = find_val->second;
 		}
 		defn_val->gpus.insert(g);
 	}
+	
 }
 
 static void calculate_equiv_classes(defn_set_t *defs,  string def_file_name );
 
+void init_evaluation_cache()
+{
+	QFile file("eval.dat");
+	if (!file.open(QIODevice::ReadOnly)) {
+		return;
+	}
+	QDataStream in(&file);
+	in >> prior_evaluations;
+}
+
+void save_evaluation_cache()
+{
+	QFile file("eval.dat");
+	if (!file.open(QIODevice::WriteOnly)) {
+		return;
+	}
+	
+	QDataStream out(&file);
+	out << prior_evaluations;
+}
+
 void read_ip_defs()
 {
+	init_evaluation_cache();
 	init_symbols();
 	init_gpuids();
 
@@ -643,14 +866,9 @@ void read_ip_defs()
 		}
 	}
 
-#if 0
-	for ( auto def : __defines ) {
-		defn_set_t defs;  defs.insert(def);
-		calculate_equiv_classes(&defs, "uh");
-	}
-#endif
-
+	save_evaluation_cache();
 }
+
 defn_index_t *get_defn_index() { return &__defn_index; }
 defn_set_t   *get_defns()      { return &__defines; }
 
@@ -699,6 +917,9 @@ void FooLexer::push_squot_string(const char *){
 }
 void FooLexer::push_newline() {
 	_tokens.push_back(token_t(token_type_e::newline, string()));
+}
+void FooLexer::push_comma() {
+	_tokens.push_back(token_t(token_type_e::comma, string()));
 }
 
 //

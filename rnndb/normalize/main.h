@@ -182,7 +182,7 @@ protected:
 	set<string> hit_regs;
 	set<string> hit_fields;
 	set<string> hit_constants;
-	void produce_register_content(defn_t *reg_defn, file_content_t *content);
+	void produce_register_content(defn_val_t *reg_defn, file_content_t *content);
 };
 
 uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);

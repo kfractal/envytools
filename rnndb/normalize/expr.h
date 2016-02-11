@@ -32,7 +32,8 @@ public:
             hashop, hex_literal, dec_literal,
             identifier, grouping,
             squot_string, dquot_string,
-            lop, uop, mop, whitespace, unk
+            lop, uop, mop, whitespace, unk,
+            comma
     };
 
     struct token_t {
@@ -59,6 +60,8 @@ public:
         return i->_t == token_type_e::hex_literal; }
     inline bool is_dec_literal(const std::list<token_t>::iterator i){
         return i->_t == token_type_e::dec_literal; }
+    inline bool is_comma(const std::list<token_t>::iterator i){
+        return i->_t == token_type_e::comma; }
 
 
     std::list<token_t> _tokens;
@@ -84,5 +87,6 @@ public:
     void push_unk(const char *s);
     void push_dquot_string(const char *s);
     void push_squot_string(const char *s);
+    void push_comma();
     std::string simplified();
 };
