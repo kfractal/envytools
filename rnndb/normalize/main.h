@@ -172,6 +172,19 @@ protected:
 	QMap<QString, QSet<gpuid_t *>> variant_map;
 	QMap<uint64_t, QString> gpu_set_variant_map;
 
+	struct {
+		set<string> groups;
+		map<string, set<group_def_t *>> groups_by_name;
+		map<string, set<const_def_t *>> constants_by_name;		
+		map<string, map<int64_t, set<const_def_t *>>> constants_by_name_and_value;
+		map<string, set<reg_def_t *>> regs_by_name;
+		map<string, map<uint64_t, set<reg_def_t *>>> regs_by_name_and_value;
+		map<uint64_t, set<reg_def_t *>> regs_by_value;
+		map<uint64_t, map<string, set<reg_def_t *>>> regs_by_value_and_name;
+		map<string, set<field_def_t *>> fields_by_name;
+		map<string, map< pair<size_t, size_t>, set<field_def_t *>>> fields_by_name_and_value;
+	} def;
+	void process_defs();
 	void update_defs();
 
 	multimap<string, defn_t *> intersected_defns;
@@ -179,10 +192,10 @@ protected:
 	defn_set_t *_defns;
 	defn_index_t *_defn_index;
 
-	set<string> hit_regs;
+	set<defn_val_t *> hit_regs;
 	set<string> hit_fields;
 	set<string> hit_constants;
-	void produce_register_content(defn_val_t *reg_defn, file_content_t *content);
+	void produce_register_content(defn_val_t *reg_defn_val, file_content_t *content);
 };
 
 uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);

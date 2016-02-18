@@ -40,7 +40,16 @@ void emit_groups_gm20b();
 struct constant_t;
 struct field_t;
 struct reg_t;
+struct scope_t;
+struct word_t;
+struct offset_t;
 struct group_t;
+
+struct deleted_offset_t;
+struct deleted_reg_t;
+struct deleted_word_t;
+struct deleted_scope_t;
+
 
 struct constant_t {
 	struct constant_spec_t {
@@ -144,27 +153,71 @@ struct reg_t {
 		size = rs.size;
 		emit = rs.emit ? rs.emit : "";
 	}
+	virtual ~reg_t(){ }
 	std::map<std::string, field_t *>    fields;
     std::map<std::string, constant_t *> constants; // could be some
+};
 
+struct scope_t : public reg_t
+{
+	scope_t(const reg_spec_t &rs) : reg_t(rs) { }
+	virtual ~scope_t(){}
+};
+
+struct word_t : public reg_t
+{
+	word_t(const reg_spec_t &rs) : reg_t(rs) { }
+	virtual ~word_t(){}
+};
+
+struct offset_t : public reg_t
+{
+	offset_t(const reg_spec_t &rs) : reg_t(rs) { }
+	virtual ~offset_t(){}
+};
+
+struct deleted_reg_t : public reg_t
+{
+	deleted_reg_t(const reg_spec_t &rs) : reg_t(rs) {}
+	virtual ~deleted_reg_t(){}
+};
+
+struct deleted_offset_t : public offset_t
+{
+	deleted_offset_t(const reg_spec_t &rs) : offset_t(rs) {}
+	virtual ~deleted_offset_t(){}
+};
+
+struct deleted_word_t : public word_t
+{
+	deleted_word_t(const reg_spec_t &rs) : word_t(rs) {}
+	virtual ~deleted_word_t(){}
 };
 
 
-#define S_SPEC(n)     new reg_t((reg_t::reg_spec_t){.name = #n, .def = "", .emit = "",  .indexed = false })
+struct deleted_scope_t : public scope_t
+{
+	deleted_scope_t(const reg_spec_t &rs) : scope_t(rs) {}
+	virtual ~deleted_scope_t(){}
+};
+
+
+#define S_SPEC(n)     new scope_t((reg_t::reg_spec_t){.name = #n, .def = "", .emit = "",  .indexed = false })
 #define R_SPEC(n, r)  new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "r", .indexed = false })
 #define IR_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "r", .indexed = true  })
 
-#define O_SPEC(n, o)  new reg_t((reg_t::reg_spec_t){.name = #n, .def = #o, .emit = "o", .indexed = false })
-#define W_SPEC(n, w)  new reg_t((reg_t::reg_spec_t){.name = #n, .def = #w, .emit = "w", .indexed = false })
+#define O_SPEC(n, o)  new offset_t((reg_t::reg_spec_t){.name = #n, .def = #o, .emit = "o", .indexed = false })
+#define W_SPEC(n, w)  new word_t((reg_t::reg_spec_t){.name = #n, .def = #w, .emit = "w", .indexed = false })
 /*
  * The "D*" versions mark the register/word/offset as being deleted from the engine.
  * For those, any use by software is invalid.  So, no code will be emitted for it.
  * However, software may be using another engine's support to implmement support for *this* engine.
  * For that case, the db entry will be set to "offset ~0" to mark it invalid.
  */
-#define DR_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "rx"})
-#define DO_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "ox"})
-#define DW_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "wx"})
+#define DR_SPEC(n, r) new deleted_reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "rx"})
+#define DO_SPEC(n, r) new deleted_offset_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "ox"})
+#define DW_SPEC(n, r) new deleted_word_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "wx"})
+#define DS_SPEC(n, r) new deleted_scope_t((reg_t::reg_spec_t){.name = #n, .def = "", .emit = ""})
 
 struct group_t {
 	struct group_spec_t {
@@ -207,30 +260,46 @@ struct symbol_t {
 	}
 };
 
-#if 0
-typedef std::map<std::string, constant_t *> constant_db_t;
-typedef std::map<std::string, field_t *>    field_db_t;
-typedef std::map<std::string, group_t *>    group_db_t;
-typedef std::map<std::string, reg_t *>      reg_db_t;
-typedef std::map<std::string, symbol_t *>   symbol_db_t;
-typedef std::map<std::string, symbol_t *>::iterator symbol_db_iter_t;
-#endif
-
 std::map<std::string, group_t *>    * get_groups();
 std::map<std::string, reg_t *>      * get_regs();
-std::map<std::string, reg_t *>      * get_offsets();
-std::map<std::string, reg_t *>      * get_words();
-std::map<std::string, reg_t *>      * get_deleted();
+std::map<std::string, offset_t *>      * get_offsets();
+std::map<std::string, word_t *>      * get_words();
+std::map<std::string, scope_t *>      * get_scopes();
+
+std::map<std::string, deleted_reg_t *>      * get_deleted_regs();
+std::map<std::string, deleted_word_t *>      * get_deleted_words();
+std::map<std::string, deleted_offset_t *>      * get_deleted_offsets();
+std::map<std::string, deleted_scope_t *>      * get_deleted_scopes();
+
 std::map<std::string, field_t *>    * get_fields();
 std::map<std::string, constant_t *> * get_constants();
 
 extern std::map<std::string, bool>         symbol_whitelist;
 extern std::map<std::string, reg_t *>      register_whitelist;
+extern std::map<std::string, offset_t *>   offset_whitelist;
+extern std::map<std::string, word_t *>     word_whitelist;
+extern std::map<std::string, scope_t *>   scope_whitelist;
+
+extern std::map<std::string, deleted_reg_t *>      deleted_register_whitelist;
+extern std::map<std::string, deleted_offset_t *>   deleted_offset_whitelist;
+extern std::map<std::string, deleted_word_t *>     deleted_word_whitelist;
+extern std::map<std::string, deleted_scope_t *>   deleted_scope_whitelist;
+
+
 extern std::map<std::string, field_t *>    field_whitelist;
 extern std::map<std::string, constant_t *> constant_whitelist;
 
 extern std::multimap<std::string, ip_whitelist::group_t *>    chip_groups;
 extern std::multimap<std::string, ip_whitelist::reg_t *>      chip_regs;
+extern std::multimap<std::string, ip_whitelist::offset_t *>   chip_offsets;
+extern std::multimap<std::string, ip_whitelist::word_t *>     chip_words;
+extern std::multimap<std::string, ip_whitelist::scope_t *>     chip_scopes;
+
+extern std::multimap<std::string, ip_whitelist::deleted_reg_t *>      chip_deleted_regs;
+extern std::multimap<std::string, ip_whitelist::deleted_word_t *>      chip_deleted_words;
+extern std::multimap<std::string, ip_whitelist::deleted_offset_t *>      chip_deleted_offsets;
+extern std::multimap<std::string, ip_whitelist::deleted_scope_t *>      chip_deleted_scopes;
+
 extern std::multimap<std::string, ip_whitelist::field_t *>    chip_fields;
 extern std::multimap<std::string, ip_whitelist::constant_t *> chip_constants;
 

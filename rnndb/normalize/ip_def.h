@@ -108,6 +108,18 @@ public:
     }
 };
 
+struct evaluation_result_t {
+	bool field;
+	union {
+		struct {
+			int64_t low;
+			int64_t high;
+		} field;
+		int64_t val;
+	} result;
+};
+
+
 // defn+ -> val+ -> gpus+
 
 struct defn_val_t {
@@ -118,17 +130,12 @@ struct defn_val_t {
 	int line_nr; // earliest line_nr found
 	vector<string> idents;
 	bool evaluated;
-	union {
-		struct {
-			int64_t high;
-			int64_t low;
-		} field;
-		int64_t val;
-	} evaluation;
+	evaluation_result_t evaluation;
 	defn_val_t(const string &s) : val(s), eq_class(0), evaluated(false) { }
 private:
 	defn_val_t();
 };
+
 typedef set<defn_val_t *> defn_val_set_t;
 typedef map<string/*val*/, defn_val_t *> defn_val_index_t;
 typedef set<ip_whitelist::group_t *>    group_set_t;
@@ -141,22 +148,138 @@ public:
 	string           symbol;
 	defn_val_set_t   vals;
 	defn_val_index_t val_index;
-	int line_nr; // earliest line_nr found
-	defn_t(const string &s) : symbol(s), is_reg(0), is_field(0), is_constant(0) { }
+	//	int line_nr; // earliest line_nr found
+	defn_t(const string &s) : symbol(s) , is_reg(0), is_field(0), is_constant(0) { }
 
 	/* elements of the whitelist info this symbol plays a part in. */
 	group_set_t    groups;
 	register_set_t regs;
 	field_set_t    fields;
 	constant_set_t constants;
-
 	bool is_reg; 
 	bool is_field; 
 	bool is_constant;
+	bool operator ==(const defn_t &o);
 private:
 	defn_t(){ }
 };
 
+class def_t;
+class group_def_t;
+class reg_def_t;
+class word_def_t;
+class scope_def_t;
+class offset_def_t;
+class field_def_t;
+class const_def_t;
+
+class def_tree_t {
+public:
+	set<gpuid_t *>   gpus;
+	vector<def_t *>  defs;
+
+	map<string, group_def_t *>  groups_by_name;
+	vector<group_def_t *>       groups;
+
+	map<uint64_t, reg_def_t *>  regs_by_val;
+	map<string, reg_def_t *>    regs_by_name;
+
+	map<string, const_def_t *> constants_by_name;
+	map<string, field_def_t *> fields_by_name;
+
+	map<string, offset_def_t *> offsets_by_name;
+	map<string, word_def_t *>   words_by_name;
+	map<string, scope_def_t *>  scopes_by_name;
+
+	map<string, reg_def_t *>    deleted_by_name;
+
+	def_tree_t() { }
+	bool operator ==(const def_tree_t &t);
+};
+
+class def_t {
+public:
+	def_tree_t *tree;
+	string symbol;
+	def_t(def_tree_t *t, const string &s) : tree(t), symbol(s) { }
+	bool operator ==(const def_t &o);
+};
+
+class const_def_t : public def_t {
+public:
+	int64_t val;
+	const_def_t(def_tree_t *t, const string &s) : def_t(t, s), val(0) { }
+	bool operator ==(const const_def_t &o);
+};
+
+class field_def_t : public def_t {
+public:
+	size_t high;
+	size_t low;
+	field_def_t(def_tree_t *t, const string &s) : def_t(t,s), high(0), low(0) { }
+
+	vector<const_def_t *>      constants;
+	map<string, const_def_t *> constants_by_name;
+
+	bool operator ==(const field_def_t &o);
+};
+
+class reg_def_t : public def_t {
+public:
+	uint64_t val;
+	reg_def_t(def_tree_t *t, const string &s) : def_t(t,s), val(0) { }
+
+	vector<field_def_t *>        fields;
+	map<string, field_def_t*>    fields_by_name;
+
+	vector<const_def_t *>      constants;
+	map<string, const_def_t *> constants_by_name;
+
+	bool operator ==(const reg_def_t &o);
+};
+
+class offset_def_t : public reg_def_t {
+public:
+	offset_def_t(def_tree_t *t, const string &s) : reg_def_t(t,s) { }
+	bool operator ==(const offset_def_t &o);
+};
+
+class word_def_t : public reg_def_t {
+public:
+	word_def_t(def_tree_t *t, const string &s) : reg_def_t(t,s) { }
+	bool operator ==(const word_def_t &o);
+};
+
+class scope_def_t : public reg_def_t {
+public:
+	scope_def_t(def_tree_t *t, const string &s) : reg_def_t(t,s) { }
+	bool operator ==(const scope_def_t &o);
+};
+
+
+class group_def_t : public def_t {
+public:
+	group_def_t(def_tree_t *t, const string &g) : def_t(t,g) { }
+	vector<reg_def_t *> regs;
+	map<string, reg_def_t *> regs_by_name;
+
+	vector<offset_def_t *> offsets;
+	map<string, offset_def_t *> offsets_by_name;
+
+	vector<word_def_t *> words;
+	map<string, word_def_t *> words_by_name;
+
+	vector<scope_def_t *> scopes;
+	map<string, scope_def_t *> scopes_by_name;
+
+	vector<field_def_t *> fields;
+	map<string, field_def_t *> fields_by_name;
+
+	vector<const_def_t *> constants;
+	map<string, const_def_t *> constants_by_name;
+	bool operator ==(const group_def_t &o);
+
+};
 
 class gpu_equiv_class_t {
     set<gpu_family_t *> _families;
@@ -201,9 +324,11 @@ extern list<gpuid_t*> target_gpus;
 extern map<string, gpuid_t *> target_gpus_by_name;
 extern vector<gpuid_t*> target_gpus_by_ordering;
 
-extern multimap<uint64_t, defn_t *> reg_val_index;
+extern multimap<uint64_t, defn_val_t *> reg_val_index;
 extern multimap<string, defn_t *> field_val_index;
 extern multimap<string, defn_t *> constant_index;
 extern defn_index_t __register_index;
 extern defn_index_t __field_index;
 extern defn_index_t __constant_index;
+
+extern vector<def_tree_t *> gpu_def_trees;

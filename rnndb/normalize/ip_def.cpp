@@ -64,6 +64,8 @@ defn_index_t __field_index;
 defn_set_t __constants;
 defn_index_t __constant_index;
 
+vector<def_tree_t *> gpu_def_trees;
+
 
 list<gpuid_t*> target_gpus;
 map<string, gpuid_t*> target_gpus_by_name;
@@ -219,7 +221,7 @@ static set<string> all_hwref_files;
 static set<string> seed_hwref_files;
 
 
-multimap<uint64_t, defn_t *> reg_val_index;
+multimap<uint64_t, defn_val_t *> reg_val_index;
 
 
 void gpuid_t::get_hwref_files()
@@ -391,25 +393,132 @@ static string tag(const string &def_file_name)
 	return foo.substr(0, foo.length() - 2);
 }
 
-struct evaluation_result_t {
-	bool field;
-	union {
-		struct {
-			int64_t low;
-			int64_t high;
-		} field;
-		int64_t val;
-	} evaluation;
-};
+//
+// evaluation here is sending a test program off to be compiled
+// and then run.  i.e. it's expensive. so, the results are cached
+// for later runs.
+//
+typedef QMap<string, evaluation_result_t> eval_result_map_t;
+
+static eval_result_map_t prior_evaluations;
+int prior_evaluation_hits = 0;
+int prior_evaluation_misses = 0;
+
+static eval_result_map_t::iterator
+evaluate_str(const string &def_match, const string &val_match,
+			 bool field, size_t num_eval_args, const string &idstring)
+{
+	eval_result_map_t::iterator pef = prior_evaluations.find(val_match);
+
+	if ( pef != prior_evaluations.end() ) {
+		prior_evaluation_hits++;
+		return pef;
+	}
+	prior_evaluation_misses++;
+	// hmm.
+	string compile_me = "clang++ -xc++ -o foo2 foo2.cpp";
+	string run_me = "./foo2";
+	string evaluate_me;
+	evaluate_me += "#include <iostream>\n";
+	evaluate_me += "#include <string>\n";
+
+	if ( !field ) {
+		evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
+		if ( !num_eval_args ) {
+			evaluate_me += "int64_t evaluate_me(){ return " + def_match + ";}\n";
+		} else if (num_eval_args == 1) {
+			evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0);}\n";
+		} else if (num_eval_args == 2) {
+			evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0,0);}\n";
+		} else {
+			throw std::runtime_error("how many eval args?");
+		}
+		evaluate_me += "int main(int argc, char **argv) {"
+			" std::cout << evaluate_me() << std::endl; std::cout.flush(); "
+			"return 0;}\n";
+	} else {
+		evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
+		if ( !num_eval_args ) {
+			evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + ";}\n";
+			evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + ";}\n";
+		} else if (num_eval_args == 1) {
+			evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0);}\n";
+			evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0);}\n";
+		} else if (num_eval_args == 2) {
+			evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0,0);}\n";
+			evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0,0);}\n";
+		} else {
+			throw std::runtime_error("how many field eval args?");
+		}
+		evaluate_me += "int main(int argc, char **argv) {"
+			" std::cout << evaluate_low() << std::endl <<"
+			" evaluate_high() << std::endl; std::cout.flush(); "
+			"return 0; }\n";
+	}
+
+	ofstream progf("foo2.cpp");
+	progf << evaluate_me;
+	progf.close();
+	string result; 
+	bool evaluated = false;
+	vector<int64_t> vals;
+	try {
+		int rc = system(compile_me.c_str());
+		if ( rc ) {
+			cerr << "error: evaluation program for " << def_match <<
+				" failed to compile" << endl;
+			throw std::runtime_error("compilation rc wasn't zero");
+		}
+		FILE *eval_out = popen(run_me.c_str(), "r");
+		if ( !eval_out ) {
+			cerr << "error: evaluation program for " << def_match <<
+				" didn't run propely" << endl;
+			throw std::runtime_error("busted evaluation program?");
+		}
+		int c;
+		do {
+			c = fgetc (eval_out);
+			if ( c != EOF ) result += (char)c;
+		} while (c != EOF);
+		if ( ferror(eval_out) ) {
+			perror("error:");
+			throw std::runtime_error("error reading stream");
+		}
+		pclose (eval_out); // careful, pclose is required.
+		evaluated = true;
+	} catch ( runtime_error w ) {
+	}
+
+	if ( evaluated ){
+		stringstream ss(result);
+		do {
+			int64_t val;
+			ss >> val;
+			if (!ss.fail()) vals.push_back(val);
+		} while (!ss.fail());
+
+		if ( vals.size() == 2 ) {
+			prior_evaluations[val_match].field = true;
+			prior_evaluations[val_match].result.field.low  = vals[0];
+			prior_evaluations[val_match].result.field.high = vals[1];
+		} else if (vals.size() == 1) {
+			prior_evaluations[val_match].field = false;
+			prior_evaluations[val_match].result.val = vals[0];
+		} else {
+			// warning or something?
+		}
+	}
+	return prior_evaluations.find(val_match);
+}
 
 QDataStream & operator<< (QDataStream& stream, const evaluation_result_t &r)
 {
 	stream << r.field;
 	if ( r.field ) {
-		stream << r.evaluation.field.low;
-		stream << r.evaluation.field.high;
+		stream << r.result.field.low;
+		stream << r.result.field.high;
 	} else {
-		stream << r.evaluation.val;
+		stream << r.result.val;
 	}
 	return stream;
 }
@@ -418,20 +527,230 @@ QDataStream & operator>> (QDataStream& stream, evaluation_result_t &r)
 {
 	stream >> r.field;
 	if ( r.field ) {
-		stream >> r.evaluation.field.low;
-		stream >> r.evaluation.field.high;
+		stream >> r.result.field.low;
+		stream >> r.result.field.high;
 	} else {
-		stream >> r.evaluation.val;
+		stream >> r.result.val;
 	}
 	return stream;
 }
 
-static QMap<QString, evaluation_result_t> prior_evaluations;
-int prior_evaluation_hits = 0;
-int prior_evaluation_misses = 0;
 
-static void process_gpu_defs(gpuid_t *g, string def_file_name)
+// the "instance" functions populate the paths implied by the whitelist
+// def hierarchy.
+
+group_def_t *instance_group(def_tree_t *def_tree, ip_whitelist::group_t *group)
 {
+	auto group_by_name = def_tree->groups_by_name.find(group->name);
+	group_def_t *group_def;
+	if ( group_by_name == def_tree->groups_by_name.end() ) {
+		group_def = new group_def_t(def_tree, group->name);
+		auto kv_pair = make_pair(group->name, group_def);
+		def_tree->groups_by_name.insert(kv_pair);
+	} else {
+		group_def = group_by_name->second;
+	}
+	return group_def;
+}
+
+enum class thing_e : uint8_t { 
+	reg, word, offset
+};
+
+scope_def_t * instance_scope(def_tree_t *def_tree, ip_whitelist::scope_t *scope)
+{
+	if ( !scope->name.size() ) {
+		throw std::runtime_error("null scope length [" + scope->name + ":" + scope->def + "]");
+	}
+	if ( !scope->def.size() ) {
+		scope->def = scope->name;
+	}
+
+	auto scope_by_name = def_tree->scopes_by_name.find(scope->def);
+	scope_def_t *scope_def;
+	if (scope_by_name == def_tree->scopes_by_name.end()) {
+		scope_def = new scope_def_t(def_tree, scope->def);
+		auto kv_pair = make_pair(scope->def, scope_def);
+		def_tree->scopes_by_name.insert(kv_pair);
+		if ( scope->group ) {
+			group_def_t *parent_group = instance_group(def_tree, scope->group);
+			parent_group->scopes_by_name.insert(kv_pair);
+		} else {
+			throw std::domain_error("parentless scope" + scope->name);
+		}
+	} else {
+		scope_def = scope_by_name->second;
+	}
+	return scope_def;
+}
+
+offset_def_t * instance_offset(def_tree_t *def_tree, ip_whitelist::offset_t *offset)
+{
+	if ( !offset->name.size() ) {
+		throw std::runtime_error("null offset length [" + offset->name + ":" + offset->def + "]");
+	}
+	if ( !offset->def.size() ) {
+		offset->def = offset->name;
+	}
+
+	auto offset_by_name = def_tree->offsets_by_name.find(offset->def);
+	offset_def_t *offset_def;
+	if (offset_by_name == def_tree->offsets_by_name.end()) {
+		offset_def = new offset_def_t(def_tree, offset->def);
+		auto kv_pair = make_pair(offset->def, offset_def);
+		def_tree->offsets_by_name.insert(kv_pair);
+		if ( offset->group ) {
+			group_def_t *parent_group = instance_group(def_tree, offset->group);
+			parent_group->offsets_by_name.insert(kv_pair);
+		} else {
+			throw std::domain_error("parentless offset" + offset->name);
+		}
+	} else {
+		offset_def = offset_by_name->second;
+	}
+	return offset_def;
+
+}
+
+word_def_t * instance_word(def_tree_t *def_tree, ip_whitelist::word_t *word)
+{
+	if ( !word->name.size() ) {
+		throw std::runtime_error("null word length [" + word->name + ":" + word->def + "]");
+	}
+	if ( !word->def.size() ) {
+		word->def = word->name;
+	}
+
+	auto word_by_name = def_tree->words_by_name.find(word->def);
+	word_def_t *word_def;
+	if (word_by_name == def_tree->words_by_name.end()) {
+		word_def = new word_def_t(def_tree, word->def);
+		auto kv_pair = make_pair(word->def, word_def);
+		def_tree->words_by_name.insert(kv_pair);
+		if ( word->group ) {
+			group_def_t *parent_group = instance_group(def_tree, word->group);
+			parent_group->words_by_name.insert(kv_pair);
+		} else {
+			throw std::domain_error("parentless word" + word->name);
+		}
+	} else {
+		word_def = word_by_name->second;
+	}
+	return word_def;
+}
+
+
+reg_def_t *instance_reg(def_tree_t *def_tree, ip_whitelist::reg_t *reg)
+{
+	if ( !reg->name.size() ) {
+		throw std::runtime_error("null reg length [" + reg->name + ":" + reg->def + "]");
+	}
+	if ( !reg->def.size() ) {
+		reg->def = reg->name;
+	}
+
+	auto reg_by_name = def_tree->regs_by_name.find(reg->def);
+	reg_def_t *reg_def;
+	if (reg_by_name == def_tree->regs_by_name.end()) {
+		reg_def = new reg_def_t(def_tree, reg->def);
+		auto kv_pair = make_pair(reg->def, reg_def);
+		def_tree->regs_by_name.insert(kv_pair);
+		if ( reg->group ) {
+			group_def_t *parent_group = instance_group(def_tree, reg->group);
+			parent_group->regs_by_name.insert(kv_pair);
+		} else {
+			throw std::domain_error("parentless reg" + reg->name);
+		}
+	} else {
+		reg_def = reg_by_name->second;
+	}
+	return reg_def;
+}
+
+field_def_t *instance_field(def_tree_t *def_tree, ip_whitelist::field_t *field)
+{
+	auto field_by_name = def_tree->fields_by_name.find(field->def);
+	field_def_t *field_def;
+	if ( field_by_name == def_tree->fields_by_name.end() ) {
+		field_def = new field_def_t(def_tree, field->def);
+		auto kv_pair = make_pair(field->def, field_def);
+		def_tree->fields_by_name.insert(kv_pair);
+		if ( field->reg ) {
+			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(field->reg);
+			ip_whitelist::word_t *w = dynamic_cast<ip_whitelist::word_t *>(field->reg);
+			ip_whitelist::scope_t *s = dynamic_cast<ip_whitelist::scope_t *>(field->reg);
+			if ( o ) {
+				offset_def_t *parent_offset = instance_offset(def_tree, o);
+				parent_offset->fields_by_name.insert(kv_pair);
+			} else if (w) {
+				word_def_t *parent_word = instance_word(def_tree, w);
+				parent_word->fields_by_name.insert(kv_pair);
+			} else if (s) { 
+				scope_def_t *parent_scope = instance_scope(def_tree, s);
+				parent_scope->fields_by_name.insert(kv_pair);
+			} else {
+				reg_def_t *parent_reg = instance_reg(def_tree, field->reg);
+				parent_reg->fields_by_name.insert(kv_pair);
+			}
+		} else if (field->group) {
+			group_def_t *parent_group = instance_group(def_tree, field->group);
+			parent_group->fields_by_name.insert(kv_pair);
+		} else {
+			throw std::domain_error("parentless field" + field->name);
+		}
+	} else {
+		field_def = field_by_name->second;
+	}
+	return field_def;
+}
+
+const_def_t *instance_const(def_tree_t *def_tree, ip_whitelist::constant_t *constant)
+{
+	auto constant_by_name = def_tree->constants_by_name.find(constant->def);
+	const_def_t *const_def;
+	if ( constant_by_name == def_tree->constants_by_name.end() ) {
+		const_def = new const_def_t(def_tree, constant->def);
+		auto kv_pair = make_pair(constant->def, const_def);
+		def_tree->constants_by_name.insert(kv_pair);
+		if ( constant->group ) {
+			group_def_t *parent_group = instance_group(def_tree, constant->group);
+			parent_group->constants_by_name.insert(kv_pair);
+		} else if ( constant->reg ) {
+
+			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(constant->reg);
+			ip_whitelist::word_t *w   = dynamic_cast<ip_whitelist::word_t *>(constant->reg);
+			ip_whitelist::scope_t *s  = dynamic_cast<ip_whitelist::scope_t *>(constant->reg);
+			if ( o ) {
+				offset_def_t *parent_offset = instance_offset(def_tree, o);
+				parent_offset->constants_by_name.insert(kv_pair);
+			} else if ( w ) {
+				word_def_t *parent_word = instance_word(def_tree, w);
+				parent_word->constants_by_name.insert(kv_pair);
+			} else if ( s ) { 
+				scope_def_t *parent_scope = instance_scope(def_tree, s);
+				parent_scope->constants_by_name.insert(kv_pair);
+			} else {
+				reg_def_t *parent_reg = instance_reg(def_tree, constant->reg);
+				parent_reg->constants_by_name.insert(kv_pair);
+			}
+
+		} else if (constant->field) {
+			field_def_t *parent_field = instance_field(def_tree, constant->field);
+			parent_field->constants_by_name.insert(kv_pair);
+		} else {
+			throw std::domain_error("parentless constant" + constant->name);
+		}
+	} else {
+		const_def = constant_by_name->second;
+	}
+	return const_def;
+}
+
+def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
+{
+	def_tree_t *def_tree = new def_tree_t();
+	def_tree->gpus.insert(g);
+
 	QDir hwref_dir( qstdstr( g->hwref_dir() ) );
 	if (!hwref_dir.exists()) {
 		// already tested, but just to be sure...
@@ -445,7 +764,7 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 	if ( !fi.exists() ) {
 		// typically ok.  some headers are new or name-changed per-chip.
 		// but we scan over all possibilities, so...
-		return;
+		return def_tree;
 	}
 
 	ifstream ifs;
@@ -453,7 +772,7 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 	if ( ! (ifs.good() || ifs.eof() ) ) {
 		cerr << "error: couldn't open " << full_path << " for reading." << endl;
 		exit(1);
-		return;
+		return def_tree;
 	}
 
 	stringstream outstring;
@@ -581,246 +900,154 @@ static void process_gpu_defs(gpuid_t *g, string def_file_name)
 		//
 		// !!! this is where non-whitelisted symbols are rejected... !!!
 		//
-		if ( ip_whitelist::symbol_whitelist.find(def_match) == 
-			 ip_whitelist::symbol_whitelist.end() ) {
+		auto find_symbol = ip_whitelist::symbol_whitelist.find(def_match);
+		if ( find_symbol == ip_whitelist::symbol_whitelist.end() ) {
 			continue;
 		}
 
-		// is it a register or a field or a constant?
+		//		reg_def_t   * reg_def   = 0;
+		//		field_def_t * field_def = 0;
+		//		const_def_t * const_def = 0;
+
+		//
+		// is it a register or a field or a constant?  and at what scope?
 		// the whitelist has that information.
-		bool is_reg = false, is_field = false, is_constant = false;
-		if ( ip_whitelist::chip_regs.find(def_match) !=
-			 ip_whitelist::chip_regs.end() ) {
-			is_reg = true;
-		} else if (ip_whitelist::chip_fields.find(def_match) !=
-				   ip_whitelist::chip_fields.end()) {
-			is_field = true;
-		} else if (ip_whitelist::chip_constants.find(def_match) !=
-				   ip_whitelist::chip_constants.end()) {
-			is_constant = true;
-		}
-
 		//
-		// note: the symbols are treated for name collision w/o
-		// indexing (macro) arguments
-		//
-		defn_t     *symbol_defn   = 0;
-		defn_set_t *gpu_defns     = g->defines();
 
-		defn_index_t *defns_index    = &__defn_index;
-		defn_index_t *register_index = &__register_index;
-		defn_index_t *field_index    = &__field_index;
-		defn_index_t *constant_index = &__constant_index;
+		typedef multimap<string, ip_whitelist::reg_t *>::iterator      wl_regs_iterator_t;
+		typedef multimap<string, ip_whitelist::offset_t *>::iterator   wl_offsets_iterator_t;
+		typedef multimap<string, ip_whitelist::word_t *>::iterator     wl_words_iterator_t;
+		typedef multimap<string, ip_whitelist::scope_t *>::iterator     wl_scopes_iterator_t;
 
-		defn_set_t   *defns     = &__defines;
-		defn_set_t   *regs      = &__regs;
-		defn_set_t   *fields    = &__fields;
-		defn_set_t   *constants = &__constants;
+		typedef multimap<string, ip_whitelist::deleted_reg_t *>::iterator    wl_deleted_regs_iterator_t;
+		typedef multimap<string, ip_whitelist::deleted_word_t *>::iterator   wl_deleted_words_iterator_t;
+		typedef multimap<string, ip_whitelist::deleted_offset_t *>::iterator wl_deleted_offsets_iterator_t;
+		typedef multimap<string, ip_whitelist::deleted_scope_t *>::iterator  wl_deleted_scopes_iterator_t;
 
-		defn_index_t::iterator find_defn = defns_index->find(def_match);
+		typedef multimap<string, ip_whitelist::field_t *>::iterator    wl_fields_iterator_t;
+		typedef multimap<string, ip_whitelist::constant_t *>::iterator wl_constants_iterator_t;
+		typedef multimap<string, ip_whitelist::group_t *>::iterator    wl_groups_iterator_t;
 
-		// first (global) encounter with the symbol?
-		if ( find_defn == defns_index->end() ) {
-			symbol_defn = (*defns_index)[def_match] = new defn_t(def_match);
-			symbol_defn->is_reg      = is_reg;
-			symbol_defn->is_field    = is_field;
-			symbol_defn->is_constant = is_constant;
+		wl_regs_iterator_t    find_wl_reg    = ip_whitelist::chip_regs.find    (def_match);
+		wl_offsets_iterator_t find_wl_offset = ip_whitelist::chip_offsets.find (def_match);
+		wl_words_iterator_t   find_wl_word   = ip_whitelist::chip_words.find   (def_match);
+		wl_scopes_iterator_t  find_wl_scope  = ip_whitelist::chip_scopes.find  (def_match);
 
-			defns->insert(symbol_defn);
+		wl_deleted_regs_iterator_t     find_wl_deleted_reg  =
+			ip_whitelist::chip_deleted_regs.find  (def_match);
+		wl_deleted_words_iterator_t    find_wl_deleted_word  =
+			ip_whitelist::chip_deleted_words.find  (def_match);
+		wl_deleted_offsets_iterator_t  find_wl_deleted_offset =
+			ip_whitelist::chip_deleted_offsets.find  (def_match);
+		wl_deleted_scopes_iterator_t   find_wl_deleted_scope  =
+			ip_whitelist::chip_deleted_scopes.find  (def_match);
 
-			if ( is_reg ) {
-				(*register_index)[def_match] = symbol_defn;
-				regs->insert(symbol_defn);
-				auto Ri = ip_whitelist::chip_regs.equal_range(def_match);
-				for ( auto Rii = Ri.first; Rii != Ri.second; Rii++ ) {
-					symbol_defn->regs.insert(Rii->second);
-				}
-			} else if ( is_field ) {
-				(*field_index)[def_match]    = symbol_defn;
-				fields->insert(symbol_defn);
-				auto Fi = ip_whitelist::chip_fields.equal_range(def_match);
-				for ( auto Fii = Fi.first; Fii != Fi.second; Fii++ ) {
-					symbol_defn->fields.insert(Fii->second);
-				}
-			} else if ( is_constant ) {
-				(*constant_index)[def_match] = symbol_defn;
-				constants->insert(symbol_defn);
-				auto Ci = ip_whitelist::chip_constants.equal_range(def_match);
-				for ( auto Cii = Ci.first; Cii != Ci.second; Cii++ ) {
-					symbol_defn->constants.insert(Cii->second);
-				}
+		wl_fields_iterator_t    find_wl_field    = ip_whitelist::chip_fields.find   (def_match);
+		wl_constants_iterator_t find_wl_constant = ip_whitelist::chip_constants.find(def_match);
+		wl_groups_iterator_t    find_wl_group    = ip_whitelist::chip_groups.find   (def_match);
+
+		// auto find_symbol   = ip_whitelist::chip_symbols.find(def_match);
+
+		bool is_group = false, is_reg = false, is_field = false, is_constant = false,
+			is_word = false, is_offset = false, 
+			is_scope = false, 
+			is_deleted_reg = false,
+			is_deleted_offset = false,
+			is_deleted_word = false,
+			is_deleted_scope = false;
+
+		is_reg      = find_wl_reg     != ip_whitelist::chip_regs.end();
+		is_word     = find_wl_word    != ip_whitelist::chip_words.end();
+		is_offset   = find_wl_offset  != ip_whitelist::chip_offsets.end();
+		is_scope    = find_wl_scope   != ip_whitelist::chip_scopes.end();
+
+		is_deleted_reg  = find_wl_deleted_reg       != ip_whitelist::chip_deleted_regs.end();
+		is_deleted_word  = find_wl_deleted_word     != ip_whitelist::chip_deleted_words.end();
+		is_deleted_offset  = find_wl_deleted_offset != ip_whitelist::chip_deleted_offsets.end();
+		is_deleted_scope  = find_wl_deleted_scope   != ip_whitelist::chip_deleted_scopes.end();
+
+		is_field    = find_wl_field    != ip_whitelist::chip_fields.end();
+		is_constant = find_wl_constant != ip_whitelist::chip_constants.end();
+		is_group    = find_wl_group    != ip_whitelist::chip_groups.end();
+
+		int category_matches =
+			int(is_reg) + int(is_word) + int(is_offset) + int(is_scope)+
+			int(is_deleted_reg) +int(is_deleted_scope)+	int(is_deleted_word) + int(is_deleted_offset) +
+			int(is_field) + int(is_constant);
+
+		if ( category_matches > 1 ) {
+			// the only acceptable way to handle this occurs if one of the
+			// matches is a delete... so, one whitelist among them has it
+			// deleted and another likely is a (to-be) deprecated/unused reg.
+			if ( (category_matches - int(is_deleted_reg)) > 1  ) {
+				throw std::domain_error("symbol matches one category in the whitelist:" + def_match);
 			}
-		} else {
-			symbol_defn = find_defn->second;
 		}
 
-		gpu_defns->insert(symbol_defn);
-
-		defn_val_index_t::iterator find_val = symbol_defn->val_index.find(val_match);
-		defn_val_t *defn_val = 0;
-
-		// first encounter with this value? (for this specific symbol)
-		if ( find_val == symbol_defn->val_index.end() ) {
-			defn_val = symbol_defn->val_index[val_match] = new defn_val_t(val_match);
-			defn_val->defn = symbol_defn;
-			// any argument identifiers in the definition.
-			defn_val->idents = idents;
-
-			symbol_defn->vals.insert(defn_val);
-
-			auto pef = prior_evaluations.find(QString::fromStdString(val_match));
-
-			if (  pef != prior_evaluations.end() ) {
-				prior_evaluation_hits++;
-				defn_val->evaluated = true;
-				if ( symbol_defn->is_reg || symbol_defn->is_constant ) {
-					defn_val->evaluation.val  = pef->evaluation.val;
-				} else if (symbol_defn->is_field) {
-					defn_val->evaluation.field.low  = pef->evaluation.field.low;
-					defn_val->evaluation.field.high = pef->evaluation.field.high;
-				}
-				continue;
-			}
-			prior_evaluation_misses++;
-
-			// hmm.
-			string compile_me = "clang++ -xc++ -o foo2 foo2.cpp";
-			string run_me = "./foo2";
-			string evaluate_me;
-			evaluate_me += "#include <iostream>\n";
-			evaluate_me += "#include <string>\n";
-
-			if ( symbol_defn->is_reg ) {
-				//evaluate_me += "int64_t evaluate_me(){\n";
-				evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
-				if ( !idents.size() ) {
-					evaluate_me += "int64_t evaluate_me(){ return " + def_match + ";}\n";
-				} else if (idents.size() == 1) {
-					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0);}\n";
-				} else if (idents.size() == 2) {
-					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0,0);}\n";
-				} else {
-					throw std::runtime_error("how many reg idents?");
-				}
-				evaluate_me += "int main(int argc, char **argv) {"
-					" std::cout << evaluate_me() << std::endl; std::cout.flush(); "
-					"return 0;}\n";
-			} else if ( symbol_defn->is_field) {
-				evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
-				if ( !idents.size() ) {
-					evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + ";}\n";
-					evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + ";}\n";
-				} else if (idents.size() == 1) {
-					evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0);}\n";
-					evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0);}\n";
-				} else if (idents.size() == 2) {
-					evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0,0);}\n";
-					evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0,0);}\n";
-				} else {
-					throw std::runtime_error("how many field idents?");
-				}
-				evaluate_me += "int main(int argc, char **argv) {"
-					" std::cout << evaluate_low() << std::endl <<"
-					" evaluate_high() << std::endl; std::cout.flush(); "
-					"return 0; }\n";
-			} else if ( symbol_defn->is_constant ) {
-				evaluate_me += "#define " + def_match + idstring + " " + val_match + "\n";
-				if ( !idents.size() ) {
-					evaluate_me += "int64_t evaluate_me(){ return " + def_match + ";}\n";
-				} else if (idents.size() == 1) {
-					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0);}\n";
-				} else if (idents.size() == 2) {
-					evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0,0);}\n";
-				} else {
-					throw std::runtime_error("how many constant idents?");
-				}
-				evaluate_me += "int main(int argc, char **argv) {"
-					" std::cout << evaluate_me() << std::endl; std::cout.flush(); "
-					"return 0;}\n";
-			} else {
-				evaluate_me += "int main(int argc, char **argv) {"
-					" std::cout << -1 << std::endl; std::cout.flush(); "
-					"return 0;}\n";
-
-			}
-
-			ofstream progf("foo2.cpp");
-			progf << evaluate_me;
-			progf.close();
-			string result; 
-			bool evaluated = false;
-			vector<int64_t> vals;
-			try {
-				int rc = system(compile_me.c_str());
-				if ( rc ) {
-					cerr << "error: evaluation program for " << def_match << " failed to compile" << endl;
-					throw std::runtime_error("compilation rc wasn't zero");
-				}
-				FILE *eval_out = popen(run_me.c_str(), "r");
-				if ( !eval_out ) {
-					cerr << "error: evaluation program for " << def_match << " didn't run propely" << endl;
-					throw std::runtime_error("busted evaluation program?");
-				}
-				int c;
-				do {
-					c = fgetc (eval_out);
-					if ( c != EOF ) result += (char)c;
-				} while (c != EOF);
-				if ( ferror(eval_out) ) {
-					perror("error:");
-					throw std::runtime_error("error reading stream");
-				}
-				pclose (eval_out); // careful, pclose is required.
-				evaluated = true;
-			} catch ( runtime_error w ) {
-			}
-
-			if ( evaluated ){
-				stringstream ss(result);
-				do {
-					int64_t val;
-					ss >> val;
-					if (!ss.fail()) vals.push_back(val);
-				} while (!ss.fail());
-			}
-
-			if ( symbol_defn->is_reg ) {
-				if ( vals.size() ) {
-					defn_val->evaluated      = true;
-					defn_val->evaluation.val = vals[0];
-					//if ( vals[0] != -1 && vals[0] != 0) {
-					reg_val_index.insert( make_pair(vals[0], symbol_defn) );
-						//}
-					prior_evaluations[QString::fromStdString(val_match)].field = false;
-					prior_evaluations[QString::fromStdString(val_match)].evaluation.val = vals[0];
-				}
-			} else if ( symbol_defn->is_field ) {
-				if ( vals.size() == 2 ) {
-					defn_val->evaluated = true;
-					defn_val->evaluation.field.low  = vals[0];
-					defn_val->evaluation.field.high = vals[1];
-					prior_evaluations[QString::fromStdString(val_match)].field = true;
-					prior_evaluations[QString::fromStdString(val_match)].evaluation.field.low  = vals[0];
-					prior_evaluations[QString::fromStdString(val_match)].evaluation.field.high = vals[1];
-				}
-			} else if ( symbol_defn->is_constant ) {
-				if ( vals.size() ) {
-					defn_val->evaluated = true;
-					defn_val->evaluation.val = vals[0];
-					prior_evaluations[QString::fromStdString(val_match)].field = false;
-					prior_evaluations[QString::fromStdString(val_match)].evaluation.val = vals[0];
-				}
-			}
-		} else {
-			// XXX careful here if idents changes from one val to the next?
-			defn_val = find_val->second;
+		eval_result_map_t::iterator pef;
+		try {
+			pef = evaluate_str(def_match, val_match, is_field, idents.size(), idstring);
+		} catch(...) {
+			continue;
 		}
-		defn_val->gpus.insert(g);
+
+		evaluation_result_t val = *pef;
+
+		if ( is_reg || is_word || is_offset || is_scope ) {
+			if ( is_offset ) {
+				offset_def_t *offset_def = instance_offset(def_tree, find_wl_offset->second);
+				offset_def->val = val.result.val;
+				def_tree->offsets_by_name.insert(make_pair(def_match, offset_def));
+			} else if ( is_word ) {
+				word_def_t *word_def = instance_word(def_tree, find_wl_word->second);
+				word_def->val = val.result.val;
+				def_tree->words_by_name.insert(make_pair(def_match, word_def));
+			}else if ( is_reg ) {
+				reg_def_t *reg_def = instance_reg(def_tree, find_wl_reg->second);
+				reg_def->val = val.result.val;
+				def_tree->regs_by_name.insert(make_pair(def_match, reg_def));
+			} else if ( is_scope) {
+				scope_def_t *scope_def = instance_scope(def_tree, find_wl_scope->second);
+				scope_def->val = val.result.val;
+				def_tree->scopes_by_name.insert(make_pair(def_match, scope_def));
+			} 
+		} else if (is_deleted_reg || is_deleted_word || is_deleted_offset || is_deleted_scope) {
+
+		} else if ( is_field ) {
+			ip_whitelist::field_t *field = find_wl_field->second;
+			field_def_t *field_def = instance_field(def_tree, field);
+			field_def->high = val.result.field.high;
+			field_def->low  = val.result.field.low;
+		} else if ( is_constant ) {
+			ip_whitelist::constant_t *constant = find_wl_constant->second;
+			const_def_t *const_def = instance_const(def_tree, constant);
+			const_def->val = val.result.val;
+		} else if (is_group) {
+			ip_whitelist::group_t *group = find_wl_group->second;
+			group_def_t *group_def = instance_group(def_tree, group);
+		} else {
+			throw std::domain_error("unknown symbol type for" + def_match);
+		}
 	}
-	
+	return def_tree;
 }
 
+
 static void calculate_equiv_classes(defn_set_t *defs,  string def_file_name );
+
+// datastream torque converter
+QDataStream & operator<< (QDataStream& stream, const string &s)
+{
+	stream << QString::fromStdString(s);
+	return stream;
+}
+QDataStream & operator>> (QDataStream& stream, string &s)
+{
+	QString t;
+	stream >> t;
+	s = t.toStdString();
+	return stream;
+}
 
 void init_evaluation_cache()
 {
@@ -862,7 +1089,8 @@ void read_ip_defs()
 		if ( hwref_file_blacklist.find(fn) != hwref_file_blacklist.end())
 			continue;
 		for ( auto g = target_gpus.begin(); g != target_gpus.end(); g++ ) {
-			process_gpu_defs(*g, fn);
+			def_tree_t *t = process_gpu_defs(*g, fn);
+			gpu_def_trees.push_back(t);
 		}
 	}
 
