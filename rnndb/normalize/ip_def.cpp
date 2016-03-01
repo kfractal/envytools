@@ -25,6 +25,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <cstdio>
+#include <cassert>
 
 #include <QDir>
 #include <QFileInfo>
@@ -52,6 +53,7 @@ using namespace std::regex_constants;
 #    include <QRegularExpression>
 #endif
 
+#if 0
 defn_set_t __defines;
 defn_index_t __defn_index;
 
@@ -63,8 +65,9 @@ defn_index_t __field_index;
 
 defn_set_t __constants;
 defn_index_t __constant_index;
+#endif
 
-vector<def_tree_t *> gpu_def_trees;
+//vector<def_tree_t *> gpu_def_trees;
 
 
 list<gpuid_t*> target_gpus;
@@ -221,7 +224,7 @@ static set<string> all_hwref_files;
 static set<string> seed_hwref_files;
 
 
-multimap<uint64_t, defn_val_t *> reg_val_index;
+//multimap<uint64_t, defn_val_t *> reg_val_index;
 
 
 void gpuid_t::get_hwref_files()
@@ -431,7 +434,7 @@ evaluate_str(const string &def_match, const string &val_match,
 		} else if (num_eval_args == 2) {
 			evaluate_me += "int64_t evaluate_me(){ return " + def_match + "(0,0);}\n";
 		} else {
-			throw std::runtime_error("how many eval args?");
+			throw runtime_error("how many eval args?");
 		}
 		evaluate_me += "int main(int argc, char **argv) {"
 			" std::cout << evaluate_me() << std::endl; std::cout.flush(); "
@@ -448,7 +451,7 @@ evaluate_str(const string &def_match, const string &val_match,
 			evaluate_me += "int64_t evaluate_low() { return (0)?" + def_match + "(0,0);}\n";
 			evaluate_me += "int64_t evaluate_high(){ return (1)?" + def_match + "(0,0);}\n";
 		} else {
-			throw std::runtime_error("how many field eval args?");
+			throw runtime_error("how many field eval args?");
 		}
 		evaluate_me += "int main(int argc, char **argv) {"
 			" std::cout << evaluate_low() << std::endl <<"
@@ -467,13 +470,13 @@ evaluate_str(const string &def_match, const string &val_match,
 		if ( rc ) {
 			cerr << "error: evaluation program for " << def_match <<
 				" failed to compile" << endl;
-			throw std::runtime_error("compilation rc wasn't zero");
+			throw runtime_error("compilation rc wasn't zero");
 		}
 		FILE *eval_out = popen(run_me.c_str(), "r");
 		if ( !eval_out ) {
 			cerr << "error: evaluation program for " << def_match <<
 				" didn't run propely" << endl;
-			throw std::runtime_error("busted evaluation program?");
+			throw runtime_error("busted evaluation program?");
 		}
 		int c;
 		do {
@@ -482,7 +485,7 @@ evaluate_str(const string &def_match, const string &val_match,
 		} while (c != EOF);
 		if ( ferror(eval_out) ) {
 			perror("error:");
-			throw std::runtime_error("error reading stream");
+			throw runtime_error("error reading stream");
 		}
 		pclose (eval_out); // careful, pclose is required.
 		evaluated = true;
@@ -536,212 +539,231 @@ QDataStream & operator>> (QDataStream& stream, evaluation_result_t &r)
 }
 
 
-// the "instance" functions populate the paths implied by the whitelist
-// def hierarchy.
-
-group_def_t *instance_group(def_tree_t *def_tree, ip_whitelist::group_t *group)
-{
-	auto group_by_name = def_tree->groups_by_name.find(group->name);
-	group_def_t *group_def;
-	if ( group_by_name == def_tree->groups_by_name.end() ) {
-		group_def = new group_def_t(def_tree, group->name);
-		auto kv_pair = make_pair(group->name, group_def);
-		def_tree->groups_by_name.insert(kv_pair);
+//
+// the "instance" functions populate the paths described by the whitelist def hierarchy.
+//
+// during this phase of tree creation there is only *one possible member* for the
+// "*_by_name" sets, because there is only one gpu under consideration.  so any element
+// present there already is what we're after.
+//
+#if 0
+template< typename T, typename W>
+T* def_tree_t::instance<T>(W *w) {
+	string name = w->name;
+	assert(_by_name<T>[name].size() <= 1);
+	auto wbn = _by_name<T>[name].begin();
+	T* d;
+	if ( wbn == wbn[name].end() ) {
+		d = new T(this, name, gpus);
+		def_by_name[name].insert(d);
+		_by_name<T>[name].insert(d);
 	} else {
-		group_def = group_by_name->second;
+		d = *wbn;
+	}
+	return d;
+}
+#endif
+
+group_def_t *def_tree_t::instance_group(ip_whitelist::group_t *group)
+{
+	string name = group->name;
+	assert(groups_by_name[name].size() <= 1);
+	auto group_by_name = groups_by_name[name].begin();
+	group_def_t *group_def;
+	if ( group_by_name == groups_by_name[name].end() ) {
+		group_def = new group_def_t(this, name, gpus);
+		defs_by_name[name].insert(group_def);
+		groups_by_name[name].insert(group_def);
+		groups.push_back(group_def);
+	} else {
+		group_def = *group_by_name;
 	}
 	return group_def;
 }
 
-enum class thing_e : uint8_t { 
-	reg, word, offset
-};
+//enum class thing_e : uint8_t { 
+//	reg, word, offset
+//};
 
-scope_def_t * instance_scope(def_tree_t *def_tree, ip_whitelist::scope_t *scope)
+offset_def_t *def_tree_t::instance_offset(ip_whitelist::offset_t *offset)
 {
-	if ( !scope->name.size() ) {
-		throw std::runtime_error("null scope length [" + scope->name + ":" + scope->def + "]");
+	string name = offset->name;
+	if ( !name.size() ) {
+		throw runtime_error("null offset length [" + offset->def + "]");
 	}
-	if ( !scope->def.size() ) {
-		scope->def = scope->name;
-	}
-
-	auto scope_by_name = def_tree->scopes_by_name.find(scope->def);
-	scope_def_t *scope_def;
-	if (scope_by_name == def_tree->scopes_by_name.end()) {
-		scope_def = new scope_def_t(def_tree, scope->def);
-		auto kv_pair = make_pair(scope->def, scope_def);
-		def_tree->scopes_by_name.insert(kv_pair);
-		if ( scope->group ) {
-			group_def_t *parent_group = instance_group(def_tree, scope->group);
-			parent_group->scopes_by_name.insert(kv_pair);
-		} else {
-			throw std::domain_error("parentless scope" + scope->name);
-		}
-	} else {
-		scope_def = scope_by_name->second;
-	}
-	return scope_def;
-}
-
-offset_def_t * instance_offset(def_tree_t *def_tree, ip_whitelist::offset_t *offset)
-{
-	if ( !offset->name.size() ) {
-		throw std::runtime_error("null offset length [" + offset->name + ":" + offset->def + "]");
-	}
-	if ( !offset->def.size() ) {
-		offset->def = offset->name;
-	}
-
-	auto offset_by_name = def_tree->offsets_by_name.find(offset->def);
+	auto offset_by_name = offsets_by_name[name].begin();
 	offset_def_t *offset_def;
-	if (offset_by_name == def_tree->offsets_by_name.end()) {
-		offset_def = new offset_def_t(def_tree, offset->def);
-		auto kv_pair = make_pair(offset->def, offset_def);
-		def_tree->offsets_by_name.insert(kv_pair);
+	if ( offset_by_name == offsets_by_name[name].end() ) {
+		offset_def = new offset_def_t(this, offset->def, gpus);
+		defs_by_name[name].insert(offset_def);
+		offsets_by_name[name].insert(offset_def);
 		if ( offset->group ) {
-			group_def_t *parent_group = instance_group(def_tree, offset->group);
-			parent_group->offsets_by_name.insert(kv_pair);
+			group_def_t *parent_group = instance_group(offset->group);
+			parent_group->offsets_by_name[name].insert(offset_def);
 		} else {
-			throw std::domain_error("parentless offset" + offset->name);
+			throw domain_error("parentless offset" + offset->name);
 		}
 	} else {
-		offset_def = offset_by_name->second;
+		offset_def = *offset_by_name;
 	}
 	return offset_def;
-
 }
 
-word_def_t * instance_word(def_tree_t *def_tree, ip_whitelist::word_t *word)
+word_def_t *def_tree_t::instance_word(ip_whitelist::word_t *word)
 {
-	if ( !word->name.size() ) {
-		throw std::runtime_error("null word length [" + word->name + ":" + word->def + "]");
-	}
-	if ( !word->def.size() ) {
-		word->def = word->name;
+	string name = word->name;
+	if ( !name.size() ) {
+		throw runtime_error("null word length [" + word->def + "]");
 	}
 
-	auto word_by_name = def_tree->words_by_name.find(word->def);
+	auto word_by_name = words_by_name[name].begin();
 	word_def_t *word_def;
-	if (word_by_name == def_tree->words_by_name.end()) {
-		word_def = new word_def_t(def_tree, word->def);
-		auto kv_pair = make_pair(word->def, word_def);
-		def_tree->words_by_name.insert(kv_pair);
+	if ( word_by_name == words_by_name[name].end() ) {
+		word_def = new word_def_t(this, word->def, gpus);
+		defs_by_name[name].insert(word_def);
+		words_by_name[name].insert(word_def);
 		if ( word->group ) {
-			group_def_t *parent_group = instance_group(def_tree, word->group);
-			parent_group->words_by_name.insert(kv_pair);
+			group_def_t *parent_group = instance_group(word->group);
+			parent_group->words_by_name[name].insert(word_def);
 		} else {
-			throw std::domain_error("parentless word" + word->name);
+			throw domain_error("parentless word" + word->name);
 		}
 	} else {
-		word_def = word_by_name->second;
+		word_def = *word_by_name;
 	}
 	return word_def;
 }
 
-
-reg_def_t *instance_reg(def_tree_t *def_tree, ip_whitelist::reg_t *reg)
+scope_def_t *def_tree_t::instance_scope(ip_whitelist::scope_t *scope)
 {
-	if ( !reg->name.size() ) {
-		throw std::runtime_error("null reg length [" + reg->name + ":" + reg->def + "]");
-	}
-	if ( !reg->def.size() ) {
-		reg->def = reg->name;
+	string name = scope->name;
+	if ( !name.size() ) {
+		throw runtime_error("null scope length [" + scope->def + "]");
 	}
 
-	auto reg_by_name = def_tree->regs_by_name.find(reg->def);
-	reg_def_t *reg_def;
-	if (reg_by_name == def_tree->regs_by_name.end()) {
-		reg_def = new reg_def_t(def_tree, reg->def);
-		auto kv_pair = make_pair(reg->def, reg_def);
-		def_tree->regs_by_name.insert(kv_pair);
-		if ( reg->group ) {
-			group_def_t *parent_group = instance_group(def_tree, reg->group);
-			parent_group->regs_by_name.insert(kv_pair);
+	auto scope_by_name = scopes_by_name[name].begin();
+	scope_def_t *scope_def;
+	if ( scope_by_name == scopes_by_name[name].end() ) {
+		scope_def = new scope_def_t(this, scope->def, gpus);
+		defs_by_name[name].insert(scope_def);
+		scopes_by_name[name].insert(scope_def);
+		if ( scope->group ) {
+			group_def_t *parent_group = instance_group(scope->group);
+			parent_group->scopes_by_name[name].insert(scope_def);
 		} else {
-			throw std::domain_error("parentless reg" + reg->name);
+			throw domain_error("parentless scope" + scope->name);
 		}
 	} else {
-		reg_def = reg_by_name->second;
+		scope_def = *scope_by_name;
+	}
+	return scope_def;
+}
+
+
+reg_def_t *def_tree_t::instance_reg(ip_whitelist::reg_t *reg)
+{
+	string name = reg->name;
+	if ( !name.size() ) {
+		throw runtime_error("null reg length [" + reg->def + "]");
+	}
+
+	auto reg_by_name = regs_by_name[name].begin();
+	reg_def_t *reg_def;
+	if ( reg_by_name == regs_by_name[name].end() ) {
+		reg_def = new reg_def_t(this, reg->def, gpus);
+		defs_by_name[name].insert(reg_def);
+		regs_by_name[name].insert(reg_def);
+		if ( reg->group ) {
+			group_def_t *parent_group = instance_group(reg->group);
+			parent_group->regs_by_name[name].insert(reg_def);
+		} else {
+			throw domain_error("parentless reg" + reg->name);
+		}
+	} else {
+		reg_def = *reg_by_name;
 	}
 	return reg_def;
 }
 
-field_def_t *instance_field(def_tree_t *def_tree, ip_whitelist::field_t *field)
+field_def_t *def_tree_t::instance_field(ip_whitelist::field_t *field)
 {
-	auto field_by_name = def_tree->fields_by_name.find(field->def);
+	string name = field->name;
+	auto field_by_name = fields_by_name[name].begin();
 	field_def_t *field_def;
-	if ( field_by_name == def_tree->fields_by_name.end() ) {
-		field_def = new field_def_t(def_tree, field->def);
-		auto kv_pair = make_pair(field->def, field_def);
-		def_tree->fields_by_name.insert(kv_pair);
+	if ( field_by_name == fields_by_name[name].end() ) {
+		field_def = new field_def_t(this, field->def, gpus);
+		defs_by_name[name].insert(field_def);
+		fields_by_name[name].insert(field_def);
 		if ( field->reg ) {
 			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(field->reg);
 			ip_whitelist::word_t *w = dynamic_cast<ip_whitelist::word_t *>(field->reg);
 			ip_whitelist::scope_t *s = dynamic_cast<ip_whitelist::scope_t *>(field->reg);
 			if ( o ) {
-				offset_def_t *parent_offset = instance_offset(def_tree, o);
-				parent_offset->fields_by_name.insert(kv_pair);
+				offset_def_t *parent_offset = instance_offset(o);
+				parent_offset->fields_by_name[name].insert(field_def);
 			} else if (w) {
-				word_def_t *parent_word = instance_word(def_tree, w);
-				parent_word->fields_by_name.insert(kv_pair);
+				word_def_t *parent_word = instance_word(w);
+				parent_word->fields_by_name[name].insert(field_def);
 			} else if (s) { 
-				scope_def_t *parent_scope = instance_scope(def_tree, s);
-				parent_scope->fields_by_name.insert(kv_pair);
+				scope_def_t *parent_scope = instance_scope(s);
+				parent_scope->fields_by_name[name].insert(field_def);
 			} else {
-				reg_def_t *parent_reg = instance_reg(def_tree, field->reg);
-				parent_reg->fields_by_name.insert(kv_pair);
+				reg_def_t *parent_reg = instance_reg(field->reg);
+				parent_reg->fields_by_name[name].insert(field_def);
 			}
 		} else if (field->group) {
-			group_def_t *parent_group = instance_group(def_tree, field->group);
-			parent_group->fields_by_name.insert(kv_pair);
+			group_def_t *parent_group = instance_group(field->group);
+			parent_group->fields_by_name[name].insert(field_def);
 		} else {
-			throw std::domain_error("parentless field" + field->name);
+			throw domain_error("parentless field" + field->name);
 		}
 	} else {
-		field_def = field_by_name->second;
+		field_def = *field_by_name;
 	}
 	return field_def;
 }
 
-const_def_t *instance_const(def_tree_t *def_tree, ip_whitelist::constant_t *constant)
+const_def_t *def_tree_t::instance_const(ip_whitelist::constant_t *constant)
 {
-	auto constant_by_name = def_tree->constants_by_name.find(constant->def);
+	string name = constant->def;
+	auto constant_by_name = constants_by_name[name].begin();
 	const_def_t *const_def;
-	if ( constant_by_name == def_tree->constants_by_name.end() ) {
-		const_def = new const_def_t(def_tree, constant->def);
-		auto kv_pair = make_pair(constant->def, const_def);
-		def_tree->constants_by_name.insert(kv_pair);
+	if ( constant_by_name == this->constants_by_name[name].end() ) {
+		const_def = new const_def_t(this, constant->def, this->gpus);
+		defs_by_name[name].insert(const_def);
+		constants_by_name[name].insert(const_def);
 		if ( constant->group ) {
-			group_def_t *parent_group = instance_group(def_tree, constant->group);
-			parent_group->constants_by_name.insert(kv_pair);
+			group_def_t *parent_group = instance_group(constant->group);
+			parent_group->constants_by_name[name].insert(const_def);
 		} else if ( constant->reg ) {
-
+			//
+			// note type constraints/goofies wrt order here as
+			// offset, word and scope are descendants of reg_t...
+			//
 			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(constant->reg);
 			ip_whitelist::word_t *w   = dynamic_cast<ip_whitelist::word_t *>(constant->reg);
 			ip_whitelist::scope_t *s  = dynamic_cast<ip_whitelist::scope_t *>(constant->reg);
 			if ( o ) {
-				offset_def_t *parent_offset = instance_offset(def_tree, o);
-				parent_offset->constants_by_name.insert(kv_pair);
+				offset_def_t *parent_offset = instance_offset(o);
+				parent_offset->constants_by_name[name].insert(const_def);
 			} else if ( w ) {
-				word_def_t *parent_word = instance_word(def_tree, w);
-				parent_word->constants_by_name.insert(kv_pair);
+				word_def_t *parent_word = instance_word(w);
+				parent_word->constants_by_name[name].insert(const_def);
 			} else if ( s ) { 
-				scope_def_t *parent_scope = instance_scope(def_tree, s);
-				parent_scope->constants_by_name.insert(kv_pair);
+				scope_def_t *parent_scope = instance_scope(s);
+				parent_scope->constants_by_name[name].insert(const_def);
 			} else {
-				reg_def_t *parent_reg = instance_reg(def_tree, constant->reg);
-				parent_reg->constants_by_name.insert(kv_pair);
+				reg_def_t *parent_reg = instance_reg(constant->reg);
+				parent_reg->constants_by_name[name].insert(const_def);
 			}
-
 		} else if (constant->field) {
-			field_def_t *parent_field = instance_field(def_tree, constant->field);
-			parent_field->constants_by_name.insert(kv_pair);
+			field_def_t *parent_field = instance_field(constant->field);
+			parent_field->constants_by_name[name].insert(const_def);
 		} else {
-			throw std::domain_error("parentless constant" + constant->name);
+			throw domain_error("parentless constant" + constant->name);
 		}
 	} else {
-		const_def = constant_by_name->second;
+		const_def = *constant_by_name;
 	}
 	return const_def;
 }
@@ -905,28 +927,11 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 			continue;
 		}
 
-		//		reg_def_t   * reg_def   = 0;
-		//		field_def_t * field_def = 0;
-		//		const_def_t * const_def = 0;
-
 		//
 		// is it a register or a field or a constant?  and at what scope?
 		// the whitelist has that information.
 		//
 
-		typedef multimap<string, ip_whitelist::reg_t *>::iterator      wl_regs_iterator_t;
-		typedef multimap<string, ip_whitelist::offset_t *>::iterator   wl_offsets_iterator_t;
-		typedef multimap<string, ip_whitelist::word_t *>::iterator     wl_words_iterator_t;
-		typedef multimap<string, ip_whitelist::scope_t *>::iterator     wl_scopes_iterator_t;
-
-		typedef multimap<string, ip_whitelist::deleted_reg_t *>::iterator    wl_deleted_regs_iterator_t;
-		typedef multimap<string, ip_whitelist::deleted_word_t *>::iterator   wl_deleted_words_iterator_t;
-		typedef multimap<string, ip_whitelist::deleted_offset_t *>::iterator wl_deleted_offsets_iterator_t;
-		typedef multimap<string, ip_whitelist::deleted_scope_t *>::iterator  wl_deleted_scopes_iterator_t;
-
-		typedef multimap<string, ip_whitelist::field_t *>::iterator    wl_fields_iterator_t;
-		typedef multimap<string, ip_whitelist::constant_t *>::iterator wl_constants_iterator_t;
-		typedef multimap<string, ip_whitelist::group_t *>::iterator    wl_groups_iterator_t;
 
 		wl_regs_iterator_t    find_wl_reg    = ip_whitelist::chip_regs.find    (def_match);
 		wl_offsets_iterator_t find_wl_offset = ip_whitelist::chip_offsets.find (def_match);
@@ -980,7 +985,7 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 			// matches is a delete... so, one whitelist among them has it
 			// deleted and another likely is a (to-be) deprecated/unused reg.
 			if ( (category_matches - int(is_deleted_reg)) > 1  ) {
-				throw std::domain_error("symbol matches one category in the whitelist:" + def_match);
+				throw domain_error("symbol matches one category in the whitelist:" + def_match);
 			}
 		}
 
@@ -994,46 +999,45 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 		evaluation_result_t val = *pef;
 
 		if ( is_reg || is_word || is_offset || is_scope ) {
+			// this path is begging for a simplification/refactoring.
 			if ( is_offset ) {
-				offset_def_t *offset_def = instance_offset(def_tree, find_wl_offset->second);
+				offset_def_t *offset_def = def_tree->instance_offset(find_wl_offset->second);
 				offset_def->val = val.result.val;
-				def_tree->offsets_by_name.insert(make_pair(def_match, offset_def));
+				def_tree->offsets_by_name[def_match].insert(offset_def);
 			} else if ( is_word ) {
-				word_def_t *word_def = instance_word(def_tree, find_wl_word->second);
+				word_def_t *word_def = def_tree->instance_word(find_wl_word->second);
 				word_def->val = val.result.val;
-				def_tree->words_by_name.insert(make_pair(def_match, word_def));
+				def_tree->words_by_name[def_match].insert(word_def);
 			}else if ( is_reg ) {
-				reg_def_t *reg_def = instance_reg(def_tree, find_wl_reg->second);
+				reg_def_t *reg_def = def_tree->instance_reg(find_wl_reg->second);
 				reg_def->val = val.result.val;
-				def_tree->regs_by_name.insert(make_pair(def_match, reg_def));
+				def_tree->regs_by_name[def_match].insert(reg_def);
 			} else if ( is_scope) {
-				scope_def_t *scope_def = instance_scope(def_tree, find_wl_scope->second);
+				scope_def_t *scope_def = def_tree->instance_scope(find_wl_scope->second);
 				scope_def->val = val.result.val;
-				def_tree->scopes_by_name.insert(make_pair(def_match, scope_def));
+				def_tree->scopes_by_name[def_match].insert(scope_def);
 			} 
 		} else if (is_deleted_reg || is_deleted_word || is_deleted_offset || is_deleted_scope) {
 
 		} else if ( is_field ) {
 			ip_whitelist::field_t *field = find_wl_field->second;
-			field_def_t *field_def = instance_field(def_tree, field);
+			field_def_t *field_def = def_tree->instance_field(field);
 			field_def->high = val.result.field.high;
 			field_def->low  = val.result.field.low;
 		} else if ( is_constant ) {
 			ip_whitelist::constant_t *constant = find_wl_constant->second;
-			const_def_t *const_def = instance_const(def_tree, constant);
+			const_def_t *const_def = def_tree->instance_const(constant);
 			const_def->val = val.result.val;
 		} else if (is_group) {
 			ip_whitelist::group_t *group = find_wl_group->second;
-			group_def_t *group_def = instance_group(def_tree, group);
+			group_def_t *group_def = def_tree->instance_group(group);
 		} else {
-			throw std::domain_error("unknown symbol type for" + def_match);
+			throw domain_error("unknown symbol type for" + def_match);
 		}
 	}
 	return def_tree;
 }
 
-
-static void calculate_equiv_classes(defn_set_t *defs,  string def_file_name );
 
 // datastream torque converter
 QDataStream & operator<< (QDataStream& stream, const string &s)
@@ -1070,8 +1074,10 @@ void save_evaluation_cache()
 	out << prior_evaluations;
 }
 
-void read_ip_defs()
+vector<def_tree_t *> read_ip_defs()
 {
+	vector<def_tree_t *> gpu_def_trees;
+
 	init_evaluation_cache();
 	init_symbols();
 	init_gpuids();
@@ -1095,10 +1101,12 @@ void read_ip_defs()
 	}
 
 	save_evaluation_cache();
+	return gpu_def_trees;
 }
-
+#if 0
 defn_index_t *get_defn_index() { return &__defn_index; }
 defn_set_t   *get_defns()      { return &__defines; }
+#endif
 
 void FooLexer::push_hex_literal(const char *s) {
 	_tokens.push_back(token_t(token_type_e::hex_literal, string(s)));
@@ -1150,102 +1158,533 @@ void FooLexer::push_comma() {
 	_tokens.push_back(token_t(token_type_e::comma, string()));
 }
 
-//
-// the comparison here is lexical, post cast-to-string form.
-// only the set of gpus and families is considered.  the equiv
-// class name and family order are not part of the comparison.
-//
-bool gpu_equiv_class_t::operator ==(const gpu_equiv_class_t &o) const
-{
-	return ! ((*this < o) || (o < *this));
-}
-bool gpu_equiv_class_t::operator <(const gpu_equiv_class_t &o) const
-{
-	string gpus_str, ogpus_str;
-	string families_str, ofamilies_str;
-	set<string> gpus, ogpus;
-	set<string> families, ofamilies;
-
-	for ( auto &f : _families)  families.insert(f->name());
-	for ( auto &f : families)	families_str += f;
-	for ( auto &f : o._families) ofamilies.insert(f->name());
-	for ( auto &f : ofamilies)	ofamilies_str += f;
-
-	for ( auto &g : _gpus)   gpus.insert (g->name());
-	for ( auto &g : gpus)    gpus_str += g;
-	for ( auto &g : o._gpus) ogpus.insert(g->name());
-	for ( auto &g : ogpus)   ogpus_str += g;
-
-	if ( families_str < ofamilies_str )
-		return true;
-
-	if ( families_str == ofamilies_str ) {
-		if ( gpus_str < ogpus_str)
-			return true;
-	}
-	return false;
-}
-
-void gpu_equiv_class_t::insert(gpuid_t *gpu)
-{
-    if ( (_gpus.find(gpu) != _gpus.end()) ||
-		 (_families.find(gpu->family()) != _families.end()) )
-		return;
-
-	// if adding this gpu would cause its family to become
-	// fully represented, then remove the other gpus in the
-	// same family and add the family instead.
-	gpu_set_t result_gpus = _gpus;
-	result_gpus.insert(gpu);
-
-	if ( gpu->family()->fully_represented_in(result_gpus) ) {
-		_families.insert(gpu->family());
-		for ( auto &gr : gpu->family()->gpus()) {
-			_gpus.erase(gr);
-		}
-	} else {
-		_gpus.insert(gpu);
-	}
-}
-
-
-//
-// calculate gpu equivalence classes implicitly defined by the set of def'ns...
-// this isn't terribly useful unless only a single (or small # of) engine(s) is
-// being analyzed at a time.
-//
-static void calculate_equiv_classes(defn_set_t *defs,  string def_file_name ) {
-	gpu_equiv_class_t::snapshot_reset();
-	for ( auto &defn : (*defs) ) {
-		for ( auto &val : defn->vals ) {
-			gpu_equiv_class_t tmp_eq_class;
-			for ( auto &g : val->gpus ) { tmp_eq_class.insert(g); }
-			val->eq_class = tmp_eq_class.snap(tag(def_file_name));
-		}
-	}
-}
-
-vector<gpu_equiv_class_t *> gpu_equiv_class_t::_snapshot;
-void gpu_equiv_class_t::snapshot_reset() { 	_snapshot.clear(); }
-
-gpu_equiv_class_t *gpu_equiv_class_t::snap(const string &/*tag*/)
-{
-	for ( size_t i = 0; i < _snapshot.size(); i++) {
-		if ( *this == *(_snapshot[i]) ) {
-			return _snapshot[i];
-		}
-	}
 #if 0
-	int order = _snapshot.size();
-	stringstream refstr; refstr << "__nv_" << tag << "_compat_" << order;
-	stringstream defstr; defstr << "#define __nv_" << tag << "_compat_" << order << "(x)  ((x)!=(x)\\";
-	for ( auto &family : _families ) {	defstr << "\n\t\t|| " << family->ref() << "(x)\\";	}
-	for ( auto &gpu : _gpus ) {	defstr << "\n\t\t|| ((x)==" << gpu->ref() << ")\\";	}
-	defstr << "\n\t)" << endl;
-	_def = defstr.str();
-	_ref = refstr.str();
+void group_def_t::coalesce(group_def_t *with)
+{
+	// merge info from "with" into this group.
+	assert(with->symbol == symbol);
+
+#define coalesce_T(T) do {												\
+		for (auto wtbn = with-> T ##s_by_name.begin(); wtbn!=T##s_by_name.end(); wtbn++) { \
+			auto fttbn = T##s_by_name.find(wtbn->first);				\
+			T##_def_t *tt;												\
+			if ( fttbn == T##s_by_name.end() ) {						\
+				tt = new T##_def_t(tree, wtbn->second);					\
+				T##s_by_name.insert(make_pair(wtbn->first, tt));		\
+			} else {													\
+				tt = fttbn->second;										\
+			}															\
+			tt->coalesce(wtbn->second);									\
+		}																\
+	} while (0)
+	
+	coalesce_T(reg);
+	coalesce_T(offset);
+	coalesce_T(word);
+	coalesce_T(scope);
+
+	coalesce_T(deleted_reg);
+	coalesce_T(deleted_offset);
+	coalesce_T(deleted_word);
+	coalesce_T(deleted_scope);
+
+	// the above ^^^^ are just many forms of the following
+#if 0
+	for ( auto with_reg_by_name = with->regs_by_name.begin();
+		  with_reg_by_name != with->regs_by_name.end();
+		  with_reg_by_name++ ) {
+
+		auto find_this_reg_by_name = regs_by_name.find(with_reg_by_name->first);
+		reg_def_t *this_reg;
+
+		if ( find_this_reg_by_name == regs_by_name.end() ) {
+			this_reg = new reg_def_t(tree, with_reg_by_name->second);
+			regs_by_name.insert(make_pair(with_reg_by_name->first, this_reg));
+		} else {
+			this_reg = find_this_reg_by_name->second;
+		}
+		this_reg->coalesce(with_reg_by_name->second);
+	}
 #endif
-	gpu_equiv_class_t *snapped = new gpu_equiv_class_t(*this);
-	_snapshot.push_back(snapped);
-	return snapped;
+
+}
+#endif
+
+//
+// construct a new aggregate tree from a vector of per-gpu trees.
+//
+def_tree_t::def_tree_t(vector<def_tree_t *> &gpu_def_trees)
+{
+	for ( auto gpu_def_tree : gpu_def_trees ) {
+
+		gpus.insert( gpu_def_tree->gpus.begin(), gpu_def_tree->gpus.end());
+
+		for ( auto def_set : gpu_def_tree->defs_by_name ) {
+			for ( auto def : def_set.second ) {
+				if ( dynamic_cast<group_def_t *>(def) ) {
+					const char *name = def_set.first.c_str();
+					bool is_group = true;
+				}
+				defs_by_name[def_set.first].insert(def);
+			}
+		}
+
+		int num_groups = gpu_def_tree->groups.size();
+		for ( auto group : gpu_def_tree->groups ) {
+			groups.push_back(group);
+			groups_by_name[group->symbol].insert(group);
+		}
+
+		for ( auto reg_set : gpu_def_tree->regs_by_name ) {
+			for ( auto reg : reg_set.second ) {
+				regs_by_val[reg->val].insert(reg);
+				regs_by_name[reg_set.first].insert(reg);
+			}
+		}
+
+		for ( auto deleted_reg_set : gpu_def_tree->deleted_regs_by_name ) {
+			for ( auto deleted_reg : deleted_reg_set.second ) {
+				deleted_regs_by_name[deleted_reg_set.first].insert(deleted_reg);
+			}
+		}
+
+
+		for ( auto offset : gpu_def_tree->offsets_by_name ) {
+		}
+		for ( auto scope : gpu_def_tree->scopes_by_name ) {
+		}
+		for ( auto word : gpu_def_tree->words_by_name ) {
+		}
+
+		for (auto constant_set : gpu_def_tree->constants_by_name ) {
+			for ( auto constant : constant_set.second ) {
+				constants_by_name[constant_set.first].insert(constant);
+			}
+		}
+		for ( auto field_set : gpu_def_tree->fields_by_name ) {
+			for (auto field : field_set.second ) {
+				fields_by_name[field_set.first].insert(field);
+			}
+		}
+	}
+
+#if 0
+	// enumerate the registers
+	for ( auto name : def.regs_by_name_and_value ) {
+		out() << "info: reg " << qStr(name.first) << " has " <<
+			name.second.size() << " versions" << endl;
+		for (auto val : name.second ) {
+			for ( auto reg_def : val.second ) {
+				// these reg_defs all have the same value, but different (single) gpu for each.
+				out() << "info:\tval " << "0x" << hex << val.first << " " <<
+					gpus_to_variants(reg_def->tree->gpus) << dec << endl;
+			}
+		}
+	}
+
+	// enumerate the fields
+	for ( auto field : def.fields_by_name_and_value ) {
+		out() << "info: field " << qStr(field.first) << " has " <<
+			field.second.size() << " versions" << endl;
+		for (auto val : field.second ) {
+			for ( auto field_def : val.second ) {
+				// these field_defs all have the same value but different (single) gpu for each.
+				out() << "info:\tval " << val.first.second << ":" <<
+					val.first.first << " "<< gpus_to_variants(field_def->tree->gpus) << endl;
+			}
+		}
+	}
+
+
+	// enumerate the constants
+	for ( auto constant : def.constants_by_name_and_value ) {
+		out() << "info: constant " << qStr(constant.first) << " has " <<
+			constant.second.size() << " versions" << endl;
+		for ( auto val : constant.second ) {
+			for ( auto const_def : val.second ) {
+				// these const_defs all have the same value but different (single) gpu for each.
+				out() << "info:\tval ";
+				if ( val.first >= 32 ) out() << "0x" << hex; else out() << dec;
+				out() << val.first << " " << gpus_to_variants(const_def->tree->gpus) << endl;
+			}
+		}
+	}
+#endif
+}
+
+//
+// create a duplicate of the original and then coalesce where possible.
+//
+def_tree_t::def_tree_t(def_tree_t *agg_tree)
+{
+	// setting up outside the tree so only coalesced entries are inserted.
+	map< string, def_set_t  >      new_defs_by_name;
+	map< string, reg_def_set_t >   new_regs_by_name;
+	map< string, field_def_set_t > new_fields_by_name;
+	map< string, const_def_set_t > new_consts_by_name;
+	map< string, group_def_set_t  > new_groups_by_name;
+
+	map< def_t *, def_t * > def_correlates;     // original->new (1:1)
+	map< def_t *, def_set_t > rev_def_correlates; // new->original (1:1) and new->new (1:many)
+	map< reg_def_t *,   reg_def_set_t >    reg_correlates;   // new->original (one to many)
+	map< const_def_t *, const_def_set_t >  const_correlates; // ""
+	map< field_def_t *, field_def_set_t >  field_correlates; // ""
+	map< group_def_t *, group_def_set_t >  group_correlates; // ""
+
+	gpus = agg_tree->gpus;
+
+	for ( auto def_set : agg_tree->defs_by_name ) {
+
+		string name = def_set.first;
+		string c_name = name.c_str();
+		for ( auto agg_def : def_set.second ) {
+			def_t *new_def = agg_def->clone(this);
+
+			new_defs_by_name[name].insert(new_def);
+			def_correlates.insert(make_pair(agg_def, new_def));
+			rev_def_correlates[new_def].insert(agg_def);
+
+			deleted_reg_def_t *new_deleted_reg_def = dynamic_cast<deleted_reg_def_t *>(new_def);
+			reg_def_t   *new_reg_def   = dynamic_cast<reg_def_t *>  (new_def);
+			field_def_t *new_field_def = dynamic_cast<field_def_t *>(new_def);
+			const_def_t *new_const_def = dynamic_cast<const_def_t *>(new_def);
+			group_def_t *new_group_def = dynamic_cast<group_def_t *>(new_def);
+			if ( new_deleted_reg_def ) { }
+			else if ( new_reg_def   ) { new_regs_by_name  [name].insert(new_reg_def);  }
+			else if ( new_field_def ) { new_fields_by_name[name].insert(new_field_def);}
+			else if ( new_const_def ) { new_consts_by_name[name].insert(new_const_def);}
+			else if ( new_group_def ) { new_groups_by_name[name].insert(new_group_def);}
+			else {assert(0);}
+		}
+	}
+
+	//
+	// all the (new) defs, all the time.
+	//
+	for ( auto nd : new_defs_by_name ) { // over each distinct def name
+
+		string name = nd.first;
+
+		set<def_t *>      &new_defs_with_name   = new_defs_by_name  [name];
+		set<reg_def_t *>  &new_regs_with_name   = new_regs_by_name  [name];
+		set<field_def_t*> &new_fields_with_name = new_fields_by_name[name];
+		set<const_def_t*> &new_consts_with_name = new_consts_by_name[name];
+		set<group_def_t*> &new_groups_with_name = new_groups_by_name[name];
+
+
+		//
+		// all these defs are named the same, but are defined
+		// for different gpus.  and, they may have different values.
+		// group based upon value.  and record the participating gpus.
+		// complications can arise here if not all of the defs are
+		// of the same type (register, field, etc).  so they have
+		// to be sifted upon that as well, first.
+		// along the way maintain original def<->new/cloned def correlation
+		// for later use.
+		//
+
+		//
+		// regs, all with the same name, possibly split across multiple values
+		//
+		map< uint64_t, reg_def_set_t > new_regs_with_value;
+		for ( auto r : new_regs_with_name ) {
+			new_regs_with_value[r->val].insert(r);
+		}
+		for ( auto rv : new_regs_with_value ) {
+			uint64_t v = rv.first; reg_def_set_t &rs = rv.second;
+			// take first, coalesce into it.  drop the others.
+			reg_def_t *fr = *rs.begin(); rs.erase(rs.begin());
+			for ( auto ri : rs ) {
+				fr->def_gpus.insert(ri->def_gpus.begin(), ri->def_gpus.end());
+				def_correlates[ri] = fr; // new->new, used to implement coalescing
+			}
+			regs_by_name[name].insert(fr);
+			regs_by_val[v].insert(fr);
+			defs_by_name[name].insert(fr);
+		}
+
+		//
+		// fields, all with the same name, possibly split across multiple values
+		//
+		map< pair< size_t, size_t >, field_def_set_t > new_fields_with_value;
+		for ( auto f : new_fields_with_name ) {
+			new_fields_with_value[make_pair(f->high, f->low)].insert(f);
+		}
+		for ( auto fv : new_fields_with_value ) {
+			pair<size_t, size_t> v = fv.first; field_def_set_t &fs = fv.second;
+			// take first, coalesce into it.  drop the others.
+			field_def_t *ff = *fs.begin(); fs.erase(fs.begin());
+			for ( auto fi : fs ) {
+				ff->def_gpus.insert(fi->def_gpus.begin(), fi->def_gpus.end());
+				def_correlates[fi] = ff;  // new->new, used to implement coalescing
+			}
+			fields_by_name[name].insert(ff);
+			defs_by_name[name].insert(ff);
+		}
+
+		//
+		// constants, all with the same name, possibly split across multiple values
+		//
+		map< int64_t, const_def_set_t > new_consts_with_value;
+		for ( auto c : new_consts_with_name ) {
+			new_consts_with_value[c->val].insert(c);
+		}
+		for ( auto cv : new_consts_with_value ) {
+			int64_t v = cv.first; const_def_set_t &cs = cv.second;
+			// take first, coalesce into it.  drop the others.
+			const_def_t *fc = *cs.begin(); cs.erase(cs.begin());
+			for ( auto ci : cs ) {
+				fc->def_gpus.insert(ci->def_gpus.begin(), ci->def_gpus.end());
+				def_correlates[ci] = fc; // new->new, used to implement coalescing
+			}
+			constants_by_name[name].insert(fc);
+			defs_by_name[name].insert(fc);
+		}
+
+		//
+		// groups all with the same name, no notion of "val" here
+		// so this is slightly different than defs above...
+		//
+		group_def_set_t &gs = new_groups_with_name;
+		if ( gs.begin() != gs.end() ) {
+			assert(gs.begin() != gs.end());
+			group_def_t *gc = *gs.begin();
+			//		gs.erase(gs.begin());
+			for ( auto gi = ++gs.begin(); gi != gs.end(); gi++ ) {
+				gc->def_gpus.insert((*gi)->def_gpus.begin(), (*gi)->def_gpus.end());
+				def_correlates[*gi] = gc; // new->new, used to implement coalescing
+			}
+			groups_by_name[name].insert(gc);
+			defs_by_name[name].insert(gc);
+			groups.push_back(gc);
+		}
+	} // for each def name
+
+	//
+	// groups and the other defs have different/largely unrelated names.  so
+	// after all the names have been traversed is the only time we can safely
+	// work on group membership for the regs (and other non-group defs).
+	//
+
+	for ( auto group_with_name : groups_by_name ) {
+		string group_name = group_with_name.first;
+		group_def_set_t &group_def_set = groups_by_name[group_name];
+		for ( auto group_def : group_def_set ) {
+			// go back to each original group defn that this coalesced group
+			// is derived from.  for those gather up all the child defs and
+			// map *those* to the new correlates before inserting
+			// into the coalesced group.
+			def_set_t &original_group_set = rev_def_correlates[group_def];
+			for ( auto _original_group : original_group_set) {
+				group_def_t *original_group = dynamic_cast<group_def_t *>(_original_group);
+				assert(original_group);
+				assert( def_correlates[_original_group] == group_def );
+
+				for ( auto reg_set : original_group->regs_by_name ) {
+					for (auto orig_child_reg : reg_set.second ) {
+						reg_def_t *new_reg = dynamic_cast<reg_def_t *>(def_correlates[orig_child_reg]);
+						assert(new_reg);
+						if ( def_correlates.find(new_reg) != def_correlates.end() ) {
+							new_reg = dynamic_cast<reg_def_t *>(def_correlates[new_reg]);
+						}
+						assert(new_reg);
+						group_def->regs_by_name[new_reg->symbol].insert(new_reg);
+					}
+				}
+				// now peform this same business with fields, and constants
+				for ( auto field_set : original_group->fields_by_name ) {
+					for (auto orig_child_field : field_set.second ) {
+						field_def_t *new_field = dynamic_cast<field_def_t *>(def_correlates[orig_child_field]);
+						assert(new_field);
+						if ( def_correlates.find(new_field) != def_correlates.end() ) {
+							new_field = dynamic_cast<field_def_t *>(def_correlates[new_field]);
+						}
+						assert(new_field);
+						group_def->fields_by_name[new_field->symbol].insert(new_field);
+					}
+				}
+
+				for ( auto const_set : original_group->constants_by_name ) {
+					for (auto orig_child_const : const_set.second ) {
+						const_def_t *new_const = dynamic_cast<const_def_t *>(def_correlates[orig_child_const]);
+						assert(new_const);
+						if ( def_correlates.find(new_const) != def_correlates.end() ) {
+							new_const = dynamic_cast<const_def_t *>(def_correlates[new_const]);
+						}
+						assert(new_const);
+						group_def->constants_by_name[new_const->symbol].insert(new_const);
+					}
+				}
+
+
+			}
+		}
+	}
+
+	//out() << "info: [" << __func__ << "] total correlates across all gpus is " << def_correlates.size() << " defs" << endl;
+
+	//
+	// for each new (and potentially coalesced) def go back and inspect the
+	// connection hierarchy (const->field->reg) to represent
+	// the original parent/child pointers with their correlates.
+	//
+
+	for ( auto rn : regs_by_name ) {
+		reg_def_set_t &new_regs_with_name = rn.second;
+		string reg_name = rn.first;
+
+		for ( auto new_reg : new_regs_with_name ) {
+			def_set_t &orig_reg_set = rev_def_correlates[new_reg];
+			assert(orig_reg_set.size() == 1);
+			reg_def_t *orig_reg = dynamic_cast< reg_def_t * >(*orig_reg_set.begin());
+
+			// the original register is associated with groups, fields and constants.
+
+			for ( auto orig_child_fields_with_name : orig_reg->fields_by_name ) {
+				string field_name = orig_child_fields_with_name.first;
+				for ( auto orig_child_field_with_name : orig_child_fields_with_name.second ) {
+					field_def_t *orig_child_field = orig_child_field_with_name;
+					// map the child_field into one of the new_fields.
+					field_def_t *new_f = dynamic_cast<field_def_t *>(def_correlates[orig_child_field]);
+					// now, new -> new handles coalescing
+					field_def_t *new_coalesced_f = dynamic_cast<field_def_t*>(def_correlates[new_f]);
+
+					if ( !new_coalesced_f ) new_coalesced_f = new_f; // edge condition
+
+					assert(new_reg->fields_by_name[field_name].size() == 0); //find(new_coalesced_f->symbol) ==
+						   //						   new_reg->fields_by_name[name].end());
+					new_reg->fields_by_name[field_name].insert(new_coalesced_f);
+				}
+			}
+
+			for ( auto orig_child_consts_with_name : orig_reg->constants_by_name ) {
+				string const_name = orig_child_consts_with_name.first;
+				for ( auto orig_child_const_with_name : orig_child_consts_with_name.second ) {
+					const_def_t *orig_child_const = orig_child_const_with_name; // .second;
+					// map the child const into one of the new consts.
+					const_def_t *new_c = dynamic_cast<const_def_t *>(def_correlates[orig_child_const]);
+					// now, new -> new handles coalescing
+					const_def_t *new_coalesced_c = dynamic_cast<const_def_t*>(def_correlates[new_c]);
+					if ( !new_coalesced_c ) new_coalesced_c = new_c; // edge condition
+
+					assert(new_reg->constants_by_name.size()==0);
+					// assert(find(new_coalesced_c->symbol) == new_reg->constants_by_name.end())
+					new_reg->constants_by_name[const_name].insert(new_coalesced_c);
+				}
+			}
+		}
+	}
+
+	#if 0
+	// it is possible (though not typical) for fields to belong (in scope) to the top level.
+	// wip
+	for ( auto fn : new_fields_by_name ) {
+
+		field_def_set_t &new_fields_with_name = fn.second;
+		for ( auto new_field : new_fields_with_name ) {
+
+			field_def_t *orig_field = dynamic_cast< field_def_t * >(rev_def_correlates[new_field]);
+
+			if ( orig_field->group && !orig_field->reg ) {
+			}
+
+			for ( auto orig_child_field_with_name : orig_group->fields_by_name ) {
+				field_def_t *orig_child_field = orig_child_field_with_name.second;
+				// map the child_field into one of the new_fields.
+				field_def_t *new_f = dynamic_cast<field_def_t *>(def_correlates[orig_child_field]);
+				// now, new -> new handles coalescing
+				field_def_t *new_coalesced_f = dynamic_cast<field_def_t*>(def_correlates[new_f]);
+
+				if ( !new_coalesced_f ) new_coalesced_f = new_f; // edge condition
+
+				assert(new_reg->fields_by_name.find(new_coalesced_f->symbol) ==
+					   new_reg->fields_by_name.end());
+
+				new_reg->fields_by_name.insert(make_pair(new_coalesced_f->symbol, new_coalesced_f));
+			}
+		}
+		
+	}
+
+	for ( auto cn : new_consts_by_name ) {
+	}
+    #endif
+
+}
+
+
+std::ostream& operator<< (std::ostream& os, const group_def_t& d) {
+	os << d.def_gpus;
+	os << d.symbol;
+	return os;
+}
+
+QTextStream& operator<< (QTextStream& os, const group_def_t& d) {
+	os << "group def " << d.symbol.c_str() << "= { " << d.def_gpus << " }" << endl;
+	os << "\t" << d.regs_by_name.size() << " reg names" << endl;
+	os << "\t" << d.fields_by_name.size() << " field names" << endl;
+	os << "\t" << d.constants_by_name.size() << " const names }" << endl;
+	
+	return os;
+}
+
+
+std::ostream& operator<< (std::ostream& os, const def_tree_t& tree)
+{
+	os << "def tree { gpus={ " << tree.gpus << " }" << endl;
+	os << "\ttree groups = [ ";
+	for ( auto g: tree.groups ) { os << "\t\tgroup= {" << *g << "} " << endl; }
+	os << endl;
+	os << tree.defs_by_name.size() << " tree def names" << endl;
+	os << tree.regs_by_name.size() << " tree reg names" << endl;
+	os << tree.fields_by_name.size() << "field names" << endl;
+	os << tree.constants_by_name.size() << "constant names" << endl;
+	os << endl;
+	return os;
+}
+QTextStream& operator<< (QTextStream& os, const def_tree_t& tree)
+{
+	os << "def_tree_t { gpus=[" << tree.gpus << "]";
+	os << "groups=[";
+	for ( auto g: tree.groups ) { os << "\t[" << *g << "] " << endl; }
+	os << endl;
+	os << tree.defs_by_name.size() << "\ttree def names" << endl;
+	os << tree.regs_by_name.size() << "\ttree reg names" << endl;
+	os << tree.fields_by_name.size() << "\ttree field names" << endl;
+	os << tree.constants_by_name.size() << "\ttree constant names" << endl;
+	os << endl;
+	return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const gpu_set_t &gpus)
+{
+	for (auto g : gpus ) {
+		os << g->name() << " ";
+	}
+	return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const gpu_list_t &gpus)
+{
+	for (auto g : gpus ) {
+		os << g->name() << " ";
+	}
+	return os;
+
+}
+QTextStream &operator<<(QTextStream &os, const gpu_set_t &gpus)
+{
+	for (auto g : gpus ) {
+		os << g->name().c_str() << " ";
+	}
+	return os;
+}
+
+QTextStream &operator<<(QTextStream &os, const gpu_list_t &gpus)
+{
+	for (auto g : gpus ) {
+		os << g->name().c_str() << " ";
+	}
+	return os;
+
 }

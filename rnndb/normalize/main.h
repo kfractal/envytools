@@ -167,13 +167,13 @@ protected:
 	int handle_no_token(QXmlStreamReader &e);
 
 	QSet<gpuid_t *>variants_to_gpus(const QString &);
-	QString gpus_to_variants(gpu_set_t &);
+	QString gpus_to_variants(const gpu_set_t &);
 
 	QMap<QString, QSet<gpuid_t *>> variant_map;
 	QMap<uint64_t, QString> gpu_set_variant_map;
 
 	struct {
-		set<string> groups;
+		set<string> group_names;
 		map<string, set<group_def_t *>> groups_by_name;
 		map<string, set<const_def_t *>> constants_by_name;		
 		map<string, map<int64_t, set<const_def_t *>>> constants_by_name_and_value;
@@ -183,9 +183,15 @@ protected:
 		map<uint64_t, map<string, set<reg_def_t *>>> regs_by_value_and_name;
 		map<string, set<field_def_t *>> fields_by_name;
 		map<string, map< pair<size_t, size_t>, set<field_def_t *>>> fields_by_name_and_value;
+
+		def_tree_t *coalesced;
+		// map<string, group_def_t *> coalesced_groups_by_name;
 	} def;
-	void process_defs();
+	def_tree_t *process_defs();
 	void update_defs();
+	void coalesce_defs();
+	void coalesce_groups(def_tree_t *, string, set<group_def_t*> &);
+	def_tree_t *clone_def_trees(def_tree_t *);
 
 	multimap<string, defn_t *> intersected_defns;
 	multimap<string, defn_t *> _symbol_defns;
@@ -196,6 +202,7 @@ protected:
 	set<string> hit_fields;
 	set<string> hit_constants;
 	void produce_register_content(defn_val_t *reg_defn_val, file_content_t *content);
+	void produce_register_content(reg_def_t *reg_defn_val, file_content_t *content);
 };
 
 uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);

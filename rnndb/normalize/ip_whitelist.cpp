@@ -36,14 +36,13 @@ map<string, reg_t *>      register_whitelist;
 map<string, offset_t *>   offset_whitelist;
 map<string, word_t *>     word_whitelist;
 map<string, scope_t *>    scope_whitelist;
+map<string, field_t *>    field_whitelist;
+map<string, constant_t *> constant_whitelist;
 
 map<string, deleted_reg_t *>      deleted_register_whitelist;
 map<string, deleted_offset_t *>   deleted_offset_whitelist;
 map<string, deleted_word_t *>     deleted_word_whitelist;
 map<string, deleted_scope_t *>    deleted_scope_whitelist;
-
-map<string, field_t *>    field_whitelist;
-map<string, constant_t *> constant_whitelist;
 
 vector<string> whitelist_gpus{ "gk20a", "gm20b" };
 void emit_groups_gk20a();
@@ -72,29 +71,26 @@ static void init_gpu_symbol_whitelist(const string &wl_gpu)
 	map<string, ip_whitelist::offset_t *>   * offsets   = ip_whitelist::get_offsets();
 	map<string, ip_whitelist::word_t *>     * words     = ip_whitelist::get_words();
 	map<string, ip_whitelist::scope_t *>    * scopes    = ip_whitelist::get_scopes();
-
-	map<string, ip_whitelist::deleted_reg_t *>      * deleted_regs     = ip_whitelist::get_deleted_regs();
-	map<string, ip_whitelist::deleted_offset_t *>   * deleted_offsets  = ip_whitelist::get_deleted_offsets();
-	map<string, ip_whitelist::deleted_word_t *>     * deleted_words    = ip_whitelist::get_deleted_words();
-	map<string, ip_whitelist::deleted_scope_t *>    * deleted_scopes   = ip_whitelist::get_deleted_scopes();
-
-
-
 	map<string, ip_whitelist::field_t *>    * fields    = ip_whitelist::get_fields();
 	map<string, ip_whitelist::constant_t *> * constants = ip_whitelist::get_constants();
+
+	map<string, ip_whitelist::deleted_reg_t *>    * deleted_regs    = ip_whitelist::get_deleted_regs();
+	map<string, ip_whitelist::deleted_offset_t *> * deleted_offsets = ip_whitelist::get_deleted_offsets();
+	map<string, ip_whitelist::deleted_word_t *>   * deleted_words   = ip_whitelist::get_deleted_words();
+	map<string, ip_whitelist::deleted_scope_t *>  * deleted_scopes  = ip_whitelist::get_deleted_scopes();
 
 	for (auto g : *groups)    chip_groups.   insert(g);
 	for (auto r : *regs)      chip_regs.     insert(r);
 	for (auto o : *offsets)   chip_offsets.  insert(o);
 	for (auto w : *words)     chip_words.    insert(w);
-
-	for (auto dr : *deleted_regs)    chip_deleted_regs.    insert(dr);
-	for (auto dw : *deleted_words)   chip_deleted_words.   insert(dw);
-	for (auto d_o : *deleted_offsets) chip_deleted_offsets. insert(d_o);
-	for (auto dr : *deleted_scopes)  chip_deleted_scopes.  insert(dr);
-
 	for (auto f : *fields)    chip_fields.   insert(f);
 	for (auto c : *constants) chip_constants.insert(c);
+
+	for (auto dr : *deleted_regs)     chip_deleted_regs.  insert(dr);
+	for (auto dw : *deleted_words)    chip_deleted_words. insert(dw);
+	for (auto d_o: *deleted_offsets) chip_deleted_offsets.insert(d_o);
+	for (auto dr : *deleted_scopes)   chip_deleted_scopes.insert(dr);
+
 }
 
 multimap<string, ip_whitelist::group_t *>    chip_groups;
@@ -102,16 +98,13 @@ multimap<string, ip_whitelist::reg_t *>      chip_regs;
 multimap<string, ip_whitelist::word_t *>     chip_words;
 multimap<string, ip_whitelist::offset_t *>   chip_offsets;
 multimap<string, ip_whitelist::scope_t *>    chip_scopes;
-
-multimap<string, ip_whitelist::deleted_reg_t *>      chip_deleted_regs;
-multimap<string, ip_whitelist::deleted_word_t *>     chip_deleted_words;
-multimap<string, ip_whitelist::deleted_offset_t *>   chip_deleted_offsets;
-multimap<string, ip_whitelist::deleted_scope_t *>    chip_deleted_scopes;
-
-
 multimap<string, ip_whitelist::field_t *>    chip_fields;
 multimap<string, ip_whitelist::constant_t *> chip_constants;
 
+multimap<string, ip_whitelist::deleted_reg_t *>    chip_deleted_regs;
+multimap<string, ip_whitelist::deleted_word_t *>   chip_deleted_words;
+multimap<string, ip_whitelist::deleted_offset_t *> chip_deleted_offsets;
+multimap<string, ip_whitelist::deleted_scope_t *>  chip_deleted_scopes;
 
 // current scoping state
 static void * at_scope = 0;
@@ -135,13 +128,13 @@ static map<string, group_t *>    * groups    = new map<string, group_t *>   ();
 static map<string, reg_t *>      * regs      = new map<string, reg_t *>     ();
 static map<string, offset_t *>   * offsets   = new map<string, offset_t *>  ();
 static map<string, word_t *>     * words     = new map<string, word_t *>    ();
-static map<string, scope_t *>     * scopes    = new map<string, scope_t *>    ();
-static map<string, deleted_reg_t *> * deleted_regs   = new map<string, deleted_reg_t *>     ();
-static map<string, deleted_offset_t *>   * deleted_offsets   = new map<string, deleted_offset_t *>  ();
-static map<string, deleted_word_t *>     * deleted_words     = new map<string, deleted_word_t *>    ();
-static map<string, deleted_scope_t *>     * deleted_scopes     = new map<string, deleted_scope_t *>    ();
+static map<string, scope_t *>    * scopes    = new map<string, scope_t *>   ();
 static map<string, field_t *>    * fields    = new map<string, field_t *>   ();
 static map<string, constant_t *> * constants = new map<string, constant_t *>();
+static map<string, deleted_reg_t *>    * deleted_regs    = new map<string, deleted_reg_t *>   ();
+static map<string, deleted_offset_t *> * deleted_offsets = new map<string, deleted_offset_t *>();
+static map<string, deleted_word_t *>   * deleted_words   = new map<string, deleted_word_t *>  ();
+static map<string, deleted_scope_t *>  * deleted_scopes  = new map<string, deleted_scope_t *> ();
 
 void begin_group(group_t *g)
 {
@@ -229,13 +222,13 @@ void emit_register(reg_t *r)
 	R = r;
 
 	offset_t *offset = dynamic_cast<offset_t*>(r);
-	word_t   *word   = dynamic_cast<word_t*>(r);
-	scope_t  *scope  = dynamic_cast<scope_t*>(r);
+	word_t   *word   = dynamic_cast<word_t*>  (r);
+	scope_t  *scope  = dynamic_cast<scope_t*> (r);
 
-	deleted_reg_t    *deleted_reg    = dynamic_cast<deleted_reg_t*>(r);
+	deleted_reg_t    *deleted_reg    = dynamic_cast<deleted_reg_t*>   (r);
 	deleted_offset_t *deleted_offset = dynamic_cast<deleted_offset_t*>(r);
-	deleted_word_t   *deleted_word   = dynamic_cast<deleted_word_t*>(r);
-	deleted_scope_t  *deleted_scope  = dynamic_cast<deleted_scope_t*>(r);
+	deleted_word_t   *deleted_word   = dynamic_cast<deleted_word_t*>  (r);
+	deleted_scope_t  *deleted_scope  = dynamic_cast<deleted_scope_t*> (r);
 
 	DR = deleted_reg;
 	DO = deleted_offset;
@@ -423,60 +416,66 @@ void emit_constant(constant_t *c)
 	(*constants)[C->def] = C;
 }
 
-
 map<string, group_t *> *get_groups()
 {
 	return groups;
 	groups = new map<string, group_t*>();
 }
+
 map<string, reg_t *> *get_regs()
 {
 	return regs;
 	regs = new map<string, reg_t *>();
 }
+
 map<string, deleted_reg_t *> *get_deleted_regs()
 {
 	return deleted_regs;
 	deleted_regs = new map<string, deleted_reg_t *>();
 }
+
 map<string, word_t *> *get_words()
 {
 	return words;
 	words = new map<string, word_t *>();
 }
+
 map<string, scope_t *> *get_scopes()
 {
 	return scopes;
 	scopes = new map<string, scope_t *>();
 }
+
 map<string, offset_t *> *get_offsets()
 {
 	return offsets;
 	offsets = new map<string, offset_t *>();
 }
+
 map<string, deleted_word_t *> *get_deleted_words()
 {
 	return deleted_words;
 	deleted_words = new map<string, deleted_word_t *>();
 }
+
 map<string, deleted_offset_t *> *get_deleted_offsets()
 {
 	return deleted_offsets;
 	deleted_offsets = new map<string, deleted_offset_t *>();
 }
+
 map<string, deleted_scope_t *> *get_deleted_scopes()
 {
 	return deleted_scopes;
 	deleted_scopes = new map<string, deleted_scope_t *>();
 }
 
-
-
 map<string, field_t *> *get_fields()
 {
 	return fields;
 	fields = new map<string, field_t *>();
 }
+
 map<string, constant_t *> *get_constants()
 {
 	return constants;
@@ -484,4 +483,4 @@ map<string, constant_t *> *get_constants()
 }
 
 
-}
+} // ip_whitelist namespace
