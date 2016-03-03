@@ -56,45 +56,6 @@ Main::Main(int &argc, char **argv) :
 	_validator.setMessageHandler(&_validator_msg_handler);
 }
 
-bool compare_registers(defn_val_t *reg_a, defn_val_t *reg_b)
-{
-	if ( reg_a->evaluated && reg_b->evaluated ) {
-		if ( reg_a->evaluation.result.val == reg_b->evaluation.result.val ) {
-			return reg_a->defn->symbol < reg_b->defn->symbol;
-		}
-		return reg_a->evaluation.result.val < reg_b->evaluation.result.val;
-	}
-	return reg_a->val < reg_b->val;
-}
-
-
-bool compare_fields(defn_val_t *field_a, defn_val_t *field_b)
-{
-	if ( field_a->evaluated && field_b->evaluated ) {
-		if ( field_a->evaluation.result.field.low != field_b->evaluation.result.field.low ) {
-			return field_a->evaluation.result.field.low < field_b->evaluation.result.field.low;
-		}
-		// low_a == low_b
-		if ( field_a->evaluation.result.field.high != field_b->evaluation.result.field.high ) {
-			// low_a == low_b , high_a != high_b
-			return field_a->evaluation.result.field.high < field_b->evaluation.result.field.high;
-		}
-		// how_a == low_b, high_a == high_b
-		return field_a->defn->symbol < field_b->defn->symbol;
-	}
-	return field_a->val < field_b->val;
-}
-
-
-bool compare_constants(defn_val_t *const_a, defn_val_t *const_b)
-{
-	if (const_a->evaluated && const_b->evaluated) {
-		if ( const_a->evaluation.result.val != const_b->evaluation.result.val )
-			return const_a->evaluation.result.val < const_b->evaluation.result.val;
-	}
-	return const_a->defn->symbol < const_a->defn->symbol;
-}
-
 
 void Main::start()
 {
@@ -107,13 +68,8 @@ void Main::start()
 	def_tree_t *aggregate_tree = new def_tree_t(gpu_def_trees);
 	def_tree_t *coalesced_tree = new def_tree_t(aggregate_tree);
 
-	out() << "aggregate tree { " << *aggregate_tree << " } " << endl;
-	out() << "coalesced tree { " << *coalesced_tree << " } " << endl;
-
-	/*
-	_defns = get_defns();
-	_defn_index = get_defn_index();
-	*/
+	//	out() << "aggregate tree { " << *aggregate_tree << " } " << endl;
+	//	out() << "coalesced tree { " << *coalesced_tree << " } " << endl;
 
 	out() << "info: processed nvidia hwref files for" << endl;
 	for ( auto &t: target_gpus ) {
@@ -155,22 +111,6 @@ void Main::start()
 		}
 	}
 
-#if 0
-	for (auto t : target_gpus ) {
-		out() << QString("info: found ") << t->defines()->size() <<
-			QString(" whitelisted definitions for ") <<
-			QString::fromStdString(t->name()) << endl;
-	}
-
-
-	for ( auto defn : *_defns ) {
-		for ( auto &val : defn->vals ) {
-			out() << "defn: " << QString::fromStdString(defn->symbol) << " = " <<
-				QString::fromStdString(val->val) <<
-				" for " << gpus_to_variants(val->gpus) << endl;
-		}
-	}
-#endif
 	update_defs();
 	
 	// write out the xml files.
@@ -197,46 +137,16 @@ void Main::start()
 	QString ns;
 
 	file_content_t addit("results/additions.xml");
-	//struct file_content_t {
-	//	QList<xml_node_t *> nodes;
-	//	QStack<xml_node_t *> current_node;
-	//	QString _path;
-	//	xml_node_t *last_node;
-	//	file_content_t () : _path(QString()), last_node(0) { }
-	//	file_content_t (const QString &path) : _path(path), last_node(0) { }
-	//};
 
-
-	// any information which hasn't already been added or updated (in-place), do so now.
-#if 0
-	vector<defn_val_t *> sorted_regs;
-
-	for ( auto reg_i : __register_index ) {
-		defn_t *r = reg_i.second;
-		//		if ( hit_regs.find(r->symbol) != hit_regs.end() ) {
-		//			// done already
-		//			continue;
-		//		}
-		for ( auto reg_val_i : r->vals ) {
-			if ( hit_regs.find(reg_val_i) == hit_regs.end() )
-				sorted_regs.push_back(reg_val_i);
-		}
-	}
-
-	sort(sorted_regs.begin(), sorted_regs.end(), compare_registers);
-	for ( auto reg : sorted_regs ) {
-		produce_register_content(reg, &addit);
-	}
-#endif
-
-	for ( auto name : def.regs_by_name_and_value ) {
-		for ( auto val : name.second ) {
-			for (auto reg_def: val.second ) {
-				produce_register_content(reg_def, &addit);
+	for ( auto group_set : coalesced_tree->groups_by_name ) {
+		for ( auto group : group_set.second ) {
+			for ( auto reg_set : group->regs_by_name ) {
+				for ( auto reg : reg_set.second ) {
+					produce_register_content(reg, &addit);
+				}
 			}
 		}
 	}
-
 
 	QXmlStreamWriter out_xml(&out_file);
 	out_xml.setAutoFormatting(true);
@@ -909,113 +819,6 @@ int Main::handle_reg32(QXmlStreamReader &e)
 		}
 	}
 
-#if 0
-	auto ri = reg_val_index.equal_range(absolute_offset);
-
-	for ( auto rii = ri.first; rii != ri.second; ++rii) {
-		defn_val_t *reg_defn_val = rii->second;
-
-		if ( hit_regs.find(reg_defn_val) != hit_regs.end() ) {
-			continue;
-		}
-		hit_regs.insert(reg_defn_val);
-
-		out() << "info: register offset matched for 0x" << hex << absolute_offset <<
-			" -> " << qStr(reg_defn_val->defn->symbol) << " @ " <<
-			"0x" << hex << reg_defn_val->evaluation.result.val << endl;
-
-		map<string, set<string>> field_accum;
-		set<string> field_defns;
-		set<string> constant_defns;
-
-		for ( auto reg_i : reg_defn_val->defn->regs ) {
-			ip_whitelist::reg_t *reg = reg_i;
-			for ( auto bf_i : reg->fields ) {
-				ip_whitelist::field_t *bf = bf_i.second;
-				field_defns.insert(bf->def);
-				hit_fields.insert(bf->def);
-				for ( auto co_i : bf->constants ) {
-					ip_whitelist::constant_t *co = co_i.second;
-					constant_defns.insert(co->def);
-					field_accum[bf->def].insert(co->def);
-					hit_constants.insert(co->def);
-				}
-			}
-		}
-
-
-		QXmlStreamAttributes attrs;
-
-		uint64_t relative_offset = absolute_offset - inherited_offset;
-
-		attrs.append( qStr("offset"),   qStr(to_hex(relative_offset)));
-		attrs.append( qStr("name"),     qStr(reg_defn_val->defn->symbol));
-		attrs.append( qStr("variants"), gpus_to_variants(reg_defn_val->gpus));
-
-		xml_element_node_t *new_reg32 = new xml_element_node_t("reg32", attrs);
-
-		enode->parent->nodes.append( new_reg32 );
-
-		for ( auto field : field_defns ) {
-			auto find_field_defn = __field_index.find(field);
-			if ( find_field_defn == __field_index.end() ) {
-				continue;
-			}
-			defn_t *field_defn = find_field_defn->second;
-
-			for ( auto field_val_i : field_defn->vals ) {
-				QXmlStreamAttributes field_attrs;
-
-				field_attrs.append( qStr("name"), qStr(field) );
-
-				if ( field_val_i->evaluated ) {
-					stringstream low, high;
-					low  << field_val_i->evaluation.result.field.low;
-					high << field_val_i->evaluation.result.field.high;
-
-					if ( field_val_i->evaluation.result.field.low == 
-						 field_val_i->evaluation.result.field.high) {
-						field_attrs.append( qStr("pos"), qStr(low.str()) );
-					} else {
-						field_attrs.append( qStr("high"), qStr(high.str()) );
-						field_attrs.append( qStr("low"), qStr(low.str()) );
-					}
-
-				} else {
-					field_attrs.append( qStr("value"), qStr(field_val_i->val) );
-				}
-				QString variants = gpus_to_variants(field_val_i->gpus);
-				field_attrs.append( qStr("variants") , variants);
-				auto new_field = new xml_element_node_t("bitfield", field_attrs, new_reg32);
-				new_reg32->nodes << new_field;
-
-				for ( auto constant : field_accum[field] ) {
-					auto find_constant_def = __constant_index.find(constant);
-					if ( find_constant_def == __constant_index.end() ) {
-						continue;
-					}
-					defn_t *constant_def = find_constant_def->second;
-					for ( auto constant_val : constant_def->vals ) {
-						//							defn_val_t *constant_val = constant_val_i;
-						QXmlStreamAttributes co_attrs;
-						if ( constant_val->evaluated ) {
-							stringstream ss; ss << constant_val->evaluation.result.val;
-							co_attrs.append( qStr("value"), qStr(ss.str()));
-						} else {
-							co_attrs.append( qStr("value"), qStr(constant_val->val));
-						}
-						co_attrs.append( qStr("name"), qStr(constant) );
-						QString variants = gpus_to_variants(constant_val->gpus);
-						co_attrs.append( qStr("variants") , variants);
-						xml_element_node_t *new_constant =
-							new xml_element_node_t("value", co_attrs, new_field);
-						new_field->nodes << new_constant;
-					}
-				}
-			}
-		}
-	}
-#endif
 	return 0;
 }
 
@@ -1456,17 +1259,6 @@ void Main::emit_file(const QString &rel_name)
 }
 
 
-// - variants [optional]: space-separated list of and variant ranges that this
-//   register is present on. The items of this list can be:
-//    - var1: a single variant
-//    - var1-var2: all variants starting with var1 up to and including var2
-//    - var1:var2: all variants starting with var1 up to, but not including var2
-//    - :var1: all variants before var1
-//    - -var1: all variants up to and including var1
-//    - var1-: all variants starting from var1
-
-
-
 gpuid_t *target_gpu_by_name(const QString &gpu_name)
 {
 	auto f = target_gpus_by_name.find(gpu_name.toLower().toStdString());
@@ -1474,8 +1266,6 @@ gpuid_t *target_gpu_by_name(const QString &gpu_name)
 		return 0;
 	return f->second;
 }
-
-
 
 QString Main::gpus_to_variants(const gpu_set_t &gpus)
 {
@@ -1787,160 +1577,92 @@ void Main::update_defs()
 }
 
 
+bool compare_fields(field_def_t *field_a, field_def_t *field_b)
+{
+	if ( field_a->low != field_b->low ) {
+		return field_a->low < field_b->low;
+	}
 
-//
-// for a specific register (symbol and value pair) enumerate all the
-// various fields and constants associated with them.
-// spew all of them out at once.
-//
+	// low_a == low_b
+	if ( field_a->high != field_b->high ) {
+		// low_a == low_b , high_a != high_b
+		return field_a->high < field_b->high;
+	}
+	// how_a == low_b, high_a == high_b
+	return field_a->symbol < field_b->symbol;
+}
 
-//
-// defn_t     := symbol + type + { defn_val_t *, defn_val_t *, ... };
-// defn_val_t := distinct evaluation value + -> defn_t(to symbol)
-//
-// reg_t := symbol + reg + {field_t *, field_t *, ... }
-// field_t
-// 
+void Main::produce_const_content(const_def_t *const_def, xml_element_node_t *parent_node)
+{
+	QXmlStreamAttributes const_attrs;
+	stringstream ss;
+	ss << const_def->val;
+	const_attrs.append( qStr("value"), qStr(ss.str()));
+	const_attrs.append( qStr("name"), qStr(const_def->symbol) );
+	const_attrs.append( qStr("variants"), gpus_to_variants(const_def->def_gpus));
+	xml_element_node_t *new_constant =
+		new xml_element_node_t("value", const_attrs, parent_node);
+	parent_node->nodes << new_constant;
+}
 
+bool compare_constants(const_def_t *const_a, const_def_t *const_b)
+{
+	if ( const_a->val != const_b->val )
+		return const_a->val < const_b->val;
+	return const_a->symbol < const_a->symbol;
+}
 
+void Main::produce_field_content(field_def_t *field, xml_element_node_t *parent_reg)
+{
+	QXmlStreamAttributes field_attrs;
+	field_attrs.append(qStr("name"), qStr(field->symbol));
+	stringstream high; high << field->high;
+	stringstream low; low  << field->low;
+	if ( high.str() == low.str() ) {
+		field_attrs.append(qStr("pos"), qStr(low.str()));
+	} else {
+		field_attrs.append(qStr("high"), qStr(high.str()));
+		field_attrs.append(qStr("low"), qStr(low.str()));
+	}
+	field_attrs.append(qStr("variants"), gpus_to_variants(field->def_gpus));
+
+	xml_element_node_t *field_node = 
+		new xml_element_node_t("bitfield", field_attrs, parent_reg);
+	parent_reg->nodes << field_node;
+
+	vector<const_def_t *> sorted_consts;
+	for ( auto fc : field->constants_by_name ) {
+		for ( auto c : fc.second ) {
+			sorted_consts.push_back(c);
+		}
+	}
+	sort(sorted_consts.begin(), sorted_consts.end(), compare_constants);
+	for ( auto constant : sorted_consts ) {
+		produce_const_content(constant, field_node);
+	}
+}
 
 void Main::produce_register_content(reg_def_t *reg_def, file_content_t *content)
 {
-#if 0
+
 	QXmlStreamAttributes reg_attrs;
 	stringstream ss;
-	ss << "0x" << hex << reg_def->val->evaluation.result.val;
+	ss << "0x" << hex << reg_def->val;
 	reg_attrs.append( qStr("offset"),   qStr(ss.str()));
-
-	reg_attrs.append( qStr("name"),     qStr(reg_defn_val->defn->symbol));
-	reg_attrs.append( qStr("variants"), gpus_to_variants(reg_defn_val->gpus));
+	reg_attrs.append( qStr("name"),     qStr(reg_def->symbol));
+	reg_attrs.append( qStr("variants"), gpus_to_variants(reg_def->def_gpus));
 	xml_element_node_t *new_reg32 = new xml_element_node_t("reg32", reg_attrs);
-	content->nodes.append( new_reg32 );
-#endif
-}
 
-void Main::produce_register_content(defn_val_t *reg_defn_val, file_content_t *content)
-{
-#if 0
-	hit_regs.insert(reg_defn_val);
-
-	map<defn_val_t *, set<defn_val_t *> > field_accum;
-	set<defn_val_t *> field_defn_vals;
-	//	set<string> constant_defn_vals;
-
-	for ( auto reg_i : reg_defn_val->defn->regs ) {
-		ip_whitelist::reg_t *reg = reg_i;
-
-		for ( auto bf_i : reg->fields ) {
-			ip_whitelist::field_t *bf = bf_i.second;
-
-			defn_t *field_defn = __field_index.at(bf->def);
-			for ( auto field_defn_val : field_defn->vals ) {
-				field_defn_vals.insert(field_defn_val);
-			}
-
-			for ( auto field_defn_val : field_defn_vals ) {
-				for ( auto co_i : bf->constants ) {
-					ip_whitelist::constant_t *co = co_i.second;
-					defn_t *const_defn = __constant_index.at(co->def);
-					for ( auto const_defn_val : const_defn->vals ) {
-						field_accum[field_defn_val].insert(const_defn_val);
-					}
-
-				}
-			}
-#if 0
-			for ( auto co_i : bf->constants ) {
-				ip_whitelist::constant_t *co = co_i.second;
-				defn_t *const_defn = __constant_index.at(co->def);
-				for ( auto const_defn_val : const_defn->vals ) {
-					field_accum[const_defn_val].insert(const_defn_val);
-				}
-				//				constant_defns.insert(co->def);
-				//				field_accum[bf->def].insert(co->def);
-			}
-#endif
+	vector<field_def_t *> sorted_fields;
+	for ( auto ff : reg_def->fields_by_name ) {
+		for ( auto f : ff.second ) {
+			sorted_fields.push_back(f);
 		}
 	}
-
-	vector<defn_val_t *> sorted_fields(field_defn_vals.begin(), field_defn_vals.end());
-	sort (sorted_fields.begin(), sorted_fields.end(), compare_fields);
-
-	QXmlStreamAttributes reg_attrs;
-	if ( reg_defn_val->evaluated ) {
-		stringstream ss;
-		ss << "0x" << hex << reg_defn_val->evaluation.result.val;
-		reg_attrs.append( qStr("offset"),   qStr(ss.str()));
-	} else {
-		reg_attrs.append( qStr("not_evaluated offset"),   qStr(reg_defn_val->val));
-	}
-
-	reg_attrs.append( qStr("name"),     qStr(reg_defn_val->defn->symbol));
-	reg_attrs.append( qStr("variants"), gpus_to_variants(reg_defn_val->gpus));
-	xml_element_node_t *new_reg32 = new xml_element_node_t("reg32", reg_attrs);
-	content->nodes.append( new_reg32 );
-
 	for ( auto field : sorted_fields ) {
-		defn_val_t * field_val_i = field;
-		QXmlStreamAttributes field_attrs;
-		field_attrs.append( qStr("name"), qStr(field->defn->symbol) );
-		QString variants = gpus_to_variants(field_val_i->gpus);
-		if ( field_val_i->evaluated ) {
-			stringstream low, high;
-			low  << field_val_i->evaluation.result.field.low;
-			high << field_val_i->evaluation.result.field.high;
-			if ( field_val_i->evaluation.result.field.low == 
-				 field_val_i->evaluation.result.field.high ) {
-				field_attrs.append( qStr("pos"), qStr(low.str()) );
-			} else {
-				field_attrs.append( qStr("high"), qStr(high.str()) );
-				field_attrs.append( qStr("low"), qStr(low.str()) );
-			}
-		} else {
-			throw runtime_error("unevaluated field value" + 
-								field_val_i->defn->symbol + "on gpus" +
-								variants.toStdString());
-		}
-		field_attrs.append( qStr("variants") , variants);
-		xml_element_node_t *new_field = 
-			new xml_element_node_t("bitfield", field_attrs, new_reg32);
-		new_reg32->nodes << new_field;
-
-		vector<defn_val_t *> sorted_constants;
-
-		for ( auto constant_val : field_accum[field_val_i] ) {
-			sorted_constants.push_back(constant_val);
-#if 0
-			auto find_constant_def = __constant_index.find(constant);
-			if ( find_constant_def == __constant_index.end() ) {
-				continue;
-			}
-			defn_t *constant_def = find_constant_def->second;
-			for ( auto constant_val_i : constant_def->vals ) {
-				defn_val_t *constant_val = constant_val_i;
-				sorted_constants.push_back(constant_val);
-			}
-#endif
-		}
-				
-		sort (sorted_constants.begin(), sorted_constants.end(), compare_constants);
-
-		for ( auto constant_val : sorted_constants ) {
-			QXmlStreamAttributes co_attrs;
-			if ( constant_val->evaluated ) {
-				stringstream ss;
-				ss << constant_val->evaluation.result.val;
-				co_attrs.append( qStr("value"),   qStr(ss.str()));
-			} else {
-				co_attrs.append( qStr("not_evaluated_value"),   qStr(constant_val->val));
-			}
-			co_attrs.append( qStr("name"), qStr(constant_val->defn->symbol) );
-			QString variants = gpus_to_variants(constant_val->gpus);
-			co_attrs.append( qStr("variants") , variants);
-			xml_element_node_t *new_constant =
-				new xml_element_node_t("value", co_attrs, new_field);
-			new_field->nodes << new_constant;
-		}
+		produce_field_content(field, new_reg32);
 	}
-#endif
+	content->nodes.append( new_reg32 );
+
 }
+

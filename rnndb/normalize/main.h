@@ -193,16 +193,11 @@ protected:
 	void coalesce_groups(def_tree_t *, string, set<group_def_t*> &);
 	def_tree_t *clone_def_trees(def_tree_t *);
 
-	multimap<string, defn_t *> intersected_defns;
-	multimap<string, defn_t *> _symbol_defns;
-	defn_set_t *_defns;
-	defn_index_t *_defn_index;
-
-	set<defn_val_t *> hit_regs;
 	set<string> hit_fields;
 	set<string> hit_constants;
-	void produce_register_content(defn_val_t *reg_defn_val, file_content_t *content);
 	void produce_register_content(reg_def_t *reg_defn_val, file_content_t *content);
+	void produce_field_content(field_def_t*, xml_element_node_t *p);
+	void produce_const_content(const_def_t*, xml_element_node_t *p);
 };
 
 uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);
