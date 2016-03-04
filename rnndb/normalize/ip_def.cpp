@@ -656,8 +656,8 @@ field_def_t *def_tree_t::instance_field(ip_whitelist::field_t *field)
 		fields_by_name[name].insert(field_def);
 		if ( field->reg ) {
 			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(field->reg);
-			ip_whitelist::word_t *w = dynamic_cast<ip_whitelist::word_t *>(field->reg);
-			ip_whitelist::scope_t *s = dynamic_cast<ip_whitelist::scope_t *>(field->reg);
+			ip_whitelist::word_t   *w = dynamic_cast<ip_whitelist::word_t *>  (field->reg);
+			ip_whitelist::scope_t  *s = dynamic_cast<ip_whitelist::scope_t *> (field->reg);
 			if ( o ) {
 				offset_def_t *parent_offset = instance_offset(o);
 				parent_offset->fields_by_name[name].insert(field_def);
@@ -892,7 +892,6 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 		// the whitelist has that information.
 		//
 
-
 		wl_regs_iterator_t    find_wl_reg    = ip_whitelist::chip_regs.find    (def_match);
 		wl_offsets_iterator_t find_wl_offset = ip_whitelist::chip_offsets.find (def_match);
 		wl_words_iterator_t   find_wl_word   = ip_whitelist::chip_words.find   (def_match);
@@ -960,34 +959,30 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 
 		if ( is_reg || is_word || is_offset || is_scope ) {
 			// this path is begging for a simplification/refactoring.
+
 			if ( is_offset ) {
 				offset_def_t *offset_def = def_tree->instance_offset(find_wl_offset->second);
-				offset_def->val = val.result.val;
-				def_tree->offsets_by_name[def_match].insert(offset_def);
+				offset_def->set_val(val.result.val);
 			} else if ( is_word ) {
 				word_def_t *word_def = def_tree->instance_word(find_wl_word->second);
-				word_def->val = val.result.val;
-				def_tree->words_by_name[def_match].insert(word_def);
+				word_def->set_val(val.result.val);
 			}else if ( is_reg ) {
 				reg_def_t *reg_def = def_tree->instance_reg(find_wl_reg->second);
-				reg_def->val = val.result.val;
-				def_tree->regs_by_name[def_match].insert(reg_def);
+				reg_def->set_val(val.result.val);
 			} else if ( is_scope) {
 				scope_def_t *scope_def = def_tree->instance_scope(find_wl_scope->second);
-				scope_def->val = val.result.val;
-				def_tree->scopes_by_name[def_match].insert(scope_def);
+				scope_def->set_val(val.result.val);
 			} 
 		} else if (is_deleted_reg || is_deleted_word || is_deleted_offset || is_deleted_scope) {
 
 		} else if ( is_field ) {
 			ip_whitelist::field_t *field = find_wl_field->second;
 			field_def_t *field_def = def_tree->instance_field(field);
-			field_def->high = val.result.field.high;
-			field_def->low  = val.result.field.low;
+			field_def->set_field(val.result.field.high, val.result.field.low);
 		} else if ( is_constant ) {
 			ip_whitelist::constant_t *constant = find_wl_constant->second;
 			const_def_t *const_def = def_tree->instance_const(constant);
-			const_def->val = val.result.val;
+			const_def->set_val(val.result.val);
 		} else if (is_group) {
 			ip_whitelist::group_t *group = find_wl_group->second;
 			group_def_t *group_def = def_tree->instance_group(group);
@@ -1134,13 +1129,11 @@ def_tree_t::def_tree_t(vector<def_tree_t *> &gpu_def_trees)
 		}
 		for ( auto reg_set : gpu_def_tree->regs_by_name ) {
 			for ( auto reg : reg_set.second ) {
-				regs_by_val[reg->val].insert(reg);
 				regs_by_name[reg_set.first].insert(reg);
 			}
 		}
 		for ( auto offset_set : gpu_def_tree->offsets_by_name ) {
 			for ( auto offset : offset_set.second ) {
-				//			offsets_by_val[offset->val].insert(offset);
 				offsets_by_name[offset_set.first].insert(offset);
 			}
 		}
@@ -1234,10 +1227,10 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 			else if ( new_deleted_offset_def ) { }
 			else if ( new_deleted_word_def   ) { }
 			else if ( new_deleted_scope_def  ) { }
-			else if ( new_reg_def    ) { new_regs_by_name   [name].insert(new_reg_def);    }
 			else if ( new_offset_def ) { new_offsets_by_name[name].insert(new_offset_def); }
 			else if ( new_word_def   ) { new_words_by_name  [name].insert(new_word_def);   }
 			else if ( new_scope_def  ) { new_scopes_by_name [name].insert(new_scope_def);  }
+			else if ( new_reg_def    ) { new_regs_by_name   [name].insert(new_reg_def);    }
 			else if ( new_field_def  ) { new_fields_by_name [name].insert(new_field_def);  }
 			else if ( new_const_def  ) { new_consts_by_name [name].insert(new_const_def);  }
 			else if ( new_group_def  ) { new_groups_by_name [name].insert(new_group_def);  }
@@ -1288,9 +1281,28 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 				correlates[(*ri)] = fr; // new->new, used later to implement coalescing
 			}
 			regs_by_name[name].insert(fr);
-			regs_by_val[v].insert(fr);
 			defs_by_name[name].insert(fr);
 		}
+
+		//
+		// offsets, all with the same name, possibly split across multiple values
+		//
+		map< uint64_t, offset_def_set_t > new_offsets_with_value;
+		for ( auto offset_def : new_offsets_with_name ) {
+			new_offsets_with_value[offset_def->val].insert(offset_def);
+		}
+		for ( auto ov : new_offsets_with_value ) {
+			uint64_t v = ov.first; offset_def_set_t &os = ov.second;
+			// take first, coalesce into it.  drop the others.
+			offset_def_t *fo = *os.begin();
+			for ( auto oi = ++os.begin(); oi != os.end(); oi++ ){
+				fo->def_gpus.insert((*oi)->def_gpus.begin(), (*oi)->def_gpus.end());
+				correlates[(*oi)] = fo; // new->new, used later to implement coalescing
+			}
+			offsets_by_name[name].insert(fo);
+			defs_by_name[name].insert(fo);
+		}
+
 
 		//
 		// fields, all with the same name, possibly split across multiple values
@@ -1369,6 +1381,7 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 				group_def_t *original_group = dynamic_cast<group_def_t *>(_original_group);
 				assert(original_group);
 				assert( correlates[_original_group] == group_def );
+
 				// regs
 				for ( auto reg_set : original_group->regs_by_name ) {
 					for (auto orig_child_reg : reg_set.second ) {
@@ -1377,6 +1390,20 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 						group_def->regs_by_name[new_reg->symbol].insert(new_reg);
 					}
 				}
+
+				// offsets
+				for ( auto offset_set : original_group->offsets_by_name ) {
+					for (auto orig_child_offset : offset_set.second ) {
+						offset_def_t *new_offset = dynamic_cast<offset_def_t *>(map_to_new(orig_child_offset, correlates));
+						if ( !new_offset ) { 
+							def_t *new_def = correlates[orig_child_offset];
+							assert(new_offset);
+						}
+						group_def->offsets_by_name[new_offset->symbol].insert(new_offset);
+					}
+				}
+
+
 				// now peform this same business with fields, and constants
 				for ( auto field_set : original_group->fields_by_name ) {
 					for (auto orig_child_field : field_set.second ) {
@@ -1441,6 +1468,18 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 		}
 	}
 
+
+	for ( auto offset_name_set : offsets_by_name ) {
+		offset_def_set_t &offset_set = offset_name_set.second;
+		string offset_name = offset_name_set.first;
+
+		for ( auto offset : offset_set ) {
+			def_set_t &orig_offset_set = rev_correlates[offset];
+			assert(orig_offset_set.size() == 1);
+			offset_def_t *orig_offset = dynamic_cast< offset_def_t * >(*orig_offset_set.begin());
+			assert(orig_offset);
+		}
+	}
 
 	for ( auto field_name_set : fields_by_name ) {
 		field_def_set_t &field_set = field_name_set.second;

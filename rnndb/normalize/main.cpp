@@ -66,10 +66,10 @@ void Main::start()
 	vector<def_tree_t*> gpu_def_trees = read_ip_defs();
 
 	def_tree_t *aggregate_tree = new def_tree_t(gpu_def_trees);
-	def_tree_t *coalesced_tree = new def_tree_t(aggregate_tree);
-
-	//	out() << "aggregate tree { " << *aggregate_tree << " } " << endl;
-	//	out() << "coalesced tree { " << *coalesced_tree << " } " << endl;
+	out() << "info: aggregate tree has " << aggregate_tree->offsets_by_name.size() << endl;
+	def.coalesced = new def_tree_t(aggregate_tree);
+	out() << "info: coalesced tree has " << def.coalesced->offsets_by_name.size() << endl;
+	accelerate_defs();
 
 	out() << "info: processed nvidia hwref files for" << endl;
 	for ( auto &t: target_gpus ) {
@@ -78,6 +78,9 @@ void Main::start()
 	out() << "info: the ip whitelist contains " <<
 		ip_whitelist::chip_groups.size()    << " groups, " <<
 		ip_whitelist::chip_regs.size()      << " registers, " <<
+		ip_whitelist::chip_offsets.size()      << " offsets, " <<
+		ip_whitelist::chip_words.size()      << " words, " <<
+		ip_whitelist::chip_scopes.size()      << " scopes, " <<
 		ip_whitelist::chip_fields.size()    << " fields and " <<
 		ip_whitelist::chip_constants.size() << " constants overall." << endl;
 
@@ -94,6 +97,7 @@ void Main::start()
 	defaults.zap_spec_bits(); // mark as inherited values...
 	_attr_stack.push(defaults);
 
+	// xml hierarchy traversal
 	int rc = read_rnndb_root();
 
 	if ( _warn || _verbose ) {
@@ -111,8 +115,7 @@ void Main::start()
 		}
 	}
 
-	update_defs();
-	
+
 	// write out the xml files.
 	if ( _emit_normalized_hierarchy ) {
 		for ( auto xf : _all_xml_files ) {
@@ -138,7 +141,7 @@ void Main::start()
 
 	file_content_t addit("results/additions.xml");
 
-	for ( auto group_set : coalesced_tree->groups_by_name ) {
+	for ( auto group_set : def.coalesced->groups_by_name ) {
 		for ( auto group : group_set.second ) {
 			for ( auto reg_set : group->regs_by_name ) {
 				for ( auto reg : reg_set.second ) {
@@ -806,16 +809,19 @@ int Main::handle_reg32(QXmlStreamReader &e)
 	}
 
 	//
-	// find all register defns with the same offset.
-	// the point here is to trigger an update of exising information.
-	// a later pass adds the rest of the information in a single file.
+	// Find all register defns with the same offset.
+	// The point here is to trigger an update of exising information.
+	// A later pass will add the rest of the information not already
+	// updated (additions, etc).
 	//
 	auto regs_at_value = def.regs_by_value_and_name.find(absolute_offset);
 	if ( regs_at_value != def.regs_by_value_and_name.end() ) {
+		//		out()  << "info: value 0x" << hex << absolute_offset << endl;
 		for ( auto reg_at_name : regs_at_value->second ) {
-			out() << "info: reg def offset matched for 0x" << hex << absolute_offset <<
-				" -> " << qStr(reg_at_name.first) << endl;
-			
+			//	out()  << "info:\tname " << reg_at_name.first.c_str() << endl;
+			for ( auto reg : reg_at_name.second ) {
+				//	out() << "info:\t\tgpus " << gpus_to_variants(reg->def_gpus) << endl;
+			}
 		}
 	}
 
@@ -1267,6 +1273,17 @@ gpuid_t *target_gpu_by_name(const QString &gpu_name)
 	return f->second;
 }
 
+//
+// For each specific variant set utilized, produce a list of exactly
+// which gpus are mapped to it.  This removes any ambiguity in the
+// variants' specification and still allows for human-readable use in
+// most locations.
+//
+void Main::produce_gpu_variants_content(xml_element_node_t *parent)
+{
+	//	for (auto variants_string : 
+}
+
 QString Main::gpus_to_variants(const gpu_set_t &gpus)
 {
 	uint64_t e = enumerate_gpu_set(gpus);
@@ -1521,8 +1538,22 @@ bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 }
 
 
-void Main::update_defs()
+void Main::accelerate_defs()
 {
+	// pre-compute some sets/groupings which are heavily used later.
+	for ( auto reg_set : def.coalesced->regs_by_name ) {
+		for ( auto reg : reg_set.second ) {
+			def.regs_by_value_and_name[reg->val][reg->symbol].insert(reg);
+		}
+	}
+	for ( auto reg_val_name_set : def.regs_by_value_and_name ) {
+		for ( auto reg_val_set : reg_val_name_set.second ) {
+			for ( auto reg_val : reg_val_set.second ) {
+				reg_def_t *r = reg_val;
+				out() << "val: 0x" << hex << r->val << " name: " << r->symbol.c_str() << " gpus: " << gpus_to_variants(r->def_gpus) << endl;
+			}
+		}
+	}
 #if 0
 	out() << "info: found " <<
 		ip_whitelist::chip_groups.size()    << " groups";

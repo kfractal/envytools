@@ -134,7 +134,7 @@ public:
 	map<string, group_def_set_t>  groups_by_name;
 	vector<group_def_t *>         groups;
 
-	map<uint64_t, reg_def_set_t>  regs_by_val;
+	//	map<uint64_t, reg_def_set_t>  regs_by_val;
 	map<string,   reg_def_set_t>  regs_by_name;
 
 	
@@ -158,13 +158,13 @@ public:
 	friend std::ostream& operator<< (std::ostream& os, const def_tree_t& tree);
 	friend QTextStream& operator<< (QTextStream& os, const def_tree_t& tree);
 
-	group_def_t *instance_group(ip_whitelist::group_t *g);
+	group_def_t  *instance_group (ip_whitelist::group_t  *g);
 	offset_def_t *instance_offset(ip_whitelist::offset_t *o);
-	word_def_t *instance_word(ip_whitelist::word_t *w);
-	reg_def_t *instance_reg(ip_whitelist::reg_t *r);
-	scope_def_t *instance_scope(ip_whitelist::scope_t *s);
-	field_def_t *instance_field(ip_whitelist::field_t *f);
-	const_def_t *instance_const(ip_whitelist::constant_t *c);
+	word_def_t   *instance_word  (ip_whitelist::word_t   *w);
+	reg_def_t    *instance_reg   (ip_whitelist::reg_t    *r);
+	scope_def_t  *instance_scope (ip_whitelist::scope_t  *s);
+	field_def_t  *instance_field (ip_whitelist::field_t  *f);
+	const_def_t  *instance_const (ip_whitelist::constant_t *c);
 
 	def_t *map_to_new(def_t *orig_def, map< def_t *, def_t * > &def_correlates);
 
@@ -177,7 +177,6 @@ public:
 	string symbol;
 	def_t(def_tree_t *t, const string &s, const gpu_set_t &gpus) : def_gpus(gpus), tree(t), symbol(s) { }
 	bool operator ==(const def_t &o);
-	//	virtual void coalesce(def_t *) = 0;
 	virtual def_t *clone(def_tree_t *t) { return new def_t(t, symbol, def_gpus); }
 	friend std::ostream& operator<< (std::ostream& os, const def_t& d) {
 		os << d.def_gpus;
@@ -194,11 +193,11 @@ public:
 class const_def_t : public def_t {
 public:
 	int64_t val;
+	void set_val(int64_t v) { val = v; }
 	const_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, int64_t val = 0) : def_t(t, s, g), val(val) { }
-	//	const_def_t(def_tree_t *t, const const_def_t *other) : def_t(tree, other->symbol), val(other->val) { }
+
 	bool operator ==(const const_def_t &o);
-	//	void coalesce(const_def_t *);
-	//	virtual def_t *clone();
+
 	virtual def_t *clone(def_tree_t *t) { return new const_def_t(t, symbol, def_gpus, val); }
 	friend std::ostream& operator<< (std::ostream& os, const const_def_t& d) {
 		os << d.def_gpus;
@@ -216,16 +215,14 @@ class field_def_t : public def_t {
 public:
 	size_t high;
 	size_t low;
-
+	void set_field(size_t h, size_t l) { high = h; low = l; }
 	field_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, 
 				pair<size_t, size_t> hl = make_pair(0,0)) : def_t(t,s, g), high(hl.first), low(hl.second) { }
 
 	map<string, set<const_def_t *>> constants_by_name;
 
 	bool operator ==(const field_def_t &o);
-	virtual def_t *clone(def_tree_t *t) {
-		return new field_def_t(t, symbol, def_gpus, make_pair(high, low));
-	}
+	virtual def_t *clone(def_tree_t *t) { return new field_def_t(t, symbol, def_gpus, make_pair(high, low)); }
 
  	friend std::ostream& operator<< (std::ostream& os, const field_def_t& d) {
 		os << d.def_gpus;
@@ -243,6 +240,7 @@ public:
 class reg_def_t : public def_t {
 public:
 	uint64_t val;
+	void set_val(uint64_t v) { val = v; }
 	reg_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t val = 0) :
 		def_t(t,s, g), val(val) { }
 
@@ -251,9 +249,7 @@ public:
 
 	bool operator ==(const reg_def_t &o);
 
-	virtual def_t *clone(def_tree_t *t) {
-		return new reg_def_t(t, symbol, def_gpus, val);
-	}
+	virtual def_t *clone(def_tree_t *t) { return new reg_def_t(t, symbol, def_gpus, val); }
 
  	friend QTextStream& operator<< (QTextStream& os, const reg_def_t& d) {
 		os << "reg def " << d.symbol.c_str() << " val=" << d.val <<
@@ -267,74 +263,59 @@ class deleted_reg_def_t : public reg_def_t {
 public:
 	deleted_reg_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t val = 0) :
 		reg_def_t(t,s,g,val) { }
-	virtual def_t *clone(def_tree_t *t) {
-		return new deleted_reg_def_t(t, symbol, def_gpus, val);
-	}
+	virtual def_t *clone(def_tree_t *t) { return new deleted_reg_def_t(t, symbol, def_gpus, val); }
 
 	bool operator ==(const deleted_reg_def_t &o);
 };
 
 class offset_def_t : public reg_def_t {
 public:
-	offset_def_t(def_tree_t *t, const string &s, const gpu_set_t &g) : reg_def_t(t,s,g) { }
-	//	offset_def_t(def_tree_t *t, const offset_def_t *other) : reg_def_t(t, other) { }
-	bool operator ==(const offset_def_t &o);
-	//	void coalesce(offset_def_t *with);
-	//	virtual def_t *clone();
+	offset_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t v = 0) : reg_def_t(t,s,g,v) { }
+	virtual def_t *clone(def_tree_t *t) { return new offset_def_t(t, symbol, def_gpus, val); }
 };
 
 class deleted_offset_def_t : public offset_def_t {
 public:
-	deleted_offset_def_t(def_tree_t *t, const string &s, const gpu_set_t &g) : offset_def_t(t,s,g) { }
-	//	deleted_offset_def_t(def_tree_t *t, const deleted_offset_def_t *other) : offset_def_t(t, other) {}
-	bool operator ==(const deleted_offset_def_t &o);
-	//	void coalesce(deleted_offset_def_t *with);
-	//	virtual def_t *clone();
+	deleted_offset_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t v = 0) :
+		offset_def_t(t,s,g,v) { }
+	virtual def_t *clone(def_tree_t *t){ return new deleted_offset_def_t(t, symbol, def_gpus, val); }
 };
 
 class word_def_t : public reg_def_t {
 public:
-	word_def_t(def_tree_t *t, const string &s, const gpu_set_t &g) : reg_def_t(t,s,g) { }
-	//	word_def_t(def_tree_t *t, const word_def_t *other) : reg_def_t(t, other) { }
+	word_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t v = 0) : reg_def_t(t,s,g, v) { }
 	bool operator ==(const word_def_t &o);
-	//	void coalesce(word_def_t *with);
-	//	virtual def_t *clone();
+	virtual def_t *clone(def_tree_t *t){ return new word_def_t(t, symbol, def_gpus, val); }
 };
 
 class deleted_word_def_t : public word_def_t {
 public:
-	deleted_word_def_t(def_tree_t *t, const string &s, const gpu_set_t &g) : word_def_t(t,s,g) { }
-	//	deleted_word_def_t(def_tree_t *t, const deleted_word_def_t *other) : word_def_t(t, other) {}
+	deleted_word_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t v) : word_def_t(t,s,g,v) { }
+	virtual def_t *clone(def_tree_t *t){ return new deleted_word_def_t(t, symbol, def_gpus, val); }
 	bool operator ==(const deleted_word_def_t &o);
-	//	void coalesce(deleted_word_def_t *with);
-	//	virtual def_t *clone();
+
 };
 
 class scope_def_t : public reg_def_t {
 public:
-	scope_def_t(def_tree_t *t, const string &s, const gpu_set_t &g) : reg_def_t(t,s,g) { }
-	//	scope_def_t(def_tree_t *t, const scope_def_t *other) : reg_def_t(t, other) { }
+	scope_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t v=0) : reg_def_t(t,s,g,v) { }
+	virtual def_t *clone(def_tree_t *t){ return new scope_def_t(t, symbol, def_gpus, val); }
 	bool operator ==(const scope_def_t &o);
-	//	void coalesce(scope_def_t *with);
-	//	virtual def_t *clone();
 };
 
 class deleted_scope_def_t : public scope_def_t {
 public:
-	deleted_scope_def_t(def_tree_t *t, const string &s, const gpu_set_t &g) : scope_def_t(t,s,g) { }
-	//	deleted_scope_def_t(def_tree_t *t, const deleted_scope_def_t *other) : scope_def_t(t, other) {}
+	deleted_scope_def_t(def_tree_t *t, const string &s, const gpu_set_t &g, uint64_t v = 0) :
+		scope_def_t(t,s,g,v) { }
+	virtual def_t *clone(def_tree_t *t){ return new deleted_scope_def_t(t, symbol, def_gpus, val); }
 	bool operator ==(const deleted_scope_def_t &o);
-	//	void coalesce(deleted_scope_def_t *with);
-	//	virtual def_t *clone();
 };
 
 
 class group_def_t : public def_t {
 public:
 	group_def_t(def_tree_t *t, const string &g, const gpu_set_t &gg) : def_t(t,g,gg) { }
-	virtual def_t *clone(def_tree_t *t) {
-		return new group_def_t(t, symbol, def_gpus);
-	}
+	virtual def_t *clone(def_tree_t *t) { return new group_def_t(t, symbol, def_gpus); }
 
 	//	vector<reg_def_t *> regs;
 	map<string, reg_def_set_t > regs_by_name;

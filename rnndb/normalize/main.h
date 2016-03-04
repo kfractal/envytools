@@ -173,6 +173,7 @@ protected:
 	QMap<uint64_t, QString> gpu_set_variant_map;
 
 	struct {
+#if 0
 		set<string> group_names;
 		map<string, set<group_def_t *>> groups_by_name;
 		map<string, set<const_def_t *>> constants_by_name;		
@@ -180,24 +181,24 @@ protected:
 		map<string, set<reg_def_t *>> regs_by_name;
 		map<string, map<uint64_t, set<reg_def_t *>>> regs_by_name_and_value;
 		map<uint64_t, set<reg_def_t *>> regs_by_value;
-		map<uint64_t, map<string, set<reg_def_t *>>> regs_by_value_and_name;
+	
 		map<string, set<field_def_t *>> fields_by_name;
 		map<string, map< pair<size_t, size_t>, set<field_def_t *>>> fields_by_name_and_value;
-
+#endif
+		map<uint64_t, map<string, reg_def_set_t>> regs_by_value_and_name;
 		def_tree_t *coalesced;
 		// map<string, group_def_t *> coalesced_groups_by_name;
 	} def;
-	def_tree_t *process_defs();
-	void update_defs();
-	void coalesce_defs();
-	void coalesce_groups(def_tree_t *, string, set<group_def_t*> &);
-	def_tree_t *clone_def_trees(def_tree_t *);
+	void accelerate_defs();
+	//	def_tree_t *process_defs();
+	//	def_tree_t *clone_def_trees(def_tree_t *);
 
 	set<string> hit_fields;
 	set<string> hit_constants;
 	void produce_register_content(reg_def_t *reg_defn_val, file_content_t *content);
 	void produce_field_content(field_def_t*, xml_element_node_t *p);
 	void produce_const_content(const_def_t*, xml_element_node_t *p);
+	void produce_gpu_variants_content(xml_element_node_t *p);
 };
 
 uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);
