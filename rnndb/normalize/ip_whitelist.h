@@ -39,45 +39,40 @@ void init();
 void emit_groups_gk20a();
 void emit_groups_gm20b();
 
-struct constant_t;
-struct field_t;
-struct reg_t;
-struct scope_t;
-struct word_t;
-struct offset_t;
 struct group_t;
-struct deleted_offset_t;
-struct deleted_reg_t;
-struct deleted_word_t;
-struct deleted_scope_t;
-
+struct reg_t;
+struct field_t;
+struct constant_t;
 
 struct constant_t {
 	struct constant_spec_t {
 		const char *def;
 		const char *name;
-		//		uint32_t    value;
 		const char *emit;
+		bool removed;
 	};
 
 	string def;
 	string name;
-	//	uint32_t value;
 	string emit;
 	field_t *field;
     reg_t *reg;
     group_t *group;
+	bool removed;
 	constant_t(const constant_spec_t &cs) {
 		def = cs.def ? cs.def : "";
 		name = cs.name ? cs.name : "";
-		//		value = cs.value;
 		emit = cs.emit ? cs.emit : "";
         group = 0; reg = 0; field = 0;
+		removed = cs.removed;
 	}
 };
 
-#define C_SPEC(n, x, e) new constant_t((constant_t::constant_spec_t){ .name = #n, .def = #x, .emit = 0 })
+#define C_SPEC(n, x, e) new constant_t((constant_t::constant_spec_t){.name=#n,.def=#x,.emit=0,.removed=0})
 
+//
+// fields represent bit-extents within a register/offset/word
+//
 struct field_t {
 	struct field_spec_t {
 		const char *def;
@@ -89,11 +84,12 @@ struct field_t {
 		bool     indexed;
 		uint32_t stride;
 		uint32_t size;
-		const char *emit;
+		bool removed;
+		//		const char *emit;
 	};
 
-	std::string def;
-	std::string name;
+	string def;
+	string name;
 	uint32_t lowbit;
 	uint32_t highbit;
 	uint32_t shift;
@@ -101,10 +97,11 @@ struct field_t {
 	bool     indexed;
 	uint32_t stride;
 	uint32_t size;
-	std::string emit;
+	bool removed;
 	reg_t *reg;
     group_t *group;
-	std::map<std::string, constant_t *> constants;
+	map<string, constant_t *> constants;
+	map<string, constant_t *> deleted_constants;
 	field_t(const field_spec_t &fs) {
 		def = fs.def ? fs.def : "";
 		name = fs.name ? fs.name : "";
@@ -115,17 +112,23 @@ struct field_t {
 		indexed = fs.indexed;
 		stride= fs.stride;
 		size = fs.size;
-		emit = fs.emit ? fs.emit : "";
+		//		emit = fs.emit ? fs.emit : "";
         group = 0; reg = 0;
+		removed = fs.removed;
 	}
 };
 
 
-#define F_SPEC(n, f, e)  new field_t((field_t::field_spec_t){ .name = #n, .def = #f, .emit = e })
-#define IF_SPEC(n, f, e) new field_t((field_t::field_spec_t){ .name = #n, .def = #f, .emit = e })
-#define WF_SPEC(n, f, e) new field_t((field_t::field_spec_t){ .name = #n, .def = #f, .emit = e })
-#define OF_SPEC(n, f, e) new field_t((field_t::field_spec_t){ .name = #n, .def = #f, .emit = e })
+#define F_SPEC(n, f, e)  new field_t((field_t::field_spec_t){.name=#n,.def=#f,.removed=0})
+#define IF_SPEC(n, f, e) new field_t((field_t::field_spec_t){.name=#n,.def=#f,.removed=0})
+#define WF_SPEC(n, f, e) new field_t((field_t::field_spec_t){.name=#n,.def=#f,.removed=0})
+#define OF_SPEC(n, f, e) new field_t((field_t::field_spec_t){.name=#n,.def=#f,.removed=0})
 
+//
+// reg_t is used for registers of course, but also for offsets within
+// memory objects (e.g. instance memory) and command streams (e.g.: 3d
+// class methods).
+//
 struct reg_t {
 	struct reg_spec_t {
 		const char *def;
@@ -134,106 +137,89 @@ struct reg_t {
 		bool indexed;
 		uint32_t stride;
 		uint32_t size;
-		const char *emit;
+		bool removed;
+		bool skip_symbol;
 	};
 
-	std::string def;
-	std::string name;
+	string def;
+	string name;
 	uint32_t offset;
 	bool indexed;
 	uint32_t stride;
 	uint32_t size;
 	group_t *group;
-	std::string emit;
+	bool removed;
+	bool skip_symbol;
 	reg_t(const reg_spec_t &rs) {
 		def = rs.def ? rs.def : "";
 		name = rs.name ? rs.name : "";
-		offset = rs.offset;
 		indexed = rs.indexed;
 		stride = rs.stride;
 		size = rs.size;
-		emit = rs.emit ? rs.emit : "";
+		removed = rs.removed;
+		skip_symbol = rs.skip_symbol;
 	}
 	virtual ~reg_t(){ }
-	std::map<std::string, field_t *>    fields;
-    std::map<std::string, constant_t *> constants; // could be some
+	map<string, field_t *>    fields;
+	map<string, field_t *>    deleted_fields;
+    map<string, constant_t *> constants; // could be some
+    map<string, constant_t *> deleted_constants; // could be some
 };
 
-struct scope_t : public reg_t
-{
-	scope_t(const reg_spec_t &rs) : reg_t(rs) { }
-	virtual ~scope_t(){}
-};
+#define S_SPEC(n, d)  new reg_t((reg_t::reg_spec_t){.name=#n,.def=#d,.indexed=0,.removed=0,.skip_symbol=1})
+#define R_SPEC(n, r)  new reg_t((reg_t::reg_spec_t){.name=#n,.def=#r,.indexed=0,.removed=0,.skip_symbol=0})
+#define IR_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name=#n,.def=#r,.indexed=1,.removed=0,.skip_symbol=0})
+#define O_SPEC(n, o)  new reg_t((reg_t::reg_spec_t){.name=#n,.def=#o,.indexed=0,.removed=0,.skip_symbol=0})
+#define W_SPEC(n, w)  new reg_t((reg_t::reg_spec_t){.name=#n,.def=#w,.indexed=0,.removed=0,.skip_symbol=0})
 
-struct word_t : public reg_t
-{
-	word_t(const reg_spec_t &rs) : reg_t(rs) { }
-	virtual ~word_t(){}
-};
-
-struct offset_t : public reg_t
-{
-	offset_t(const reg_spec_t &rs) : reg_t(rs) { }
-	virtual ~offset_t(){}
-};
-
-struct deleted_reg_t : public reg_t
-{
-	deleted_reg_t(const reg_spec_t &rs) : reg_t(rs) {}
-	virtual ~deleted_reg_t(){}
-};
-
-struct deleted_offset_t : public offset_t
-{
-	deleted_offset_t(const reg_spec_t &rs) : offset_t(rs) {}
-	virtual ~deleted_offset_t(){}
-};
-
-struct deleted_word_t : public word_t
-{
-	deleted_word_t(const reg_spec_t &rs) : word_t(rs) {}
-	virtual ~deleted_word_t(){}
-};
-
-struct deleted_scope_t : public scope_t
-{
-	deleted_scope_t(const reg_spec_t &rs) : scope_t(rs) {}
-	virtual ~deleted_scope_t(){}
-};
-
-
-#define S_SPEC(n)     new scope_t((reg_t::reg_spec_t){.name = #n, .def = "", .emit = "",  .indexed = false })
-#define R_SPEC(n, r)  new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "r", .indexed = false })
-#define IR_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "r", .indexed = true  })
-
-#define O_SPEC(n, o)  new offset_t((reg_t::reg_spec_t){.name = #n, .def = #o, .emit = "o", .indexed = false })
-#define W_SPEC(n, w)  new word_t((reg_t::reg_spec_t){.name = #n, .def = #w, .emit = "w", .indexed = false })
 /*
  * The "D*" versions mark the register/word/offset as being deleted from the engine.
  * For those, any use by software is invalid.  So, no code will be emitted for it.
  * However, software may be using another engine's support to implmement support for *this* engine.
  * For that case, the db entry will be set to "offset ~0" to mark it invalid.
  */
-#define DR_SPEC(n, r) new deleted_reg_t   ((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "rx"})
-#define DO_SPEC(n, r) new deleted_offset_t((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "ox"})
-#define DW_SPEC(n, r) new deleted_word_t  ((reg_t::reg_spec_t){.name = #n, .def = #r, .emit = "wx"})
-#define DS_SPEC(n, r) new deleted_scope_t ((reg_t::reg_spec_t){.name = #n, .def = "", .emit = ""})
+#define DR_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name=#n,.def=#r,.removed=1,.skip_symbol=1})
+#define DO_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name=#n,.def=#r,.removed=1,.skip_symbol=1})
+#define DW_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name=#n,.def=#r,.removed=1,.skip_symbol=1})
+#define DS_SPEC(n, r) new reg_t((reg_t::reg_spec_t){.name=#n,.def="",.removed=1,.skip_symbol=1})
 
+//
+// groups are register domains, specific classes (3d/2d, etc) and
+// memory object sets (ramin, etc).  generally a group represents
+// a specific scope within which registers/offsets belonging to
+// it can't collide.
+//
+enum class group_type_e { register_domain, memory_object, command_class };
 struct group_t {
 	struct group_spec_t {
 		const char *name;
+		const char *def;
+		group_type_e type;
+		bool removed;
+		bool skip_symbol;
 	};
+	bool removed;
 	string name;
+	string def;
+	bool skip_symbol;
 	group_t(const group_spec_t &gs) {
 		name = gs.name ? gs.name : "";
+		def = gs.def?gs.def:"";
+		removed = gs.removed;
+		skip_symbol = gs.skip_symbol;
 	}
     map<string, reg_t *>      regs;      // lots of these (includes offsets, words)
     map<string, field_t *>    fields;    // typically empty
     map<string, constant_t *> constants; // could be some top-level constants
+
+    map<string, reg_t *>      deleted_regs;
+    map<string, field_t *>    deleted_fields;    // typically empty
+    map<string, constant_t *> deleted_constants; // could be some top-level constants
 };
 
 
-#define G_SPEC(n) new group_t((group_t::group_spec_t){.name = #n})
+#define G_SPEC(n, d) new group_t((group_t::group_spec_t){.name=#n,.def=#d,.removed=false,.skip_symbol=true})
+
 
 void begin_group(group_t *);
 void begin_scope(reg_t *);
@@ -261,57 +247,43 @@ struct symbol_t {
 
 map<string, group_t *>    * get_groups();
 map<string, reg_t *>      * get_regs();
-map<string, offset_t *>   * get_offsets();
-map<string, word_t *>     * get_words();
-map<string, scope_t *>    * get_scopes();
 map<string, field_t *>    * get_fields();
 map<string, constant_t *> * get_constants();
 
-map<string, deleted_reg_t *>    * get_deleted_regs();
-map<string, deleted_word_t *>   * get_deleted_words();
-map<string, deleted_offset_t *> * get_deleted_offsets();
-map<string, deleted_scope_t *>  * get_deleted_scopes();
+map<string, group_t *>    * get_deleted_groups();
+map<string, reg_t *>      * get_deleted_regs();
+map<string, field_t *>    * get_deleted_fields();
+map<string, constant_t *> * get_deleted_constants();
 
 extern map<string, bool>         symbol_whitelist;
 extern map<string, reg_t *>      register_whitelist;
-extern map<string, offset_t *>   offset_whitelist;
-extern map<string, word_t *>     word_whitelist;
-extern map<string, scope_t *>    scope_whitelist;
 extern map<string, field_t *>    field_whitelist;
 extern map<string, constant_t *> constant_whitelist;
 
-extern map<string, deleted_reg_t *>    deleted_register_whitelist;
-extern map<string, deleted_offset_t *> deleted_offset_whitelist;
-extern map<string, deleted_word_t *>   deleted_word_whitelist;
-extern map<string, deleted_scope_t *>  deleted_scope_whitelist;
+extern map<string, reg_t *>      deleted_register_whitelist;
+extern map<string, field_t *>    deleted_field_whitelist;
+extern map<string, constant_t *> deleted_constant_whitelist;
 
 extern multimap<string, ip_whitelist::group_t *>    chip_groups;
 extern multimap<string, ip_whitelist::reg_t *>      chip_regs;
-extern multimap<string, ip_whitelist::offset_t *>   chip_offsets;
-extern multimap<string, ip_whitelist::word_t *>     chip_words;
-extern multimap<string, ip_whitelist::scope_t *>    chip_scopes;
 extern multimap<string, ip_whitelist::field_t *>    chip_fields;
 extern multimap<string, ip_whitelist::constant_t *> chip_constants;
 
-extern multimap<string, ip_whitelist::deleted_reg_t *>    chip_deleted_regs;
-extern multimap<string, ip_whitelist::deleted_word_t *>   chip_deleted_words;
-extern multimap<string, ip_whitelist::deleted_offset_t *> chip_deleted_offsets;
-extern multimap<string, ip_whitelist::deleted_scope_t *>  chip_deleted_scopes;
+extern multimap<string, ip_whitelist::group_t *>    chip_deleted_groups;
+extern multimap<string, ip_whitelist::reg_t *>      chip_deleted_regs;
+extern multimap<string, ip_whitelist::field_t *>    chip_deleted_fields;
+extern multimap<string, ip_whitelist::constant_t *> chip_deleted_constants;
 
 } // ip_whitelist namespace
 
+typedef multimap<string, ip_whitelist::group_t *>::iterator    wl_groups_iterator_t;
+typedef multimap<string, ip_whitelist::reg_t *>::iterator      wl_regs_iterator_t;
+typedef multimap<string, ip_whitelist::field_t *>::iterator    wl_fields_iterator_t;
+typedef multimap<string, ip_whitelist::constant_t *>::iterator wl_constants_iterator_t;
 
-		typedef multimap<string, ip_whitelist::reg_t *>::iterator      wl_regs_iterator_t;
-		typedef multimap<string, ip_whitelist::offset_t *>::iterator   wl_offsets_iterator_t;
-		typedef multimap<string, ip_whitelist::word_t *>::iterator     wl_words_iterator_t;
-		typedef multimap<string, ip_whitelist::scope_t *>::iterator     wl_scopes_iterator_t;
+typedef multimap<string, ip_whitelist::group_t *>::iterator    wl_deleted_groups_iterator_t;
+typedef multimap<string, ip_whitelist::reg_t *>::iterator      wl_deleted_regs_iterator_t;
+typedef multimap<string, ip_whitelist::field_t *>::iterator    wl_deleted_fields_iterator_t;
+typedef multimap<string, ip_whitelist::constant_t *>::iterator wl_deleted_constants_iterator_t;
 
-		typedef multimap<string, ip_whitelist::deleted_reg_t *>::iterator    wl_deleted_regs_iterator_t;
-		typedef multimap<string, ip_whitelist::deleted_word_t *>::iterator   wl_deleted_words_iterator_t;
-		typedef multimap<string, ip_whitelist::deleted_offset_t *>::iterator wl_deleted_offsets_iterator_t;
-		typedef multimap<string, ip_whitelist::deleted_scope_t *>::iterator  wl_deleted_scopes_iterator_t;
-
-		typedef multimap<string, ip_whitelist::field_t *>::iterator    wl_fields_iterator_t;
-		typedef multimap<string, ip_whitelist::constant_t *>::iterator wl_constants_iterator_t;
-		typedef multimap<string, ip_whitelist::group_t *>::iterator    wl_groups_iterator_t;
 

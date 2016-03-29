@@ -29,6 +29,7 @@
 #include <limits>
 #include <algorithm>
 #include <iostream>
+#include <bitset>
 
 #include <QDebug>
 #include <QQueue>
@@ -54,6 +55,7 @@ Main::Main(int &argc, char **argv) :
 {
 	_root = "root.xml";
 	_validator.setMessageHandler(&_validator_msg_handler);
+	_current_stream_reader = 0;
 }
 
 
@@ -66,23 +68,28 @@ void Main::start()
 	vector<def_tree_t*> gpu_def_trees = read_ip_defs();
 
 	def_tree_t *aggregate_tree = new def_tree_t(gpu_def_trees);
-	out() << "info: aggregate tree has " << aggregate_tree->offsets_by_name.size() << endl;
 	def.coalesced = new def_tree_t(aggregate_tree);
-	out() << "info: coalesced tree has " << def.coalesced->offsets_by_name.size() << endl;
 	accelerate_defs();
 
-	out() << "info: processed nvidia hwref files for" << endl;
-	for ( auto &t: target_gpus ) {
-		out() << "info:\t" << QString::fromStdString(t->name()) << endl;
+	if (_verbose) {
+		out() << "info: processed nvidia hwref files for" << endl;
+		for ( auto &t: target_gpus ) {
+			out() << "info:\t" << t->name().c_str() << endl;
+		}
+
+		out() << "info: the ip whitelist contains " <<
+			ip_whitelist::chip_groups.size()    << " groups, " <<
+			ip_whitelist::chip_regs.size()      << " registers, " <<
+			ip_whitelist::chip_fields.size()    << " fields and " <<
+			ip_whitelist::chip_constants.size() << " constants overall." << endl;
+
+		out() << "info: the ip whitelist deletes " <<
+			ip_whitelist::chip_deleted_groups.size()    << " groups, " <<
+			ip_whitelist::chip_deleted_regs.size()      << " registers, " <<
+			ip_whitelist::chip_deleted_fields.size()    << " fields and " <<
+			ip_whitelist::chip_deleted_constants.size() << " constants overall." << endl;
+
 	}
-	out() << "info: the ip whitelist contains " <<
-		ip_whitelist::chip_groups.size()    << " groups, " <<
-		ip_whitelist::chip_regs.size()      << " registers, " <<
-		ip_whitelist::chip_offsets.size()      << " offsets, " <<
-		ip_whitelist::chip_words.size()      << " words, " <<
-		ip_whitelist::chip_scopes.size()      << " scopes, " <<
-		ip_whitelist::chip_fields.size()    << " fields and " <<
-		ip_whitelist::chip_constants.size() << " constants overall." << endl;
 
 	for ( auto t : target_gpus ) 
 		var_all_gpus.insert(t);
@@ -145,19 +152,51 @@ void Main::start()
 		for ( auto group : group_set.second ) {
 			for ( auto reg_set : group->regs_by_name ) {
 				for ( auto reg : reg_set.second ) {
-					produce_register_content(reg, &addit);
+					// mark is "was it already added/updated elsewhere?".
+					if (!reg->mark) {
+						produce_register_content(reg, &addit);
+						reg->mark = 1;
+					}
 				}
 			}
 		}
 	}
 
+
 	QXmlStreamWriter out_xml(&out_file);
 	out_xml.setAutoFormatting(true);
-
 	for ( auto node : addit.nodes ) {
 		node->write(out_xml);
 	}
 	out_file.close();
+
+
+	// gpu variant sets enumeration
+	{
+		QFileInfo file_info("results/gpus.xml");
+		QDir file_dir = file_info.dir();
+		if ( !file_dir.exists() ) {
+			if ( !file_dir.mkpath(file_dir.path()) ) {
+				out() << "error: couldn't make path " << file_dir.path() << endl;
+				return;
+			}
+		}
+		QFile out_file("results/gpus.xml");
+		if ( !out_file.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text) ) {
+			out() << "error: couldn't open result file " << out_file.fileName() << endl;
+		}
+		file_content_t gpus("results/gpus.xml");
+		xml_element_node_t *v = produce_gpu_variants_content(0);
+		gpus.nodes.append(v);
+
+
+		QXmlStreamWriter out_xml(&out_file);
+		out_xml.setAutoFormatting(true);
+		for ( auto node : gpus.nodes ) {
+			node->write(out_xml);
+		}
+		out_file.close();
+	}
 
 
 	exit(rc); // Main::exit() sets *intent* to exit w/rc.
@@ -235,6 +274,7 @@ int Main::read_file(QFile *file)
 	int rc = 0;
 
 	QXmlStreamReader xml(file);
+	_current_stream_reader = &xml;
 
 	// ...
 	while (!xml.atEnd()) {
@@ -309,6 +349,8 @@ int Main::read_file(QFile *file)
 		out()  << "debug: file complete " << _current_file.top().fileName() << endl;
 	}
 	_current_file.pop();
+
+	_current_stream_reader = 0;
 	return rc;
 }
 
@@ -586,11 +628,11 @@ int Main::close_b(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg16(QXmlStreamReader &e)
 {
-	uint64_t inherited_offset = _attrs._offset.v;
+	//uint64_t inherited_offset = _attrs._offset.v;
 
 	STACK_ELEMENT_ATTRS(reg16);
 
-	uint64_t offset = _attrs._offset.v;
+	//	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 	QSet<gpuid_t *> var_gpus;
 	if ( _attrs._variants.v.size() ) {
@@ -683,11 +725,11 @@ int Main::close_copyright(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg8(QXmlStreamReader &e)
 {
-	uint64_t inherited_offset = _attrs._offset.v;
+	//	uint64_t inherited_offset = _attrs._offset.v;
 
 	STACK_ELEMENT_ATTRS(reg8);
 
-	uint64_t offset = _attrs._offset.v;
+	//	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 	QSet<gpuid_t *> var_gpus;
 	if ( _attrs._variants.v.size() ) {
@@ -761,11 +803,11 @@ int Main::close_li(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg64(QXmlStreamReader &e)
 {
-	uint64_t inherited_offset = _attrs._offset.v;
+	//	uint64_t inherited_offset = _attrs._offset.v;
 
 	STACK_ELEMENT_ATTRS(reg64);
 
-	uint64_t offset = _attrs._offset.v;
+	//	uint64_t offset = _attrs._offset.v;
 	QString name    = _attrs._name.v;
 
 	return rc;
@@ -779,7 +821,7 @@ int Main::close_reg64(QXmlStreamReader &)
 // note: work in progress...
 int Main::handle_reg32(QXmlStreamReader &e)
 {
-	uint64_t inherited_offset = _attrs._offset.v;
+	//	uint64_t inherited_offset = _attrs._offset.v;
 
 	STACK_ELEMENT_ATTRS(reg32);
 
@@ -787,12 +829,6 @@ int Main::handle_reg32(QXmlStreamReader &e)
 	uint64_t absolute_offset = _attrs._offset.v;
 
 	QString name    = _attrs._name.v;
-	QSet<gpuid_t *> var_gpus;
-	if ( _attrs._variants.v.size() ) {
-		var_gpus = variants_to_gpus(_attrs._variants.v);
-	} else {
-		var_gpus = var_all_gpus;
-	}
 
 	QVector<QString> name_pieces = name.split("::").toVector();
 	if ( name_pieces.size() && (name_pieces[0] != "NV_MMIO") ) {
@@ -808,11 +844,18 @@ int Main::handle_reg32(QXmlStreamReader &e)
 						  "(xml_element_node_t*) at top");
 	}
 
+	QSet<gpuid_t *> var_gpus;
+	if ( _attrs._variants.v.size() ) {
+		var_gpus = variants_to_gpus(_attrs._variants.v);
+	} else {
+		var_gpus = var_all_gpus;
+	}
+
 	//
-	// Find all register defns with the same offset.
-	// The point here is to trigger an update of exising information.
-	// A later pass will add the rest of the information not already
-	// updated (additions, etc).
+	// Find register defns with the same offset.
+	// The point here is to discern what if any modifications
+	// should be made to the xml at this point to reflect information
+	// within the def tree(s).
 	//
 	auto regs_at_value = def.regs_by_value_and_name.find(absolute_offset);
 	if ( regs_at_value != def.regs_by_value_and_name.end() ) {
@@ -820,6 +863,8 @@ int Main::handle_reg32(QXmlStreamReader &e)
 		for ( auto reg_at_name : regs_at_value->second ) {
 			//	out()  << "info:\tname " << reg_at_name.first.c_str() << endl;
 			for ( auto reg : reg_at_name.second ) {
+				/*xml_element_node_t *new_reg32 =*/ produce_register_content(reg, enode);
+				reg->mark = 1;
 				//	out() << "info:\t\tgpus " << gpus_to_variants(reg->def_gpus) << endl;
 			}
 		}
@@ -1053,9 +1098,11 @@ void Main::find_xml_files()
 		}
 		_all_xml_files.insert(root_rel_path);
 	}
-	out () << "info: the number of xml files is " << _all_xml_files.size() << endl;
-	for ( auto v: _all_xml_files ) {
-		// out() << "info:" << v << endl;
+	if (_verbose) {
+		out () << "info: the number of xml files is " << _all_xml_files.size() << endl;
+		for ( auto v: _all_xml_files ) {
+			out() << "info:" << v << endl;
+		}
 	}
 }
 
@@ -1264,14 +1311,202 @@ void Main::emit_file(const QString &rel_name)
 	out_file.close();
 }
 
+// missing modern gpus
+// { "GM200" },
 
-gpuid_t *target_gpu_by_name(const QString &gpu_name)
+// legacy gpus
+struct legacy_gpu_t {
+	string name;
+	legacy_gpu_t(const char *g) : name(g) { }
+	legacy_gpu_t(const string s) : name(s) { }
+	bool operator < (const legacy_gpu_t &o) const { return name < o.name; }
+};
+set<legacy_gpu_t> legacy_gpus {
+	{ "c51" },
+	{ "g70" },
+	{ "g71" },
+	{ "g72" },
+	{ "g73" },
+	{ "nv10" },
+	{ "nv11" },
+	{ "nv15" },
+	{ "nv17" },
+	{ "nv18" },
+	{ "nv1a" },
+	{ "nv1f" },
+	{ "nv1" },
+	{ "nv20" },
+	{ "nv25" },
+	{ "nv30" },
+	{ "nv31" },
+	{ "nv34" },
+	{ "nv35" },
+	{ "nv36" },
+	{ "nv3t" },
+	{ "nv3" },
+	{ "nv40" },
+	{ "nv41" },
+	{ "nv43" },
+	{ "nv44a" },
+	{ "nv44" },
+	{ "nv4" },
+	{ "nv5" },
+};
+
+// class/interface names, etc
+struct class_names_t {
+	string name;
+	class_names_t(const char *n) : name(n) { }
+	class_names_t(const string s) : name(s) { }
+	bool operator < (const class_names_t &o) const { return name < o.name; }
+};
+
+set<class_names_t> class_names {
+	{ "adt7473" },
+	{ "adt7473_1" },
+	{ "fp" },
+	{ "g200_3d" },
+	{ "g80_2d" },
+	{ "g80_3d" },
+	{ "g80_compute" },
+	{ "g80_m2mf" },
+	{ "g80_sifm" },
+	{ "g80_surface_2d" },
+	{ "g84_3d" },
+	{ "g84_cipher" },
+	{ "gf100_2d" },
+	{ "gf100_3d" },
+	{ "gf100_compute" },
+	{ "gf100_m2mf" },
+	{ "gf108_3d" },
+	{ "gf110_3d" },
+	{ "gf110_compute" },
+	{ "gk104_3d" },
+	{ "gk104_compute" },
+	{ "gk104_copy" },
+	{ "gk104_p2mf" },
+	{ "gk110_compute" },
+	{ "gk110_p2mf" },
+	{ "gm107_copy" },
+	{ "gm204_3d" },
+	{ "gp" },
+	{ "gt215_3d" },
+	{ "gt215_compute" },
+	{ "mcp89_3d" },
+	{ "nv10_3d" },
+	{ "nv10_dvd_subpicture" },
+	{ "nv10_ifc" },
+	{ "nv10_multitex_triangle" },
+	{ "nv10_sifm" },
+	{ "nv10_surface_3d" },
+	{ "nv10_textured_triangle" },
+	{ "nv10_texupload" },
+	{ "nv15_3d" },
+	{ "nv15_blit" },
+	{ "nv17_3d" },
+	{ "nv1_beta" },
+	{ "nv1_bitmap" },
+	{ "nv1_blit" },
+	{ "nv1_chroma" },
+	{ "nv1_clip" },
+	{ "nv1_ifc" },
+	{ "nv1_ifm" },
+	{ "nv1_itm" },
+	{ "nv1_line" },
+	{ "nv1_lin" },
+	{ "nv1_pattern" },
+	{ "nv1_point" },
+	{ "nv1_rect" },
+	{ "nv1_rop" },
+	{ "nv1_texlinbeta" },
+	{ "nv1_texlin" },
+	{ "nv1_texquadbeta" },
+	{ "nv1_texquad" },
+	{ "nv1_tri" },
+	{ "nv20_3d" },
+	{ "nv25_3d" },
+	{ "nv30_3d" },
+	{ "nv35_3d" },
+	{ "nv3_gdi" },
+	{ "nv3_m2mf" },
+	{ "nv3_rop" },
+	{ "nv3_sifc" },
+	{ "nv3_sifm" },
+	{ "nv3_textured_triangle" },
+	{ "nv40_3d" },
+	{ "nv40_ifc" },
+	{ "nv40_index" },
+	{ "nv40_lin" },
+	{ "nv40_me" },
+	{ "nv40_sifc" },
+	{ "nv40_surface_swz" },
+	{ "nv40_texupload" },
+	{ "nv41_vp1" },
+	{ "nv44_3d" },
+	{ "nv4_beta4" },
+	{ "nv4_blit" },
+	{ "nv4_chroma" },
+	{ "nv4_dvd_subpicture" },
+	{ "nv4_gdi" },
+	{ "nv4_ifc" },
+	{ "nv4_index" },
+	{ "nv4_lin" },
+	{ "nv4_multitex_triangle" },
+	{ "nv4_pattern" },
+	{ "nv4_rect" },
+	{ "nv4_sifc" },
+	{ "nv4_sifm" },
+	{ "nv4_surface_2d" },
+	{ "nv4_surface_3d" },
+	{ "nv4_surface_swz" },
+	{ "nv4_textured_triangle" },
+	{ "nv4_tri" },
+	{ "nv5_ifc" },
+	{ "nv5_index" },
+	{ "nv5_sifc" },
+	{ "nv5_sifm" },
+	{ "tcp" },
+	{ "tep" },
+};
+
+
+gpuid_t *Main::target_gpu_by_name(const QString &gpu_name)
 {
-	auto f = target_gpus_by_name.find(gpu_name.toLower().toStdString());
-	if ( f == target_gpus_by_name.end() )
-		return 0;
-	return f->second;
+	gpuid_t *gpuid = 0;
+	string gpu_name_str = gpu_name.toLower().toStdString();
+	auto f = target_gpus_by_name.find(gpu_name_str);
+	if ( f == target_gpus_by_name.end() ) {
+		if ( legacy_gpus.find(gpu_name_str) == legacy_gpus.end() ) {
+			if ( class_names.find(gpu_name_str) == class_names.end() ) {
+				// no match, anywhere.
+				out() << "error: couldn't find a category to place [" <<
+					gpu_name_str.c_str() << "]" << endl;
+				return 0;
+			} else {
+				// it matched a class id
+				return 0;
+			}
+		} else {
+			// it is a legacy gpu.
+			f = target_gpus_by_name.find("legacy");
+			if ( f == target_gpus_by_name.end() ) {
+				// shouldn't happen
+				out() << "error: failed to find the legacy gpu id" << endl;
+				return 0;
+			}
+			gpuid = f->second;
+			if ( _warned_about_legacy_gpu.find(gpu_name_str) == _warned_about_legacy_gpu.end() ) {
+				out() << "warning: matched 'legacy' for gpu [" << gpu_name_str.c_str() << "]" << endl;
+				_warned_about_legacy_gpu.insert(gpu_name_str);
+			}
+		}
+	} else {
+		// it's a gpu
+		gpuid = f->second;
+	}
+	return gpuid;
 }
+
 
 //
 // For each specific variant set utilized, produce a list of exactly
@@ -1279,14 +1514,38 @@ gpuid_t *target_gpu_by_name(const QString &gpu_name)
 // variants' specification and still allows for human-readable use in
 // most locations.
 //
-void Main::produce_gpu_variants_content(xml_element_node_t *parent)
+xml_element_node_t *Main::produce_gpu_variants_content(xml_element_node_t *parent)
 {
-	//	for (auto variants_string : 
+	QXmlStreamAttributes sets_attrs;
+	xml_element_node_t *gpu_sets_node = new xml_element_node_t("gpu_sets", sets_attrs, parent);
+
+	QMap<vector<bool>, QString>::const_iterator gpu_set_i;
+	for ( gpu_set_i = gpu_set_variant_map.begin(); gpu_set_i != gpu_set_variant_map.end(); 
+		  gpu_set_i++ ) {
+		QXmlStreamAttributes set_attrs;
+		set_attrs.append("name", gpu_set_i.value());
+		xml_element_node_t *gpu_set_node = new xml_element_node_t("gpu_set", set_attrs, gpu_sets_node);
+		QSet<gpuid_t *> gpus = variants_to_gpus(gpu_set_i.value());
+		if ( !gpus.size() ) {
+			out() << "error: gpu set with zero size: " << gpu_set_i.value() << endl;
+			//			out() << "error: gpu_set_i: " << to_string(gpu_set_i.key()).c_str() << endl;
+			out() << "error: gpu_set_i: " << gpu_set_i.key() << endl;
+		}
+		for ( auto g : gpus ) {
+			QXmlStreamAttributes gpu_attrs;
+			gpu_attrs.append("name", g->name().c_str());
+			xml_element_node_t *gpu_node = new xml_element_node_t("gpu", gpu_attrs, gpu_set_node);
+			gpu_set_node->nodes.append(gpu_node);
+		}
+		gpu_sets_node->nodes.append(gpu_set_node);
+	}
+	return gpu_sets_node;
 }
+
 
 QString Main::gpus_to_variants(const gpu_set_t &gpus)
 {
-	uint64_t e = enumerate_gpu_set(gpus);
+	vector<bool> e = enumerate_gpu_set(gpus);
 
 	auto f = gpu_set_variant_map.find(e);
 	if ( f != gpu_set_variant_map.end() ) {
@@ -1294,11 +1553,10 @@ QString Main::gpus_to_variants(const gpu_set_t &gpus)
 	}
 
 	QString var_gpus, delim;
-	size_t max_gpus = target_gpus_by_ordering.size();
 	bool b = false;
 	queue<int> q;
-	for ( size_t l = 0; l < max_gpus; l++ ) {
-		if ( b ^ !!(e & (uint64_t(1)<<l)) ) {
+	for ( size_t l = 0; l < e.size(); l++ ) {
+		if ( b ^ e[l] ) {
 			q.push(l);
 			b = !b;
 		}
@@ -1325,14 +1583,13 @@ QString Main::gpus_to_variants(const gpu_set_t &gpus)
 				arg(QString::fromStdString(lo->name()).toUpper());
 		}
 	}
-	gpu_set_variant_map[e] = var_gpus;
+	if ( gpu_set_variant_map.find(e) == gpu_set_variant_map.end() ) {
+		gpu_set_variant_map[e] = var_gpus;
+	}
+
 	return var_gpus;
 }
 
-//
-// we need to handle < g80 specially.
-// e.g. nv4, nv10 aren't represented in the target_gpus.
-//
 QSet<gpuid_t *> Main::variants_to_gpus(const QString &variants)
 {
 	// lookup cache.  frequently used, enough to worry about...
@@ -1340,7 +1597,8 @@ QSet<gpuid_t *> Main::variants_to_gpus(const QString &variants)
 	if ( f != variant_map.end() ) {
 		return *f;
 	}
-	QRegularExpression single           ("^\\s*(\\w+)\\s*$");
+	// note: added trailing ':' to catch bogus case on "single"
+	QRegularExpression single           ("^\\s*(\\w+)(:?)\\s*$");
 	QRegularExpression range_inclusive  ("^\\s*(\\w+)\\s*-\\s*(\\w+)\\s*$");
 	QRegularExpression range_exclusive  ("^\\s*(\\w+)\\s*:\\s*(\\w+)\\s*$");
 	QRegularExpression before_exclusive ("^\\s*:\\s*(\\w+)\\s*$");
@@ -1357,157 +1615,141 @@ QSet<gpuid_t *> Main::variants_to_gpus(const QString &variants)
 		pieces << g.split(",");
 	}
 	for (auto p : pieces ) {
-		// out() << "info: piece " << p << endl;
 		QRegularExpressionMatch m = single.match(p);
 		if ( m.hasMatch() ) {
 			QString var_gpu = m.captured(1);
-			// out() << "info: single matched " << var_gpu << endl;
 			gpuid_t *gpu = target_gpu_by_name(var_gpu);
 			if ( gpu ) {
 				var_gpus.insert(gpu);
-			} else {
-				// now what? warn?
-				out() << "warning: unrecognized variant spec [" << p << "]" << endl;
+			}
+			if ( m.captured(2).size() ) {
+				out() << "warning: illegal variants spec(?) treated as single gpu [" <<
+					variants << "]" << endl;
 			}
 			continue;
 		}
+
 		m = range_inclusive.match(p);
 		if ( m.hasMatch() ) {
-
-			//    - var1-var2: all variants starting with var1 up to and including var2
+			//     var1-var2  all variants starting with var1 up to and including var2
 			QString low  = m.captured(1);
 			QString high = m.captured(2);
-			// out() << "info: range inclusive matched " << low << " " << high << endl;
 			gpuid_t *gpu_low  = target_gpu_by_name(low);
 			gpuid_t *gpu_high = target_gpu_by_name(high);
 			size_t  lowid = 0, highid = 0;
-			if (!gpu_low ) {
-				lowid = 0;
-			} else {
+			if ( gpu_low && gpu_high ) {
 				lowid = gpu_low->ordering_index();
-			}
-			if (!gpu_high) {
-				highid = 0;
-			} else {
 				highid = gpu_high->ordering_index();
-			}
-			for ( size_t gi = lowid; gi <= highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
-				var_gpus.insert(target_gpus_by_ordering[gi]);
-			}
-			if ( !var_gpus.size() ) {
-				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+				for ( size_t gi = lowid; gi <= highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+					var_gpus.insert(target_gpus_by_ordering[gi]);
+				}
+			} else {
+				// not gpus
 			}
 			continue;
 		}
 
 		m = range_exclusive.match(p);
 		if ( m.hasMatch() ) {
-			//    - var1:var2: all variants starting with var1 up to, but not including var2
+			//     var1:var2 all variants starting with var1 up to, but not including var2
 			QString low  = m.captured(1);
 			QString high = m.captured(2);
-			// out() << "info: range exclusive matched " << low << " " << high << endl;
 			gpuid_t *gpu_low  = target_gpu_by_name(low);
 			gpuid_t *gpu_high = target_gpu_by_name(high);
 			size_t lowid = 0, highid = 0;
-			if (gpu_low)  lowid  = gpu_low->ordering_index();
-			if (gpu_high) highid = gpu_high->ordering_index();
-			for ( size_t gi = lowid; (gi < highid) && (gi < target_gpus_by_ordering.size()); gi++ ) {
-				var_gpus.insert(target_gpus_by_ordering[gi]);
-			}
-			if ( !var_gpus.size() ) {
-				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			if ( gpu_low && gpu_high ) {
+				lowid  = gpu_low->ordering_index();
+				highid = gpu_high->ordering_index();
+				for ( size_t gi = lowid; (gi < highid) && (gi < target_gpus_by_ordering.size()); gi++ ) {
+					var_gpus.insert(target_gpus_by_ordering[gi]);
+				}
+			} else {
+				// not gpus
 			}
 			continue;
 		}
 
 		m = before_inclusive.match(p);
 		if ( m.hasMatch() ) {
-			//    - -var1: all variants up to and including var1
+			//     -var1 all variants up to and including var1
 			QString high = m.captured(1);
-			// out() << "info: before inclusive matched " << high << endl;
 			gpuid_t *gpu_high = target_gpu_by_name(high);
 			size_t lowid = 0, highid = 0;
-			//if (gpu_low) lowid = gpu_low->ordering_index();
-			if (gpu_high) highid = gpu_high->ordering_index();
-			for ( size_t gi = lowid; gi <= highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
-				var_gpus.insert(target_gpus_by_ordering[gi]);
-			}
-			if ( !var_gpus.size() ) {
-				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			if (gpu_high) {
+				highid = gpu_high->ordering_index();
+				for ( size_t gi = lowid; gi <= highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+					var_gpus.insert(target_gpus_by_ordering[gi]);
+				}
+			} else {
+				// not gpus
 			}
 			continue;
 		}
 
 		m = before_exclusive.match(p);
 		if ( m.hasMatch() ) {
-			//    - :var1: all variants before var1
+			//     :var1 all variants before var1
 			QString high = m.captured(1);
-			// out() << "info: before exclusive matched " << high << endl;
 			gpuid_t *gpu_high = target_gpu_by_name(high);
 			size_t lowid = 0, highid = 0;
-			//			if (gpu_low) lowid = gpu_low->ordering_index();
-			if (gpu_high) highid = gpu_high->ordering_index();
-			for ( size_t gi = lowid; gi < highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
-				var_gpus.insert(target_gpus_by_ordering[gi]);
+			if ( gpu_high ) {
+				highid = gpu_high->ordering_index();
+				for ( size_t gi = lowid; gi < highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+					var_gpus.insert(target_gpus_by_ordering[gi]);
+				}
+			} else {
+				// not gpus
 			}
-			if ( !var_gpus.size() ) {
-				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
-			}
-
 			continue;
 		}
 
 		m = after_inclusive.match(p);
 		if ( m.hasMatch() ) {
-			//    - var1-: all variants starting from var1
+			//     var1-  all variants starting from var1
 			QString low = m.captured(1);
-			// out() << "info: after inclusive matched " << low << endl;
 			gpuid_t *gpu_low = target_gpu_by_name(low);
 			size_t lowid = 0, highid;
-			if (gpu_low) lowid = gpu_low->ordering_index();
-			highid = target_gpus_by_ordering.size();
-			for ( size_t gi = lowid; gi < highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
-				var_gpus.insert(target_gpus_by_ordering[gi]);
-			}
-			if ( !var_gpus.size() ) {
-				out() << "warning: variant spec yielded no matching gpus [" << p << "]" << endl;
+			if ( gpu_low ) {
+				lowid = gpu_low->ordering_index();
+				highid = target_gpus_by_ordering.size();
+				for ( size_t gi = lowid; gi < highid && (gi < target_gpus_by_ordering.size()); gi++ ) {
+					var_gpus.insert(target_gpus_by_ordering[gi]);
+				}
+			} else {
+				// not gpus
 			}
 			continue;
 		}
-		// never matched?  bogus.
+		// never matched.  
 		out() << "error: failed to match variant piece " << p << " from " << variants << endl;
+		out() << "error: in file " << _current_file.top().filePath();
+		//XXX bug in the line # handling?  doesn't seem to line up.
+		if ( _current_stream_reader ) {
+			out() << " near line " << _current_stream_reader->lineNumber() << endl;
+		} else {
+			out() << endl;
+		}
 	}
 	variant_map[variants] = var_gpus;
-	//gpu_set_variant_map[var_gpus] = variants;
 	return var_gpus;
 }
 
-
-uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus)
+vector<bool> enumerate_gpu_set(const QSet<gpuid_t *> &gpus)
 {
-	if ( target_gpus_by_ordering.size() > 64 ) {
-		qFatal("error: too many gpus to enumerate!");
-		return ~(uint64_t)0;
-	}
-	uint64_t v = 0;
+	vector<bool> v(target_gpus_by_ordering.size(), false);
 	for ( auto gpu : gpus ) {
-		v |= uint64_t(1) << gpu->ordering_index();
+		v[gpu->ordering_index()] = true;
 	}
 	return v;
 }
 
-uint64_t enumerate_gpu_set(const set<gpuid_t *> &gpus)
+vector<bool> enumerate_gpu_set(const set<gpuid_t *> &gpus)
 {
-	if ( target_gpus_by_ordering.size() > 64 ) {
-		qFatal("error: too many gpus to enumerate!");
-		return ~(uint64_t)0;
-	}
-	uint64_t v = 0;
+	vector<bool> v(target_gpus_by_ordering.size(), false);
 	for ( auto gpu : gpus ) {
-		v |= uint64_t(1) << gpu->ordering_index();
+		v[gpu->ordering_index()] = true;
 	}
 	return v;
-
 }
 
 
@@ -1515,7 +1757,7 @@ uint64_t enumerate_gpu_set(const set<gpuid_t *> &gpus)
 // it's for use in the gpuid set -> variant string map.
 bool operator < (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 {
-	uint64_t a_val, b_val;
+	vector<bool> a_val, b_val;
 	a_val = enumerate_gpu_set(a);
 	b_val = enumerate_gpu_set(b);
 	return a_val < b_val;
@@ -1523,7 +1765,7 @@ bool operator < (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 
 bool operator == (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 {
-	uint64_t a_val, b_val;
+	vector<bool> a_val, b_val;
 	a_val = enumerate_gpu_set(a);
 	b_val = enumerate_gpu_set(b);
 	return a_val == b_val;
@@ -1531,7 +1773,7 @@ bool operator == (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 
 bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 {
-	uint64_t a_val, b_val;
+	vector<bool> a_val, b_val;
 	a_val = enumerate_gpu_set(a);
 	b_val = enumerate_gpu_set(b);
 	return a_val > b_val;
@@ -1540,32 +1782,32 @@ bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b)
 
 void Main::accelerate_defs()
 {
+	out() << "info: coalesced tree" << endl;
+	out() << *def.coalesced << endl;
+
 	// pre-compute some sets/groupings which are heavily used later.
 	for ( auto reg_set : def.coalesced->regs_by_name ) {
 		for ( auto reg : reg_set.second ) {
 			def.regs_by_value_and_name[reg->val][reg->symbol].insert(reg);
 		}
 	}
-	for ( auto reg_val_name_set : def.regs_by_value_and_name ) {
-		for ( auto reg_val_set : reg_val_name_set.second ) {
-			for ( auto reg_val : reg_val_set.second ) {
-				reg_def_t *r = reg_val;
-				out() << "val: 0x" << hex << r->val << " name: " << r->symbol.c_str() << " gpus: " << gpus_to_variants(r->def_gpus) << endl;
+
+	if ( _verbose ) {
+		for ( auto reg_val_name_set : def.regs_by_value_and_name ) {
+			for ( auto reg_val_set : reg_val_name_set.second ) {
+				for ( auto reg_val : reg_val_set.second ) {
+					reg_def_t *r = reg_val;
+					out() << "info: val: 0x" << hex << r->val << " name: " <<
+						r->symbol.c_str() << " gpus: " <<
+						gpus_to_variants(r->def_gpus) << endl;
+				}
 			}
 		}
 	}
+}
+
 #if 0
-	out() << "info: found " <<
-		ip_whitelist::chip_groups.size()    << " groups";
-	for ( auto g: ip_whitelist::chip_groups ) {
-		out() << "\t" << qStr(g.second->name) << endl;
-	}
-	//	chip_regs.size()      << " registers, " <<
-	//		chip_fields.size()    << " fields and " <<
-	//		chip_constants.size() << " constants overall." << endl;
-
-
-
+    // this info is in the whitelist (at group)
 	map<string, string> group_to_file_unit = {
 		{"bus", "bus/pbus.xml"},
 		{"ccsr", },
@@ -1605,7 +1847,7 @@ void Main::accelerate_defs()
 		}
 	}
 #endif
-}
+
 
 
 bool compare_fields(field_def_t *field_a, field_def_t *field_b)
@@ -1613,7 +1855,6 @@ bool compare_fields(field_def_t *field_a, field_def_t *field_b)
 	if ( field_a->low != field_b->low ) {
 		return field_a->low < field_b->low;
 	}
-
 	// low_a == low_b
 	if ( field_a->high != field_b->high ) {
 		// low_a == low_b , high_a != high_b
@@ -1628,9 +1869,9 @@ void Main::produce_const_content(const_def_t *const_def, xml_element_node_t *par
 	QXmlStreamAttributes const_attrs;
 	stringstream ss;
 	ss << const_def->val;
-	const_attrs.append( qStr("value"), qStr(ss.str()));
-	const_attrs.append( qStr("name"), qStr(const_def->symbol) );
-	const_attrs.append( qStr("variants"), gpus_to_variants(const_def->def_gpus));
+	const_attrs.append( "value", ss.str().c_str());
+	const_attrs.append( "name", const_def->symbol.c_str() );
+	const_attrs.append( "variants", gpus_to_variants(const_def->def_gpus));
 	xml_element_node_t *new_constant =
 		new xml_element_node_t("value", const_attrs, parent_node);
 	parent_node->nodes << new_constant;
@@ -1646,16 +1887,17 @@ bool compare_constants(const_def_t *const_a, const_def_t *const_b)
 void Main::produce_field_content(field_def_t *field, xml_element_node_t *parent_reg)
 {
 	QXmlStreamAttributes field_attrs;
-	field_attrs.append(qStr("name"), qStr(field->symbol));
+	field_attrs.append("name", field->symbol.c_str());
 	stringstream high; high << field->high;
 	stringstream low; low  << field->low;
 	if ( high.str() == low.str() ) {
-		field_attrs.append(qStr("pos"), qStr(low.str()));
+		field_attrs.append("pos", low.str().c_str());
 	} else {
-		field_attrs.append(qStr("high"), qStr(high.str()));
-		field_attrs.append(qStr("low"), qStr(low.str()));
+		// natural to put high first.  but existing content has low, high.
+		field_attrs.append("low", low.str().c_str());
+		field_attrs.append("high", high.str().c_str());
 	}
-	field_attrs.append(qStr("variants"), gpus_to_variants(field->def_gpus));
+	field_attrs.append("variants", gpus_to_variants(field->def_gpus));
 
 	xml_element_node_t *field_node = 
 		new xml_element_node_t("bitfield", field_attrs, parent_reg);
@@ -1673,16 +1915,37 @@ void Main::produce_field_content(field_def_t *field, xml_element_node_t *parent_
 	}
 }
 
+
 void Main::produce_register_content(reg_def_t *reg_def, file_content_t *content)
 {
+	content->nodes.append( produce_register_content(reg_def, (xml_element_node_t*)0)/*new_reg32*/ );
+}
 
+xml_element_node_t *Main::produce_register_content(reg_def_t *reg_def, xml_element_node_t *reg_node)
+{
 	QXmlStreamAttributes reg_attrs;
 	stringstream ss;
 	ss << "0x" << hex << reg_def->val;
-	reg_attrs.append( qStr("offset"),   qStr(ss.str()));
-	reg_attrs.append( qStr("name"),     qStr(reg_def->symbol));
-	reg_attrs.append( qStr("variants"), gpus_to_variants(reg_def->def_gpus));
-	xml_element_node_t *new_reg32 = new xml_element_node_t("reg32", reg_attrs);
+	reg_attrs.append( "offset",   ss.str().c_str());
+	reg_attrs.append( "name",     reg_def->symbol.c_str());
+	reg_attrs.append( "bare",     "yes");
+	reg_attrs.append( "variants", gpus_to_variants(reg_def->def_gpus));
+
+	if ( !reg_node ) {
+		reg_node = new xml_element_node_t("reg32", reg_attrs);
+	} else {
+		// update/modify pre-existing
+		QXmlStreamAttributes &existing_attrs = reg_node->attrs;
+		for ( int ai = 0; ai < existing_attrs.size(); ai++) {
+			if (existing_attrs[ai].name() == "name") {
+				existing_attrs[ai] = QXmlStreamAttribute("name", reg_def->symbol.c_str());
+			} else if (existing_attrs[ai].name() == "bare") {
+				existing_attrs[ai] = QXmlStreamAttribute("bare", "yes");
+			} else if (existing_attrs[ai].name() == "variants") {
+				existing_attrs[ai] = QXmlStreamAttribute("variants", gpus_to_variants(reg_def->def_gpus));
+			}
+		}
+	}
 
 	vector<field_def_t *> sorted_fields;
 	for ( auto ff : reg_def->fields_by_name ) {
@@ -1691,9 +1954,19 @@ void Main::produce_register_content(reg_def_t *reg_def, file_content_t *content)
 		}
 	}
 	for ( auto field : sorted_fields ) {
-		produce_field_content(field, new_reg32);
+		produce_field_content(field, reg_node);
 	}
-	content->nodes.append( new_reg32 );
+
+	return reg_node;
 
 }
 
+ostream &operator<<(ostream &os, const vector<bool> &e)
+{
+	string s(e.size(), '_');
+	for ( size_t i = 0; i < e.size(); i++) {
+		s[i] = e[i]?'1':'0';
+	}
+	os << s;
+	return os;
+}

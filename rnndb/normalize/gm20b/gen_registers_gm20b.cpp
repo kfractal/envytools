@@ -57,7 +57,7 @@ using namespace ip_whitelist;
 
 static void emit_bus_group()
 {
-	begin_group( G_SPEC( bus ) );
+	begin_group( G_SPEC( bus, NV_PBUS ) );
 	emit_register( R_SPEC( bar1_block, NV_PBUS_BAR1_BLOCK ) );
 
 	emit_field   ( F_SPEC( ptr,   NV_PBUS_BAR1_BLOCK_PTR, "f") );
@@ -98,7 +98,7 @@ static void emit_bus_group()
 
 static void emit_ccsr_group()
 {
-	begin_group  ( G_SPEC( ccsr ) );
+	begin_group  ( G_SPEC( ccsr, NV_PCCSR ) );
 
 	emit_register( IR_SPEC( channel_inst, NV_PCCSR_CHANNEL_INST ) );
 	emit_constant( C_SPEC( _size_1,       NV_PCCSR_CHANNEL_INST__SIZE_1, "v") );
@@ -132,7 +132,7 @@ static void emit_ccsr_group()
 
 static void emit_ce2_group()
 {
-	begin_group  ( G_SPEC( ce2 ) );
+	begin_group  ( G_SPEC( ce2, NV_PCE2 ) );
 
 	emit_register( R_SPEC( intr_status, NV_PCE2_COP2_INTR_STATUS ) );
 	emit_field   ( F_SPEC( blockpipe, NV_PCE2_COP2_INTR_STATUS_BLOCKPIPE, ".") );
@@ -150,7 +150,7 @@ static void emit_ce2_group()
 
 static void emit_ctxsw_prog_group()
 {
-	begin_group( G_SPEC( ctxsw_prog ) );
+	begin_group( G_SPEC( ctxsw_prog, NV_CTXSW ) );
 	emit_constant( C_SPEC( fecs_header,       NV_CTXSW_FECS_HEADER, "v") ); /* this is goofy/wrong */
 
 	emit_offset  ( O_SPEC( main_image_num_gpcs,        NV_CTXSW_MAIN_IMAGE_NUM_GPCS ) );
@@ -226,7 +226,7 @@ static void emit_ctxsw_prog_group()
 
 static void emit_fb_group()
 {
-	begin_group( G_SPEC( fb ) );
+	begin_group( G_SPEC( fb, NV_PFB ) );
 
 	emit_register( R_SPEC( fbhub_num_active_ltcs, NV_PFB_FBHUB_NUM_ACTIVE_LTCS) );
 
@@ -306,7 +306,7 @@ static void emit_fb_group()
 
 static void emit_fifo_group()
 {
-	begin_group( G_SPEC( fifo ) );
+	begin_group( G_SPEC( fifo, NV_PFIFO ) );
 	emit_register( R_SPEC( bar1_base, NV_PFIFO_BAR1_BASE ) );
 	emit_field   ( F_SPEC( ptr, NV_PFIFO_BAR1_BASE_PTR, "f") );
 	emit_constant( C_SPEC( align_shift, NV_PFIFO_BAR1_BASE_PTR_ALIGN_SHIFT, "v") );
@@ -486,7 +486,7 @@ static void emit_fifo_group()
 
 static void emit_flush_group()
 {
-	begin_group( G_SPEC( flush  ) );
+	begin_group( G_SPEC( flush, NV_UFLUSH  ) );
 
 	emit_register( R_SPEC( l2_system_invalidate, NV_UFLUSH_L2_SYSMEM_INVALIDATE ) );
 	emit_field   ( F_SPEC( pending, NV_UFLUSH_L2_SYSMEM_INVALIDATE_PENDING, "v") );
@@ -517,8 +517,8 @@ static void emit_flush_group()
 
 static void emit_gmmu_group()
 {
-	begin_group( G_SPEC( gmmu ) );
-	begin_scope( S_SPEC( pde ) );
+	begin_group( G_SPEC( gmmu, NV_MMU ) );
+	begin_scope( S_SPEC( pde , NV_MMU_PDE) );
 
 	emit_field   (WF_SPEC( aperture_big, NV_MMU_PDE_APERTURE_BIG,    ".") );
 	emit_constant( C_SPEC( invalid,      NV_MMU_PDE_APERTURE_BIG_INVALID,      "f") );
@@ -551,7 +551,7 @@ static void emit_gmmu_group()
 	end_scope(); /* pde */
 
 
-	begin_scope( S_SPEC( pte ) );
+	begin_scope( S_SPEC( pte, NV_MMU_PTE ) );
 	emit_constant( C_SPEC( _size, NV_MMU_PTE__SIZE, "v") );
 
 	emit_field   (WF_SPEC( valid, NV_MMU_PTE_VALID, ".") );
@@ -823,7 +823,7 @@ static void emit_gmmu_group()
 
 static void emit_gr_group()
 {
-	begin_group( G_SPEC( gr ) );
+	begin_group( G_SPEC( gr, NV_PGRAPH ) );
 	emit_register( R_SPEC( intr, NV_PGRAPH_INTR ) );
 	emit_field   ( F_SPEC( notify, NV_PGRAPH_INTR_NOTIFY, ".") );
 	emit_constant( C_SPEC( pending, NV_PGRAPH_INTR_NOTIFY_PENDING, "f") );
@@ -1988,7 +1988,7 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 
 static void emit_ltc_group()
 {
-	begin_group( G_SPEC( ltc ) );
+	begin_group( G_SPEC( ltc, NV_PLTCG ) );
 
 	emit_register( R_SPEC( ltcs_lts0_cbc_ctrl1, NV_PLTCG_LTC0_LTS0_CBC_CTRL_1 ) );
 	emit_register( R_SPEC( ltc0_lts0_dstg_cfg0, NV_PLTCG_LTC0_LTS0_DSTG_CFG0 ) );
@@ -2114,7 +2114,7 @@ static void emit_ltc_group()
 
 static void emit_mc_group()
 {
-	begin_group( G_SPEC( mc ) );
+	begin_group( G_SPEC( mc, NV_PMC ) );
 	emit_register( R_SPEC( boot_0, NV_PMC_BOOT_0 ) );
 	emit_field   ( F_SPEC( architecture, NV_PMC_BOOT_0_ARCHITECTURE, "v") );
 	emit_field   ( F_SPEC( implementation, NV_PMC_BOOT_0_IMPLEMENTATION, "v") );
@@ -2200,7 +2200,7 @@ static void emit_mc_group()
 
 static void emit_pbdma_group()
 {
-	begin_group( G_SPEC( pbdma ) );
+	begin_group( G_SPEC( pbdma, NV_PPBDMA ) );
 	emit_register( R_SPEC( gp_entry1, NV_PPBDMA_GP_ENTRY1 ) );
 	emit_field   ( F_SPEC( get_hi, NV_PPBDMA_GP_ENTRY1_GET_HI, "v") );
 	emit_field   ( F_SPEC( length, NV_PPBDMA_GP_ENTRY1_LENGTH , "fv") );
@@ -2405,7 +2405,7 @@ static void emit_pbdma_group()
 
 static void emit_pri_ringmaster_group()
 {
-	begin_group( G_SPEC( pri_ringmaster ) );
+	begin_group( G_SPEC( pri_ringmaster, NV_PPRIV_MASTER_RING ) );
 	emit_register( R_SPEC( command, NV_PPRIV_MASTER_RING_COMMAND ) );
 	emit_field   ( F_SPEC( cmd, NV_PPRIV_MASTER_RING_COMMAND_CMD, "mv") );
 	emit_constant( C_SPEC( no_cmd, NV_PPRIV_MASTER_RING_COMMAND_CMD_NO_CMD, "v") );
@@ -2445,7 +2445,7 @@ static void emit_pri_ringmaster_group()
 
 static void emit_pri_ringstation_sys_group()
 {
-	begin_group( G_SPEC( pri_ringstation_sys ) );
+	begin_group( G_SPEC( pri_ringstation_sys, NV_PPRIV_SYS ) );
 
 	emit_register(IR_SPEC( master_config, NV_PPRIV_SYS_MASTER_SM_CONFIG) );
 
@@ -2459,7 +2459,7 @@ static void emit_pri_ringstation_sys_group()
 
 static void emit_proj_group()
 {
-	begin_group( G_SPEC( proj ) );
+	begin_group( G_SPEC( proj, NV_PROJ ) );
 
 	emit_constant( C_SPEC( gpc_base,        NV_GPC_PRI_BASE,        "v") );
 	emit_constant( C_SPEC( gpc_shared_base, NV_GPC_PRI_SHARED_BASE, "v") );
@@ -2499,7 +2499,7 @@ static void emit_proj_group()
 
 static void emit_pwr_group()
 {
-	begin_group( G_SPEC( pwr ) );
+	begin_group( G_SPEC( pwr, NV_PPWR ) );
 	emit_register( R_SPEC( falcon_irqsset, NV_PPWR_FALCON_IRQSSET ) );
 	emit_field   ( F_SPEC( swgen0, NV_PPWR_FALCON_IRQSSET_SWGEN0, ".") );
 	emit_constant( C_SPEC( set, NV_PPWR_FALCON_IRQSSET_SWGEN0_SET, "f") );
@@ -2746,9 +2746,9 @@ static void emit_pwr_group()
 
 static void emit_ram_group()
 {
-	begin_group( G_SPEC( ram ) );
+	begin_group( G_SPEC( ram, NV_RAM ) );
 
-	begin_scope( S_SPEC( in ) ); /* ram_in */
+	begin_scope( S_SPEC( in, NV_RAMIN ) ); /* instance ram */
 	//emit_field   (WF_SPEC( ramfc, NV_RAMIN_RAMFC, "sw") );
 	emit_field   (WF_SPEC( page_dir_base_target, NV_RAMIN_PAGE_DIR_BASE_TARGET, "fw") );
 	emit_constant( C_SPEC( vid_mem, NV_RAMIN_PAGE_DIR_BASE_TARGET_VID_MEM, "f") );
@@ -2777,7 +2777,7 @@ static void emit_ram_group()
 	emit_constant( C_SPEC( alloc_size, NV_RAMIN_ALLOC_SIZE, "v") );
 	end_scope(); /* ram_in */
 
-	begin_scope( S_SPEC( fc ) );
+	begin_scope( S_SPEC( fc, NV_RAMFC ) );
 	emit_constant( C_SPEC( size_val, NV_RAMFC_SIZE_VAL, "v") );
 	emit_field   (WF_SPEC( gp_put, NV_RAMFC_GP_PUT, "") );
 	emit_field   (WF_SPEC( userd, NV_RAMFC_USERD, "") );
@@ -2814,7 +2814,7 @@ static void emit_ram_group()
 	emit_field   (WF_SPEC( runlist_timeslice, NV_RAMFC_RUNLIST_TIMESLICE, "") );
 	end_scope(); /* ram_fc */
 
-	begin_scope( S_SPEC( userd ) );
+	begin_scope( S_SPEC( userd, NV_RAMUSERD ) );
 	emit_constant( C_SPEC( base_shift, NV_RAMUSERD_BASE_SHIFT, "v") );
 	emit_constant( C_SPEC( chan_size, NV_RAMUSERD_CHAN_SIZE, "v") );
 	emit_field   (WF_SPEC( put, NV_RAMUSERD_PUT, "") );
@@ -2831,7 +2831,7 @@ static void emit_ram_group()
 	emit_field   (WF_SPEC( gp_top_level_get_hi, NV_RAMUSERD_GP_TOP_LEVEL_GET_HI, "") );
 	end_scope(); /* ram_userd */
 
-	begin_scope( S_SPEC( rl ) );
+	begin_scope( S_SPEC( rl, NV_RAMRL ) );
 	emit_constant( C_SPEC( entry_size, NV_RAMRL_ENTRY_SIZE, "v") );
 	emit_field   (F_SPEC( entry_chid, NV_RAMRL_ENTRY_CHID, "f") );
 	emit_field   (F_SPEC( entry_id, NV_RAMRL_ENTRY_ID, "f") );
@@ -2851,7 +2851,7 @@ static void emit_ram_group()
 
 static void emit_therm_group()
 {
-	begin_group( G_SPEC( therm ) );
+	begin_group( G_SPEC( therm, NV_THERM ) );
 	emit_register( R_SPEC( use_a, NV_THERM_USE_A ) );
 
 	emit_register( R_SPEC( evt_ext_therm_0, NV_THERM_EVT_EXT_THERM_0 ) );
@@ -2900,7 +2900,7 @@ static void emit_therm_group()
 
 static void emit_top_group()
 {
-	begin_group( G_SPEC( top ) );
+	begin_group( G_SPEC( top, NV_PTOP ) );
 	emit_register( R_SPEC( num_gpcs, NV_PTOP_SCAL_NUM_GPCS ) );
 	emit_field   ( F_SPEC( value, NV_PTOP_SCAL_NUM_GPCS_VALUE, "v") );
 
@@ -2943,7 +2943,7 @@ static void emit_top_group()
 
 static void emit_trim_group()
 {
-	begin_group( G_SPEC( trim ) );
+	begin_group( G_SPEC( trim, NV_PTRIM ) );
 	emit_register( R_SPEC( sys_gpcpll_cfg, NV_PTRIM_SYS_GPCPLL_CFG ) );
 	emit_field   ( F_SPEC( enable, NV_PTRIM_SYS_GPCPLL_CFG_ENABLE, "mv") );
 	emit_constant( C_SPEC( no, NV_PTRIM_SYS_GPCPLL_CFG_ENABLE_NO, "f") );
@@ -3044,7 +3044,7 @@ static void emit_trim_group()
 
 static void emit_timer_group()
 {
-	begin_group( G_SPEC( timer ) );
+	begin_group( G_SPEC( timer ,NV_PTIMER ) );
 	emit_register( R_SPEC( pri_timeout, NV_PTIMER_PRI_TIMEOUT ) );
 	emit_field   ( F_SPEC( period, NV_PTIMER_PRI_TIMEOUT_PERIOD, "fmv") );
 	emit_field   ( F_SPEC( en, NV_PTIMER_PRI_TIMEOUT_EN, "fmv") );
@@ -3060,7 +3060,7 @@ static void emit_timer_group()
 
 static void emit_fuse_group()
 {
-	begin_group( G_SPEC( fuse ) );
+	begin_group( G_SPEC( fuse, NV_FUSE ) );
 	emit_register( IR_SPEC( status_opt_tpc_gpc, NV_FUSE_STATUS_OPT_TPC_GPC ) );
 	emit_register( IR_SPEC( ctrl_opt_tpc_gpc, NV_FUSE_CTRL_OPT_TPC_GPC ) );
 	emit_register( R_SPEC( ctrl_opt_ram_svop_pdp, NV_FUSE_CTRL_OPT_RAM_SVOP_PDP ) );

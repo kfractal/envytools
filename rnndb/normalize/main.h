@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <string>
+#include <sstream>
 
 #include <QCoreApplication>
 #include <QFile>
@@ -30,13 +31,12 @@
 #include <QSet>
 #include <QString>
 #include <QStack>
+#include <QTextStream>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
 #include <QAbstractMessageHandler>
-
-typedef QSet<QString> QStringSet;
 
 #include "ip_def.h"
 #include "elements.h"
@@ -88,6 +88,7 @@ protected:
 	QXmlSchema _schema;
 	QXmlSchemaValidator _validator;
 	ValidatorMessageHandler _validator_msg_handler;
+	QXmlStreamReader *_current_stream_reader;
 
 	static constexpr bool _debug   = false;
 	static constexpr bool _verbose = false;
@@ -170,49 +171,42 @@ protected:
 	QString gpus_to_variants(const gpu_set_t &);
 
 	QMap<QString, QSet<gpuid_t *>> variant_map;
-	QMap<uint64_t, QString> gpu_set_variant_map;
+	QMap<vector<bool>, QString> gpu_set_variant_map;
 
 	struct {
-#if 0
-		set<string> group_names;
-		map<string, set<group_def_t *>> groups_by_name;
-		map<string, set<const_def_t *>> constants_by_name;		
-		map<string, map<int64_t, set<const_def_t *>>> constants_by_name_and_value;
-		map<string, set<reg_def_t *>> regs_by_name;
-		map<string, map<uint64_t, set<reg_def_t *>>> regs_by_name_and_value;
-		map<uint64_t, set<reg_def_t *>> regs_by_value;
-	
-		map<string, set<field_def_t *>> fields_by_name;
-		map<string, map< pair<size_t, size_t>, set<field_def_t *>>> fields_by_name_and_value;
-#endif
 		map<uint64_t, map<string, reg_def_set_t>> regs_by_value_and_name;
 		def_tree_t *coalesced;
-		// map<string, group_def_t *> coalesced_groups_by_name;
 	} def;
 	void accelerate_defs();
-	//	def_tree_t *process_defs();
-	//	def_tree_t *clone_def_trees(def_tree_t *);
 
 	set<string> hit_fields;
 	set<string> hit_constants;
+
 	void produce_register_content(reg_def_t *reg_defn_val, file_content_t *content);
+	xml_element_node_t * produce_register_content(reg_def_t *reg_def, xml_element_node_t *reg_node);
 	void produce_field_content(field_def_t*, xml_element_node_t *p);
 	void produce_const_content(const_def_t*, xml_element_node_t *p);
-	void produce_gpu_variants_content(xml_element_node_t *p);
+	xml_element_node_t * produce_gpu_variants_content(xml_element_node_t *p);
+
+	set<string> _warned_about_legacy_gpu;
+	gpuid_t *target_gpu_by_name(const QString &gpu_name);
+
 };
 
-uint64_t enumerate_gpu_set(const QSet<gpuid_t*> &gpus);
-uint64_t enumerate_gpu_set(const set<gpuid_t*> &gpus);
+vector<bool> enumerate_gpu_set(const QSet<gpuid_t*> &gpus);
+vector<bool> enumerate_gpu_set(const set<gpuid_t*> &gpus);
 bool operator < (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
 bool operator == (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
 bool operator > (const QSet<gpuid_t *> &a, const QSet<gpuid_t *>&b);
 
-#define qStr(X) QString::fromStdString(X)
+ostream &operator<<(ostream &os, const vector<bool> &e);
 
-template <typename T>
-inline string to_hex(const T &n) {
-	stringstream ss;
-	ss << "0x" << std::hex << n;
-	return ss.str();
+
+// attempt at a QTextStream/ostream adapter.  manipulators might not
+// work correctly (haven't tested yet).
+template<typename T> QTextStream &operator<<(QTextStream &os, const T&o) {
+	std::ostringstream oss;
+	oss << o;
+	os << oss.str().c_str();
+	return os;
 }
-

@@ -23,9 +23,11 @@
 
 #include <unordered_map>
 #include <fstream>
+#include <sstream>
 #include <cstdlib>
 #include <cstdio>
 #include <cassert>
+#include <queue>
 
 #include <QDir>
 #include <QFileInfo>
@@ -60,6 +62,7 @@ vector<gpuid_t*> target_gpus_by_ordering;
 
 
 static gpu_family_t
+	legacy_family {"legacy"},
 	g8x_family     {"g8x"},
 	tesla_family   {"tesla"},
 	kepler_family  {"kepler"},
@@ -92,6 +95,7 @@ map<string, bool> hwref_file_blacklist {
 // master list of nouveau supported gpus grouped by family/arch, id.
 //
 static vector<gpuid_t::ctor_t> gpuid_table {
+	{ "legacy"  , 0x0000 , "", &legacy_family },
 
 	{ "g80"     , 0x0080 , "${hwref}/nv50",  &g8x_family },
 	{ "g84"     , 0x0084 , "${hwref}/g84",   &g8x_family },
@@ -356,6 +360,7 @@ static string normalize_token(list<FooLexer::token_t>::iterator &t)
 //
 // dev_fb.h -> "fb"  dev_fb_addendum.h -> "fb_addendum" etc.
 //
+#if 0
 static string tag(const string &def_file_name)
 {
 	string foo = def_file_name;
@@ -375,7 +380,7 @@ static string tag(const string &def_file_name)
 	}
 	return foo.substr(0, foo.length() - 2);
 }
-
+#endif
 //
 // evaluation here is sending a test program off to be compiled
 // and then run.  i.e. it's expensive. so, the results are cached
@@ -545,79 +550,6 @@ group_def_t *def_tree_t::instance_group(ip_whitelist::group_t *group)
 	return group_def;
 }
 
-offset_def_t *def_tree_t::instance_offset(ip_whitelist::offset_t *offset)
-{
-	string name = offset->def;
-	if ( !name.size() ) {
-		throw runtime_error("null offset length [" + offset->def + "]");
-	}
-	auto offset_by_name = offsets_by_name[name].begin();
-	offset_def_t *offset_def;
-	if ( offset_by_name == offsets_by_name[name].end() ) {
-		offset_def = new offset_def_t(this, offset->def, gpus);
-		defs_by_name[name].insert(offset_def);
-		offsets_by_name[name].insert(offset_def);
-		if ( offset->group ) {
-			group_def_t *parent_group = instance_group(offset->group);
-			parent_group->offsets_by_name[name].insert(offset_def);
-		} else {
-			throw domain_error("parentless offset" + offset->name);
-		}
-	} else {
-		offset_def = *offset_by_name;
-	}
-	return offset_def;
-}
-
-word_def_t *def_tree_t::instance_word(ip_whitelist::word_t *word)
-{
-	string name = word->def;
-	if ( !name.size() ) {
-		throw runtime_error("null word length [" + word->def + "]");
-	}
-
-	auto word_by_name = words_by_name[name].begin();
-	word_def_t *word_def;
-	if ( word_by_name == words_by_name[name].end() ) {
-		word_def = new word_def_t(this, word->def, gpus);
-		defs_by_name[name].insert(word_def);
-		words_by_name[name].insert(word_def);
-		if ( word->group ) {
-			group_def_t *parent_group = instance_group(word->group);
-			parent_group->words_by_name[name].insert(word_def);
-		} else {
-			throw domain_error("parentless word" + word->name);
-		}
-	} else {
-		word_def = *word_by_name;
-	}
-	return word_def;
-}
-
-scope_def_t *def_tree_t::instance_scope(ip_whitelist::scope_t *scope)
-{
-	string name = scope->name;
-	if ( !name.size() ) {
-		throw runtime_error("null scope length [" + scope->def + "]");
-	}
-
-	auto scope_by_name = scopes_by_name[name].begin();
-	scope_def_t *scope_def;
-	if ( scope_by_name == scopes_by_name[name].end() ) {
-		scope_def = new scope_def_t(this, scope->def, gpus);
-		defs_by_name[name].insert(scope_def);
-		scopes_by_name[name].insert(scope_def);
-		if ( scope->group ) {
-			group_def_t *parent_group = instance_group(scope->group);
-			parent_group->scopes_by_name[name].insert(scope_def);
-		} else {
-			throw domain_error("parentless scope" + scope->name);
-		}
-	} else {
-		scope_def = *scope_by_name;
-	}
-	return scope_def;
-}
 
 
 reg_def_t *def_tree_t::instance_reg(ip_whitelist::reg_t *reg)
@@ -655,22 +587,8 @@ field_def_t *def_tree_t::instance_field(ip_whitelist::field_t *field)
 		defs_by_name[name].insert(field_def);
 		fields_by_name[name].insert(field_def);
 		if ( field->reg ) {
-			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(field->reg);
-			ip_whitelist::word_t   *w = dynamic_cast<ip_whitelist::word_t *>  (field->reg);
-			ip_whitelist::scope_t  *s = dynamic_cast<ip_whitelist::scope_t *> (field->reg);
-			if ( o ) {
-				offset_def_t *parent_offset = instance_offset(o);
-				parent_offset->fields_by_name[name].insert(field_def);
-			} else if (w) {
-				word_def_t *parent_word = instance_word(w);
-				parent_word->fields_by_name[name].insert(field_def);
-			} else if (s) { 
-				scope_def_t *parent_scope = instance_scope(s);
-				parent_scope->fields_by_name[name].insert(field_def);
-			} else {
 				reg_def_t *parent_reg = instance_reg(field->reg);
 				parent_reg->fields_by_name[name].insert(field_def);
-			}
 		} else if (field->group) {
 			group_def_t *parent_group = instance_group(field->group);
 			parent_group->fields_by_name[name].insert(field_def);
@@ -696,26 +614,8 @@ const_def_t *def_tree_t::instance_const(ip_whitelist::constant_t *constant)
 			field_def_t *parent_field = instance_field(constant->field);
 			parent_field->constants_by_name[name].insert(const_def);
 		} else if ( constant->reg ) {
-			//
-			// note type constraints/goofies wrt order here as
-			// offset, word and scope are descendants of reg_t...
-			//
-			ip_whitelist::offset_t *o = dynamic_cast<ip_whitelist::offset_t *>(constant->reg);
-			ip_whitelist::word_t *w   = dynamic_cast<ip_whitelist::word_t *>(constant->reg);
-			ip_whitelist::scope_t *s  = dynamic_cast<ip_whitelist::scope_t *>(constant->reg);
-			if ( o ) {
-				offset_def_t *parent_offset = instance_offset(o);
-				parent_offset->constants_by_name[name].insert(const_def);
-			} else if ( w ) {
-				word_def_t *parent_word = instance_word(w);
-				parent_word->constants_by_name[name].insert(const_def);
-			} else if ( s ) { 
-				scope_def_t *parent_scope = instance_scope(s);
-				parent_scope->constants_by_name[name].insert(const_def);
-			} else {
-				reg_def_t *parent_reg = instance_reg(constant->reg);
-				parent_reg->constants_by_name[name].insert(const_def);
-			}
+			reg_def_t *parent_reg = instance_reg(constant->reg);
+			parent_reg->constants_by_name[name].insert(const_def);
 		} else if ( constant->group) {
 			group_def_t *parent_group = instance_group(constant->group);
 			parent_group->constants_by_name[name].insert(const_def);
@@ -882,6 +782,10 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 		//
 		// !!! this is where non-whitelisted symbols are rejected... !!!
 		//
+		// XXX/TBD: search within each group because the top-level namespace
+		// shouldn't be used as it causes collisions.  that, or include
+		// the namespace (group::register::...) within the symbol name.
+		//
 		auto find_symbol = ip_whitelist::symbol_whitelist.find(def_match);
 		if ( find_symbol == ip_whitelist::symbol_whitelist.end() ) {
 			continue;
@@ -889,103 +793,107 @@ def_tree_t * process_gpu_defs(gpuid_t *g, string def_file_name)
 
 		//
 		// is it a register or a field or a constant?  and at what scope?
-		// the whitelist has that information.
+		// the whitelist has that information.  but it is buried inside the
+		// group definitions (if at all).
 		//
+		auto find_wl_group    = ip_whitelist::chip_groups.find   (def_match);
+		auto find_wl_reg      = ip_whitelist::chip_regs.find     (def_match);
+		auto find_wl_field    = ip_whitelist::chip_fields.find   (def_match);
+		auto find_wl_constant = ip_whitelist::chip_constants.find(def_match);
 
-		wl_regs_iterator_t    find_wl_reg    = ip_whitelist::chip_regs.find    (def_match);
-		wl_offsets_iterator_t find_wl_offset = ip_whitelist::chip_offsets.find (def_match);
-		wl_words_iterator_t   find_wl_word   = ip_whitelist::chip_words.find   (def_match);
-		wl_scopes_iterator_t  find_wl_scope  = ip_whitelist::chip_scopes.find  (def_match);
+		auto find_wl_deleted_group    = ip_whitelist::chip_deleted_groups.find   (def_match);
+		auto find_wl_deleted_reg      = ip_whitelist::chip_deleted_regs.find     (def_match);
+		auto find_wl_deleted_field    = ip_whitelist::chip_deleted_fields.find   (def_match);
+		auto find_wl_deleted_constant = ip_whitelist::chip_deleted_constants.find(def_match);
 
-		wl_deleted_regs_iterator_t     find_wl_deleted_reg  =
-			ip_whitelist::chip_deleted_regs.find  (def_match);
-		wl_deleted_words_iterator_t    find_wl_deleted_word  =
-			ip_whitelist::chip_deleted_words.find  (def_match);
-		wl_deleted_offsets_iterator_t  find_wl_deleted_offset =
-			ip_whitelist::chip_deleted_offsets.find  (def_match);
-		wl_deleted_scopes_iterator_t   find_wl_deleted_scope  =
-			ip_whitelist::chip_deleted_scopes.find  (def_match);
+		bool is_group    = find_wl_group    != ip_whitelist::chip_groups.end();
+		bool is_reg      = find_wl_reg      != ip_whitelist::chip_regs.end();
+		bool is_field    = find_wl_field    != ip_whitelist::chip_fields.end();
+		bool is_constant = find_wl_constant != ip_whitelist::chip_constants.end();
 
-		wl_fields_iterator_t    find_wl_field    = ip_whitelist::chip_fields.find   (def_match);
-		wl_constants_iterator_t find_wl_constant = ip_whitelist::chip_constants.find(def_match);
-		wl_groups_iterator_t    find_wl_group    = ip_whitelist::chip_groups.find   (def_match);
-
-		// auto find_symbol   = ip_whitelist::chip_symbols.find(def_match);
-
-		bool is_group = false, is_reg = false, is_field = false, is_constant = false,
-			is_word = false, is_offset = false, 
-			is_scope = false, 
-			is_deleted_reg = false,
-			is_deleted_offset = false,
-			is_deleted_word = false,
-			is_deleted_scope = false;
-
-		is_reg      = find_wl_reg     != ip_whitelist::chip_regs.end();
-		is_word     = find_wl_word    != ip_whitelist::chip_words.end();
-		is_offset   = find_wl_offset  != ip_whitelist::chip_offsets.end();
-		is_scope    = find_wl_scope   != ip_whitelist::chip_scopes.end();
-
-		is_deleted_reg  = find_wl_deleted_reg       != ip_whitelist::chip_deleted_regs.end();
-		is_deleted_word  = find_wl_deleted_word     != ip_whitelist::chip_deleted_words.end();
-		is_deleted_offset  = find_wl_deleted_offset != ip_whitelist::chip_deleted_offsets.end();
-		is_deleted_scope  = find_wl_deleted_scope   != ip_whitelist::chip_deleted_scopes.end();
-
-		is_field    = find_wl_field    != ip_whitelist::chip_fields.end();
-		is_constant = find_wl_constant != ip_whitelist::chip_constants.end();
-		is_group    = find_wl_group    != ip_whitelist::chip_groups.end();
+		bool is_deleted_group    = find_wl_deleted_group    != ip_whitelist::chip_deleted_groups.end();
+		bool is_deleted_reg      = find_wl_deleted_reg      != ip_whitelist::chip_deleted_regs.end();
+		bool is_deleted_field    = find_wl_deleted_field    != ip_whitelist::chip_deleted_fields.end();
+		bool is_deleted_constant = find_wl_deleted_constant != ip_whitelist::chip_deleted_constants.end();
 
 		int category_matches =
-			int(is_reg) + int(is_word) + int(is_offset) + int(is_scope)+
-			int(is_deleted_reg) +int(is_deleted_scope)+	int(is_deleted_word) + int(is_deleted_offset) +
-			int(is_field) + int(is_constant);
+			int(is_group) + int(is_deleted_group) +
+			int(is_reg) + 	int(is_deleted_reg)   + 
+			int(is_field) + int(is_deleted_field) +
+			int(is_constant) + int(is_deleted_constant);
 
 		if ( category_matches > 1 ) {
 			// the only acceptable way to handle this occurs if one of the
 			// matches is a delete... so, one whitelist among them has it
 			// deleted and another likely is a (to-be) deprecated/unused reg.
-			if ( (category_matches - int(is_deleted_reg)) > 1  ) {
-				throw domain_error("symbol matches one category in the whitelist:" + def_match);
+			bool ok = (category_matches == 2) &&
+				( ( is_group && is_deleted_group) ||
+				  ( is_reg && is_deleted_reg ) ||
+				  ( is_field && is_deleted_field ) ||
+				  ( is_constant && is_deleted_constant ));
+			if ( !ok ) {
+				throw domain_error("symbol matches more than one category in the whitelist:" + def_match);
 			}
 		}
 
-		eval_result_map_t::iterator pef;
-		try {
-			pef = evaluate_str(def_match, val_match, is_field, idents.size(), idstring);
-		} catch(...) {
+		bool skip_symbol = false;
+		if ( is_group ) {
+			skip_symbol = find_wl_group->second->skip_symbol;
+		} else if (is_reg) {
+			skip_symbol = find_wl_reg->second->skip_symbol;
+		} else if (is_field) {
+			// skip_symbol = find_wl_field->second->skip_symbol;
+		} else if (is_constant) {
+			// skip_symbol = find_wl_constant->second->skip_symbol;
+		}
+
+		if ( skip_symbol ) {
 			continue;
 		}
 
-		evaluation_result_t val = *pef;
+		eval_result_map_t::iterator pef;
+		evaluation_result_t val;
+		if ( !(is_group || is_deleted_group)) {
+			try {
+				pef = evaluate_str(def_match, val_match, is_field, idents.size(), idstring);
+			} catch(...) {
+				continue;
+			}
+			val = *pef;
+		} else {
+			// groups don't necessarily have anything other than symbolic value...
+			val.field = 0;
+			val.result.val = -1;
+		}
 
-		if ( is_reg || is_word || is_offset || is_scope ) {
-			// this path is begging for a simplification/refactoring.
-
-			if ( is_offset ) {
-				offset_def_t *offset_def = def_tree->instance_offset(find_wl_offset->second);
-				offset_def->set_val(val.result.val);
-			} else if ( is_word ) {
-				word_def_t *word_def = def_tree->instance_word(find_wl_word->second);
-				word_def->set_val(val.result.val);
-			}else if ( is_reg ) {
-				reg_def_t *reg_def = def_tree->instance_reg(find_wl_reg->second);
-				reg_def->set_val(val.result.val);
-			} else if ( is_scope) {
-				scope_def_t *scope_def = def_tree->instance_scope(find_wl_scope->second);
-				scope_def->set_val(val.result.val);
-			} 
-		} else if (is_deleted_reg || is_deleted_word || is_deleted_offset || is_deleted_scope) {
-
+		if ( is_reg ) {
+			reg_def_t *reg_def = def_tree->instance_reg(find_wl_reg->second);
+			reg_def->set_val(val.result.val);
+		} else if (is_deleted_reg) {
+			reg_def_t *reg_def = def_tree->instance_reg(find_wl_deleted_reg->second);
+			reg_def->set_val(val.result.val);
 		} else if ( is_field ) {
 			ip_whitelist::field_t *field = find_wl_field->second;
+			field_def_t *field_def = def_tree->instance_field(field);
+			field_def->set_field(val.result.field.high, val.result.field.low);
+		} else if ( is_deleted_field ) {
+			ip_whitelist::field_t *field = find_wl_deleted_field->second;
 			field_def_t *field_def = def_tree->instance_field(field);
 			field_def->set_field(val.result.field.high, val.result.field.low);
 		} else if ( is_constant ) {
 			ip_whitelist::constant_t *constant = find_wl_constant->second;
 			const_def_t *const_def = def_tree->instance_const(constant);
 			const_def->set_val(val.result.val);
+		} else if ( is_deleted_constant) {
+			ip_whitelist::constant_t *constant = find_wl_deleted_constant->second;
+			const_def_t *const_def = def_tree->instance_const(constant);
+			const_def->set_val(val.result.val);
 		} else if (is_group) {
 			ip_whitelist::group_t *group = find_wl_group->second;
-			group_def_t *group_def = def_tree->instance_group(group);
+			/*group_def_t *group_def =*/ def_tree->instance_group(group);
+		} else if ( is_deleted_group ) {
+			ip_whitelist::group_t *group = find_wl_deleted_group->second;
+			/*group_def_t *group_def =*/ def_tree->instance_group(group);
 		} else {
 			throw domain_error("unknown symbol type for" + def_match);
 		}
@@ -1116,40 +1024,57 @@ def_tree_t::def_tree_t(vector<def_tree_t *> &gpu_def_trees)
 {
 	for ( auto gpu_def_tree : gpu_def_trees ) {
 
-		gpus.insert( gpu_def_tree->gpus.begin(), gpu_def_tree->gpus.end());
+		gpus.insert( gpu_def_tree->gpus.begin(), gpu_def_tree->gpus.end() );
 
+		// the def tree at this point only contains top-level
+		// defs for the groups.  flatten everything out and get
+		// those to bubble up to the "defs_by_name" level.
+#if 0
+		queue<def_t *> expansion_q;
+		for ( auto group : gpu_def_tree->groups ) {
+			expansion_q.push(group);
+		}
+		while ( expansion_q.size() ) {
+			def_t *expand_def = expansion_q.front();
+			expansion_q.pop();
+			string name = expand_def->symbol;
+			if ( group_def_t *expand_group = dynamic_cast<group_def_t*>(expand_def) ) {
+				expand_group->enqueue_children(expansion_q);
+				defs_by_name[name].insert(expand_group);
+				groups_by_name[name].insert(expand_group);
+			} else if ( reg_def_t *expand_reg = dynamic_cast<reg_def_t*>(expand_def) ) {
+				expand_reg->enqueue_children(expansion_q);
+				defs_by_name[name].insert(expand_reg);
+				regs_by_name[name].insert(expand_reg);
+			} else if ( field_def_t *expand_field = dynamic_cast<field_def_t*>(expand_def) ) {
+				expand_field->enqueue_children(expansion_q);
+				defs_by_name[name].insert(expand_field);
+				fields_by_name[name].insert(expand_field);
+			} else if ( const_def_t *expand_constant = dynamic_cast<const_def_t*>(expand_def)) {
+				expand_constant->enqueue_children(expansion_q);
+				defs_by_name[name].insert(expand_constant);
+				constants_by_name[name].insert(expand_constant);
+			} else {
+			}
+		}
+
+
+#else
 		for ( auto def_set : gpu_def_tree->defs_by_name ) {
 			for ( auto def : def_set.second ) {
 				defs_by_name[def_set.first].insert(def);
 			}
 		}
-		for ( auto group : gpu_def_tree->groups ) {
-			groups.push_back(group);
-			groups_by_name[group->symbol].insert(group);
+
+		for ( auto group_set : gpu_def_tree->groups_by_name ) {
+			for ( auto group : group_set.second ) {
+				groups_by_name[group_set.first].insert(group);
+			}
 		}
+
 		for ( auto reg_set : gpu_def_tree->regs_by_name ) {
 			for ( auto reg : reg_set.second ) {
 				regs_by_name[reg_set.first].insert(reg);
-			}
-		}
-		for ( auto offset_set : gpu_def_tree->offsets_by_name ) {
-			for ( auto offset : offset_set.second ) {
-				offsets_by_name[offset_set.first].insert(offset);
-			}
-		}
-		for ( auto scope_set : gpu_def_tree->scopes_by_name ) {
-			for ( auto scope : scope_set.second ) {
-				scopes_by_name[scope_set.first].insert(scope);
-			}
-		}
-		for ( auto word_set : gpu_def_tree->words_by_name ) {
-			for ( auto word : word_set.second ) {
-				words_by_name[word_set.first].insert(word);
-			}
-		}
-		for (auto constant_set : gpu_def_tree->constants_by_name ) {
-			for ( auto constant : constant_set.second ) {
-				constants_by_name[constant_set.first].insert(constant);
 			}
 		}
 		for ( auto field_set : gpu_def_tree->fields_by_name ) {
@@ -1157,11 +1082,35 @@ def_tree_t::def_tree_t(vector<def_tree_t *> &gpu_def_trees)
 				fields_by_name[field_set.first].insert(field);
 			}
 		}
+		for (auto constant_set : gpu_def_tree->constants_by_name ) {
+			for ( auto constant : constant_set.second ) {
+				constants_by_name[constant_set.first].insert(constant);
+			}
+		}
+#if 0
+		for ( auto deleted_group_set : gpu_def_tree->deleted_groups_by_name ) {
+			for ( auto deleted_group : deleted_group_set.second ) {
+				deleted_groups_by_name[deleted_group_set.first].insert(deleted_group);
+			}
+		}
 		for ( auto deleted_reg_set : gpu_def_tree->deleted_regs_by_name ) {
 			for ( auto deleted_reg : deleted_reg_set.second ) {
 				deleted_regs_by_name[deleted_reg_set.first].insert(deleted_reg);
 			}
 		}
+		for ( auto deleted_field_set : gpu_def_tree->deleted_fields_by_name ) {
+			for ( auto deleted_field : deleted_field_set.second ) {
+				deleted_fields_by_name[deleted_field_set.first].insert(deleted_field);
+			}
+		}
+		for ( auto deleted_constant_set : gpu_def_tree->deleted_constants_by_name ) {
+			for ( auto deleted_constant : deleted_constant_set.second ) {
+				deleted_constants_by_name[deleted_constant_set.first].insert(deleted_constant);
+			}
+		}
+#endif
+#endif
+
 	}
 
 }
@@ -1188,13 +1137,11 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 	// setting up outside the tree so only coalesced entries are inserted.
 	//
 	map< string, def_set_t  >       new_defs_by_name;
+	map< string, group_def_set_t >  new_groups_by_name;
 	map< string, reg_def_set_t >    new_regs_by_name;
-	map< string, offset_def_set_t > new_offsets_by_name;
-	map< string, word_def_set_t >   new_words_by_name;
-	map< string, scope_def_set_t >  new_scopes_by_name;
 	map< string, field_def_set_t >  new_fields_by_name;
 	map< string, const_def_set_t >  new_consts_by_name;
-	map< string, group_def_set_t >  new_groups_by_name;
+
 
 	map< def_t *, def_t * >   correlates;     // original->new (1:1)
 	map< def_t *, def_set_t > rev_correlates; // new->original (1:1) and new->new (1:many)
@@ -1210,30 +1157,27 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 			correlates.insert(make_pair(agg_def, new_def));
 			rev_correlates[new_def].insert(agg_def);
 
-			deleted_reg_def_t    *new_deleted_reg_def    = dynamic_cast<deleted_reg_def_t *>   (new_def);
-			deleted_offset_def_t *new_deleted_offset_def = dynamic_cast<deleted_offset_def_t *>(new_def);
-			deleted_word_def_t   *new_deleted_word_def   = dynamic_cast<deleted_word_def_t *>  (new_def);
-			deleted_scope_def_t  *new_deleted_scope_def  = dynamic_cast<deleted_scope_def_t *> (new_def);
+			//
+			// XXX dynamic cast no longer works here as a discriminant
+			//
+			//	reg_def_t    *new_deleted_reg_def    = dynamic_cast<deleted_reg_def_t *>   (new_def);
 
+			group_def_t  *new_group_def  = dynamic_cast<group_def_t *> (new_def);
 			reg_def_t    *new_reg_def    = dynamic_cast<reg_def_t *>   (new_def);
-			offset_def_t *new_offset_def = dynamic_cast<offset_def_t *>(new_def);
-			word_def_t   *new_word_def   = dynamic_cast<word_def_t *>  (new_def);
-			scope_def_t  *new_scope_def  = dynamic_cast<scope_def_t *> (new_def);
 			field_def_t  *new_field_def  = dynamic_cast<field_def_t *> (new_def);
 			const_def_t  *new_const_def  = dynamic_cast<const_def_t *> (new_def);
-			group_def_t  *new_group_def  = dynamic_cast<group_def_t *> (new_def);
 
-			if      ( new_deleted_reg_def    ) { }
-			else if ( new_deleted_offset_def ) { }
-			else if ( new_deleted_word_def   ) { }
-			else if ( new_deleted_scope_def  ) { }
-			else if ( new_offset_def ) { new_offsets_by_name[name].insert(new_offset_def); }
-			else if ( new_word_def   ) { new_words_by_name  [name].insert(new_word_def);   }
-			else if ( new_scope_def  ) { new_scopes_by_name [name].insert(new_scope_def);  }
+#if 0
+			if      ( new_deleted_group_def    ) { }
+			else if ( new_deleted_reg_def    ) { }
+			else if ( new_deleted_field_def    ) { }
+			else if ( new_deleted_constant_def    ) { }
+			else
+#endif
+			if ( new_group_def  ) { new_groups_by_name [name].insert(new_group_def);  }
 			else if ( new_reg_def    ) { new_regs_by_name   [name].insert(new_reg_def);    }
 			else if ( new_field_def  ) { new_fields_by_name [name].insert(new_field_def);  }
 			else if ( new_const_def  ) { new_consts_by_name [name].insert(new_const_def);  }
-			else if ( new_group_def  ) { new_groups_by_name [name].insert(new_group_def);  }
 			else {assert(0);}
 		}
 	}
@@ -1245,14 +1189,12 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 
 		string name = nd.first;
 
-		set<def_t *>        &new_defs_with_name    = new_defs_by_name   [name];
+		//		set<def_t *>        &new_defs_with_name    = new_defs_by_name   [name];
+		set<group_def_t*>   &new_groups_with_name  = new_groups_by_name [name];
 		set<reg_def_t *>    &new_regs_with_name    = new_regs_by_name   [name];
-		set<offset_def_t *> &new_offsets_with_name = new_offsets_by_name[name];
-		set<word_def_t *>   &new_words_with_name   = new_words_by_name  [name];
-		set<scope_def_t *>  &new_scopes_with_name  = new_scopes_by_name [name];
 		set<field_def_t*>   &new_fields_with_name  = new_fields_by_name [name];
 		set<const_def_t*>   &new_consts_with_name  = new_consts_by_name [name];
-		set<group_def_t*>   &new_groups_with_name  = new_groups_by_name [name];
+	
 
 		//
 		// all these defs are named the same, but are defined
@@ -1273,7 +1215,8 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 			new_regs_with_value[reg_def->val].insert(reg_def);
 		}
 		for ( auto rv : new_regs_with_value ) {
-			uint64_t v = rv.first; reg_def_set_t &rs = rv.second;
+			//uint64_t v = rv.first;
+			reg_def_set_t &rs = rv.second;
 			// take first, coalesce into it.  drop the others.
 			reg_def_t *fr = *rs.begin();
 			for ( auto ri = ++rs.begin(); ri != rs.end(); ri++ ){
@@ -1285,26 +1228,6 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 		}
 
 		//
-		// offsets, all with the same name, possibly split across multiple values
-		//
-		map< uint64_t, offset_def_set_t > new_offsets_with_value;
-		for ( auto offset_def : new_offsets_with_name ) {
-			new_offsets_with_value[offset_def->val].insert(offset_def);
-		}
-		for ( auto ov : new_offsets_with_value ) {
-			uint64_t v = ov.first; offset_def_set_t &os = ov.second;
-			// take first, coalesce into it.  drop the others.
-			offset_def_t *fo = *os.begin();
-			for ( auto oi = ++os.begin(); oi != os.end(); oi++ ){
-				fo->def_gpus.insert((*oi)->def_gpus.begin(), (*oi)->def_gpus.end());
-				correlates[(*oi)] = fo; // new->new, used later to implement coalescing
-			}
-			offsets_by_name[name].insert(fo);
-			defs_by_name[name].insert(fo);
-		}
-
-
-		//
 		// fields, all with the same name, possibly split across multiple values
 		//
 		map< pair< size_t, size_t >, field_def_set_t > new_fields_with_value;
@@ -1312,7 +1235,8 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 			new_fields_with_value[make_pair(f->high, f->low)].insert(f);
 		}
 		for ( auto fv : new_fields_with_value ) {
-			pair<size_t, size_t> v = fv.first; field_def_set_t &fs = fv.second;
+			//pair<size_t, size_t> v = fv.first;
+			field_def_set_t &fs = fv.second;
 			// take first, coalesce into it.  drop the others.
 			field_def_t *ff = *fs.begin();// fs.erase(fs.begin());
 			for ( auto fi = ++fs.begin(); fi != fs.end(); fi++ ) {
@@ -1331,7 +1255,8 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 			new_consts_with_value[c->val].insert(c);
 		}
 		for ( auto cv : new_consts_with_value ) {
-			int64_t v = cv.first; const_def_set_t &cs = cv.second;
+			//			int64_t v = cv.first;
+			const_def_set_t &cs = cv.second;
 			// take first, coalesce into it.  drop the others.
 			const_def_t *fc = *cs.begin();// cs.erase(cs.begin());
 			for ( auto ci = ++cs.begin(); ci != cs.end(); ci++ ) {
@@ -1390,19 +1315,6 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 						group_def->regs_by_name[new_reg->symbol].insert(new_reg);
 					}
 				}
-
-				// offsets
-				for ( auto offset_set : original_group->offsets_by_name ) {
-					for (auto orig_child_offset : offset_set.second ) {
-						offset_def_t *new_offset = dynamic_cast<offset_def_t *>(map_to_new(orig_child_offset, correlates));
-						if ( !new_offset ) { 
-							def_t *new_def = correlates[orig_child_offset];
-							assert(new_offset);
-						}
-						group_def->offsets_by_name[new_offset->symbol].insert(new_offset);
-					}
-				}
-
 
 				// now peform this same business with fields, and constants
 				for ( auto field_set : original_group->fields_by_name ) {
@@ -1469,18 +1381,6 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 	}
 
 
-	for ( auto offset_name_set : offsets_by_name ) {
-		offset_def_set_t &offset_set = offset_name_set.second;
-		string offset_name = offset_name_set.first;
-
-		for ( auto offset : offset_set ) {
-			def_set_t &orig_offset_set = rev_correlates[offset];
-			assert(orig_offset_set.size() == 1);
-			offset_def_t *orig_offset = dynamic_cast< offset_def_t * >(*orig_offset_set.begin());
-			assert(orig_offset);
-		}
-	}
-
 	for ( auto field_name_set : fields_by_name ) {
 		field_def_set_t &field_set = field_name_set.second;
 		string field_name = field_name_set.first;
@@ -1506,15 +1406,7 @@ def_tree_t::def_tree_t(def_tree_t *agg_tree)
 }
 
 
-std::ostream& operator<< (std::ostream& os, const group_def_t& d) {
-#if 0
-	os << d.def_gpus;
-	os << d.symbol;
-#endif
-	return os;
-}
-
-QTextStream& operator<< (QTextStream& os, const group_def_t& d) {
+ostream& operator<< (ostream& os, const group_def_t& d) {
 	os << "group def " << d.symbol.c_str() << "= { " << d.def_gpus << " }" << endl;
 	os << "\t" << d.regs_by_name.size() << " reg names" << endl;
 	os << "\t" << d.fields_by_name.size() << " field names" << endl;
@@ -1523,23 +1415,7 @@ QTextStream& operator<< (QTextStream& os, const group_def_t& d) {
 	return os;
 }
 
-
-std::ostream& operator<< (std::ostream& os, const def_tree_t& tree)
-{
-#if 0
-	os << "def tree { gpus={ " << tree.gpus << " }" << endl;
-	os << "\ttree groups = [ ";
-	for ( auto g: tree.groups ) { os << "\t\tgroup= {" << *g << "} " << endl; }
-	os << endl;
-	os << tree.defs_by_name.size() << " tree def names" << endl;
-	os << tree.regs_by_name.size() << " tree reg names" << endl;
-	os << tree.fields_by_name.size() << "field names" << endl;
-	os << tree.constants_by_name.size() << "constant names" << endl;
-	os << endl;
-#endif
-	return os;
-}
-QTextStream& operator<< (QTextStream& os, const def_tree_t& tree)
+ostream& operator<< (ostream& os, const def_tree_t& tree)
 {
 	os << "def_tree_t { gpus=[" << tree.gpus << "]";
 	os << "groups=[";
@@ -1559,39 +1435,18 @@ QTextStream& operator<< (QTextStream& os, const def_tree_t& tree)
 	return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const gpu_set_t &gpus)
+ostream &operator<<(ostream &os, const gpu_set_t &gpus)
 {
-#if 0
 	for (auto g : gpus ) {
 		os << g->name() << " ";
 	}
-#endif
 	return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const gpu_list_t &gpus)
+ostream &operator<<(ostream &os, const gpu_list_t &gpus)
 {
-#if 0
 	for (auto g : gpus ) {
 		os << g->name() << " ";
 	}
-#endif
 	return os;
-
-}
-QTextStream &operator<<(QTextStream &os, const gpu_set_t &gpus)
-{
-	for (auto g : gpus ) {
-		os << g->name().c_str() << " ";
-	}
-	return os;
-}
-
-QTextStream &operator<<(QTextStream &os, const gpu_list_t &gpus)
-{
-	for (auto g : gpus ) {
-		os << g->name().c_str() << " ";
-	}
-	return os;
-
 }
