@@ -30,6 +30,7 @@ QMAKE_CXXFLAGS += -Wno-deprecated-register
 linux {
 	CONFIG += USE_QT_REGEX
 	DEFINES += USE_QT_REGEX
+	QMAKE_CXX = clang++
 }
 
 CONFIG += no_keywords /* because emit is used in gen_registers_**/
@@ -56,7 +57,7 @@ SOURCES += gm20b/gen_registers_gm20b.cpp
 
 # kind of hacked to fit into qmake's flex rule (assumes .c)
 
-QMAKE_LEXFLAGS += --c++  --outfile lex.expr.c
+QMAKE_LEXFLAGS += --c++  --outfile lex.expr.c --prefix expr
 #--header=expr_lex.h
 LEXSOURCES += expr.l
 #LIBS += -lfl

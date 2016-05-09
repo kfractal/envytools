@@ -1,0 +1,271 @@
+
+<reg32 offset="0x106908" name="NV_PCE2_COP2_INTR_STATUS" bare="yes" variants="GK104-">
+    <bitfield name="NV_PCE2_COP2_INTR_STATUS_BLOCKPIPE" pos="0" variants="GK104-">
+        <value value="1" name="NV_PCE2_COP2_INTR_STATUS_BLOCKPIPE_PENDING" variants="GK104-"/>
+        <value value="1" name="NV_PCE2_COP2_INTR_STATUS_BLOCKPIPE_RESET" variants="GK104-"/>
+    </bitfield>
+    <bitfield name="NV_PCE2_COP2_INTR_STATUS_LAUNCHERR" pos="2" variants="GK104-">
+        <value value="1" name="NV_PCE2_COP2_INTR_STATUS_LAUNCHERR_PENDING" variants="GK104-"/>
+        <value value="1" name="NV_PCE2_COP2_INTR_STATUS_LAUNCHERR_RESET" variants="GK104-"/>
+    </bitfield>
+    <bitfield name="NV_PCE2_COP2_INTR_STATUS_NONBLOCKPIPE" pos="1" variants="GK104-">
+        <value value="1" name="NV_PCE2_COP2_INTR_STATUS_NONBLOCKPIPE_PENDING" variants="GK104-"/>
+        <value value="1" name="NV_PCE2_COP2_INTR_STATUS_NONBLOCKPIPE_RESET" variants="GK104-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0xa8" name="NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_ADDR_HI" bare="yes" variants="GF100-"/>
+<reg32 offset="0xa4" name="NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_ADDR_LO" bare="yes" variants="GF100-"/>
+<reg32 offset="0xa0" name="NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_CONFIG" bare="yes" variants="GF100-">
+    <bitfield name="NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_CONFIG_MODE" low="0" high="1" variants="GF100-">
+        <value value="0" name="NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_CONFIG_MODE_ALLOW_ALL" variants="GF100-"/>
+        <value value="2" name="NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_CONFIG_MODE_USE_MAP" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x7000c" name="NV_UFLUSH_L2_CLEAN_COMPTAGS" bare="yes" variants="GF100-">
+    <bitfield name="NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING" pos="1" variants="GF100-">
+        <value value="0" name="NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING_FALSE" variants="GF100-"/>
+        <value value="1" name="NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING" pos="0" variants="GF100-">
+        <value value="0" name="NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING_EMPTY" variants="GF100-"/>
+        <value value="1" name="NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING_BUSY" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x70010" name="NV_UFLUSH_L2_FLUSH_DIRTY" bare="yes" variants="GF100-">
+    <bitfield name="NV_UFLUSH_L2_FLUSH_DIRTY_OUTSTANDING" pos="1" variants="GF100-">
+        <value value="0" name="NV_UFLUSH_L2_FLUSH_DIRTY_OUTSTANDING_FALSE" variants="GF100-"/>
+        <value value="1" name="NV_UFLUSH_L2_FLUSH_DIRTY_OUTSTANDING_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_UFLUSH_L2_FLUSH_DIRTY_PENDING" pos="0" variants="GF100-">
+        <value value="0" name="NV_UFLUSH_L2_FLUSH_DIRTY_PENDING_EMPTY" variants="GF100-"/>
+        <value value="1" name="NV_UFLUSH_L2_FLUSH_DIRTY_PENDING_BUSY" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x70004" name="NV_UFLUSH_L2_SYSMEM_INVALIDATE" bare="yes" variants="GF100-">
+    <bitfield name="NV_UFLUSH_L2_SYSMEM_INVALIDATE_OUTSTANDING" pos="1" variants="GF100-">
+        <value value="1" name="NV_UFLUSH_L2_SYSMEM_INVALIDATE_OUTSTANDING_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_UFLUSH_L2_SYSMEM_INVALIDATE_PENDING" pos="0" variants="GF100-">
+        <value value="1" name="NV_UFLUSH_L2_SYSMEM_INVALIDATE_PENDING_BUSY" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x21944" name="NV_FUSE_CTRL_OPT_RAM_SVOP_PDP" bare="yes" variants="GM107-">
+    <bitfield name="NV_FUSE_CTRL_OPT_RAM_SVOP_PDP_DATA" low="0" high="1" variants="GM107-"/>
+</reg32>
+<reg32 offset="0x21948" name="NV_FUSE_CTRL_OPT_RAM_SVOP_PDP_OVERRIDE" bare="yes" variants="GM107-">
+    <bitfield name="NV_FUSE_CTRL_OPT_RAM_SVOP_PDP_OVERRIDE_DATA" pos="0" variants="GM107-">
+        <value value="0" name="NV_FUSE_CTRL_OPT_RAM_SVOP_PDP_OVERRIDE_DATA_NO" variants="GM107-"/>
+        <value value="1" name="NV_FUSE_CTRL_OPT_RAM_SVOP_PDP_OVERRIDE_DATA_YES" variants="GM107-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x21838" name="NV_FUSE_CTRL_OPT_TPC_GPC" bare="yes" variants="GM107-"/>
+<reg32 offset="0x21c14" name="NV_FUSE_STATUS_OPT_FBIO" bare="yes" variants="GM107-">
+    <bitfield name="NV_FUSE_STATUS_OPT_FBIO_DATA" low="0" high="15" variants="GM107-"/>
+</reg32>
+<reg32 offset="0x21d38" name="NV_FUSE_STATUS_OPT_FBP" bare="yes" variants="GM107-">
+    <bitfield name="NV_FUSE_STATUS_OPT_FBP_IDX" pos="0" variants="GM107-"/>
+</reg32>
+<reg32 offset="0x21d70" name="NV_FUSE_STATUS_OPT_ROP_L2_FBP" bare="yes" variants="GM204-"/>
+<reg32 offset="0x21c38" name="NV_FUSE_STATUS_OPT_TPC_GPC" bare="yes" variants="GM107-"/>
+<reg32 offset="0x405020" name="NV_PGRAPH_PRI_SCC_INIT" bare="yes" variants="G80-GT218">
+    <bitfield name="NV_PGRAPH_PRI_SCC_INIT_RAM" pos="0" variants="G80-"/>
+</reg32>
+<reg32 offset="0x1410c8" name="NV_PLTCG_LTC0_LTS0_CBC_CTRL_1" bare="yes" variants="GF100-GK20A"/>
+<reg32 offset="0x141200" name="NV_PLTCG_LTC0_LTS0_DSTG_CFG0" bare="yes" variants="GF100-GK20A"/>
+<reg32 offset="0x141020" name="NV_PLTCG_LTC0_LTS0_INTR" bare="yes" variants="GF100-GK20A"/>
+<reg32 offset="0x141104" name="NV_PLTCG_LTC0_LTS0_TSTG_CFG_1" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTC0_LTS0_TSTG_CFG_1_ACTIVE_WAYS" low="0" high="15" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x140820" name="NV_PLTCG_LTC0_LTSS_INTR" bare="yes" variants="GF100-GK20A"/>
+<reg32 offset="0x140910" name="NV_PLTCG_LTC0_LTSS_TSTG_CMGMT_0" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTC0_LTSS_TSTG_CMGMT_0_INVALIDATE" pos="0" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTC0_LTSS_TSTG_CMGMT_0_INVALIDATE_PENDING" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x140914" name="NV_PLTCG_LTC0_LTSS_TSTG_CMGMT_1" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTC0_LTSS_TSTG_CMGMT_1_CLEAN" pos="0" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTC0_LTSS_TSTG_CMGMT_1_CLEAN_PENDING" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x142910" name="NV_PLTCG_LTC1_LTSS_TSTG_CMGMT_0" bare="yes" variants="GF100-GF106 GF110-GF114 GK104-GK110B">
+    <bitfield name="NV_PLTCG_LTC1_LTSS_TSTG_CMGMT_0_INVALIDATE" pos="0" variants="GF100-GF106 GF110-GF114 GK104-GK110B GM107-">
+        <value value="1" name="NV_PLTCG_LTC1_LTSS_TSTG_CMGMT_0_INVALIDATE_PENDING" variants="GF100-GF106 GF110-GF114 GK104-GK110B GM107-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x142914" name="NV_PLTCG_LTC1_LTSS_TSTG_CMGMT_1" bare="yes" variants="GF100-GF106 GF110-GF114 GK104-GK110B">
+    <bitfield name="NV_PLTCG_LTC1_LTSS_TSTG_CMGMT_1_CLEAN" pos="0" variants="GF100-GF106 GF110-GF114 GK104-GK110B GM107-">
+        <value value="1" name="NV_PLTCG_LTC1_LTSS_TSTG_CMGMT_1_CLEAN_PENDING" variants="GF100-GF106 GF110-GF114 GK104-GK110B GM107-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x17e8d4" name="NV_PLTCG_LTCS_LTSS_CBC_BASE" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_BASE_ADDRESS" low="0" high="25" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x17e8c8" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1_CLEAN" pos="0" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1_CLEAN_ACTIVE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1_CLEAR" pos="2" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1_CLEAR_ACTIVE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1_INVALIDATE" pos="1" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_1_INVALIDATE_ACTIVE" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x17e8cc" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_2" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_2_CLEAR_LOWER_BOUND" low="0" high="16" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x17e8d0" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_3" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_3_CLEAR_UPPER_BOUND" low="0" high="16" variants="GF100-">
+        <value value="11" name="NV_PLTCG_LTC0_LTS0_CBC_BASE_ALIGNMENT_SHIFT" variants="GF100-"/>
+        <value value="131071" name="NV_PLTCG_LTCS_LTSS_CBC_CTRL_3_CLEAR_UPPER_BOUND_INIT" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x17e8dc" name="NV_PLTCG_LTCS_LTSS_CBC_PARAM" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_PARAM_CACHE_LINE_SIZE" low="24" high="27" variants="GF100-"/>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_PARAM_COMPTAGS_PER_CACHE_LINE" low="0" high="15" variants="GF100-"/>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_CBC_PARAM_SLICES_PER_FBP" low="28" high="31" variants="GF100-GM108"/>
+</reg32>
+<reg32 offset="0x17ea00" name="NV_PLTCG_LTCS_LTSS_DSTG_CFG0" bare="yes" variants="GF100-GK20A"/>
+<reg32 offset="0x17ea48" name="NV_PLTCG_LTCS_LTSS_DSTG_ZBC_COLOR_CLEAR_VALUE" bare="yes" variants="GF100-GK20A"/>
+<reg32 offset="0x17ea58" name="NV_PLTCG_LTCS_LTSS_DSTG_ZBC_DEPTH_CLEAR_VALUE" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_DSTG_ZBC_DEPTH_CLEAR_VALUE_FIELD" low="0" high="31" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x17ea44" name="NV_PLTCG_LTCS_LTSS_DSTG_ZBC_INDEX" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_DSTG_ZBC_INDEX_ADDRESS" low="0" high="3" variants="GF100-">
+        <value value="4" name="NV_PLTCG_LTCS_LTSS_DSTG_ZBC_COLOR_CLEAR_VALUE__SIZE_1" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x17e820" name="NV_PLTCG_LTCS_LTSS_INTR" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_INTR_EN_EVICTED_CB" pos="20" variants="GF100-"/>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_INTR_EN_ILLEGAL_COMPSTAT" pos="21" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x17e910" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE" pos="0" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_PENDING" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_EVICT_FIRST_CLASS" pos="30" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_EVICT_FIRST_CLASS_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_EVICT_LAST_CLASS" pos="28" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_EVICT_LAST_CLASS_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_EVICT_NORMAL_CLASS" pos="29" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_INVALIDATE_EVICT_NORMAL_CLASS_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_MAX_CYCLES_BETWEEN_INVALIDATES" low="8" high="11" variants="GF100-">
+        <value value="3" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0_MAX_CYCLES_BETWEEN_INVALIDATES_3" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x17e914" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN" pos="0" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_PENDING" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_EVICT_FIRST_CLASS" pos="30" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_EVICT_FIRST_CLASS_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_EVICT_LAST_CLASS" pos="28" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_EVICT_LAST_CLASS_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_EVICT_NORMAL_CLASS" pos="29" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_EVICT_NORMAL_CLASS_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_WAIT_FOR_FB_TO_PULL" pos="16" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_CLEAN_WAIT_FOR_FB_TO_PULL_TRUE" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_MAX_CYCLES_BETWEEN_CLEANS" low="8" high="11" variants="GF100-">
+        <value value="3" name="NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_1_MAX_CYCLES_BETWEEN_CLEANS_3" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x17e91c" name="NV_PLTCG_LTCS_LTSS_TSTG_SET_MGMT_0" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_SET_MGMT_0_MAX_WAYS_EVICT_LAST" low="16" high="20" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x17e924" name="NV_PLTCG_LTCS_LTSS_TSTG_SET_MGMT_2" bare="yes" variants="GF100-GK20A">
+    <bitfield name="NV_PLTCG_LTCS_LTSS_TSTG_SET_MGMT_2_L2_BYPASS_MODE" pos="28" variants="GF100-">
+        <value value="1" name="NV_PLTCG_LTCS_LTSS_TSTG_SET_MGMT_2_L2_BYPASS_MODE_ENABLED" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x540" name="NV_PMC_INTR_EN_1" bare="yes" variants="MCP77-MCP79 G200">
+    <bitfield name="NV_PMC_INTR_EN_1_INTA" low="0" high="1" variants="MCP77-">
+        <value value="0" name="NV_PMC_INTR_EN_1_INTA_DISABLED" variants="MCP77-"/>
+        <value value="1" name="NV_PMC_INTR_EN_1_INTA_HARDWARE" variants="MCP77-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x680" name="NV_PMC_INTR_MSK_1" bare="yes" variants="MCP77-MCP79 G200"/>
+<reg32 offset="0x10000004" name="NV_PPBDMA_GP_ENTRY1" bare="yes" variants="GF100-">
+    <bitfield name="NV_PPBDMA_GP_ENTRY1_GET_HI" low="0" high="7" variants="GF100-"/>
+    <bitfield name="NV_PPBDMA_GP_ENTRY1_LENGTH" low="10" high="30" variants="GF100-">
+        <value value="3" name="NV_PPBDMA_GP_BASE__SIZE_1" variants="GF100-GF106 GF110-GF114 GK104-GK110B GM204-GM206"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x400c8" name="NV_PPBDMA_METHOD1" bare="yes" variants="GF100-"/>
+<reg32 offset="0x400d0" name="NV_PPBDMA_METHOD2" bare="yes" variants="GF100-"/>
+<reg32 offset="0x400d8" name="NV_PPBDMA_METHOD3" bare="yes" variants="GF100-"/>
+<reg32 offset="0x1b4000" name="NV_PERF_PMASYS_CONTROL" bare="yes" variants="GF100-">
+    <bitfield name="NV_PERF_PMASYS_CONTROL_MEMBUF_CLEAR_STATUS" pos="5" variants="GF100-">
+        <value value="1" name="NV_PERF_PMASYS_CONTROL_MEMBUF_CLEAR_STATUS_DOIT" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PERF_PMASYS_CONTROL_MEMBUF_STATUS" pos="4" variants="GF100-">
+        <value value="1" name="NV_PERF_PMASYS_CONTROL_MEMBUF_STATUS_OVERFLOWED" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x1b4088" name="NV_PERF_PMASYS_MEM_BUMP" bare="yes" variants="GF100-">
+    <bitfield name="NV_PERF_PMASYS_MEM_BUMP_NUMBYTES" low="4" high="31" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x121c4c" name="NV_PPRIV_MASTER_RING_COMMAND" bare="yes" variants="GF100-GF119">
+    <bitfield name="NV_PPRIV_MASTER_RING_COMMAND_CMD" low="0" high="5" variants="GF100-">
+        <value value="0" name="NV_PPRIV_MASTER_RING_COMMAND_CMD_NO_CMD" variants="GF100-"/>
+        <value value="1" name="NV_PPRIV_MASTER_RING_COMMAND_CMD_START_RING" variants="GF100-"/>
+        <value value="2" name="NV_PPRIV_MASTER_RING_COMMAND_CMD_ACK_INTERRUPT" variants="GF100-"/>
+        <value value="3" name="NV_PPRIV_MASTER_RING_COMMAND_CMD_ENUMERATE_STATIONS" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PPRIV_MASTER_RING_COMMAND_CMD_ENUMERATE_STATIONS_BC_GRP" low="6" high="8" variants="GF100-">
+        <value value="0" name="NV_PPRIV_MASTER_RING_COMMAND_CMD_ENUMERATE_STATIONS_BC_GRP_ALL" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x121c48" name="NV_PPRIV_MASTER_RING_COMMAND_DATA" bare="yes" variants="GF100-GF119"/>
+<reg32 offset="0x121c60" name="NV_PPRIV_MASTER_RING_GLOBAL_CTL" bare="yes" variants="GF100-GF119">
+    <bitfield name="NV_PPRIV_MASTER_RING_GLOBAL_CTL_RING_RESET" pos="0" variants="GF100-">
+        <value value="0" name="NV_PPRIV_MASTER_RING_GLOBAL_CTL_RING_RESET_DEASSERTED" variants="GF100-"/>
+        <value value="1" name="NV_PPRIV_MASTER_RING_GLOBAL_CTL_RING_RESET_ASSERTED" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x121c50" name="NV_PPRIV_MASTER_RING_START_RESULTS" bare="yes" variants="GF100-GF119">
+    <bitfield name="NV_PPRIV_MASTER_RING_START_RESULTS_CONNECTIVITY" pos="0" variants="GF100-">
+        <value value="1" name="NV_PPRIV_MASTER_RING_START_RESULTS_CONNECTIVITY_PASS" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x122300" name="NV_PPRIV_SYS_MASTER_SM_CONFIG" bare="yes" variants="GF100-"/>
+<reg32 offset="0x122204" name="NV_PPRIV_SYS_PRIV_DECODE_CONFIG" bare="yes" variants="GF100-">
+    <bitfield name="NV_PPRIV_SYS_PRIV_DECODE_CONFIG_RING" low="0" high="2" variants="GF100-">
+        <value value="1" name="NV_PPRIV_SYS_PRIV_DECODE_CONFIG_RING_DROP_ON_RING_NOT_STARTED" variants="GF100-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x100ce4" name="NV_PFB_PRI_MMU_PHYS_SECURE" bare="yes" variants="GM204-"/>
+<reg32 offset="0x20050" name="NV_THERM_CONFIG1" bare="yes" variants="G84-"/>
+<reg32 offset="0x20024" name="NV_THERM_WEIGHT_1" bare="yes" variants="G80-"/>
+<reg32 offset="0x9080" name="NV_PTIMER_PRI_TIMEOUT" bare="yes" variants="GF100-">
+    <bitfield name="NV_PTIMER_PRI_TIMEOUT_EN" pos="31" variants="GF100-">
+        <value value="0" name="NV_PTIMER_PRI_TIMEOUT_EN_DISABLED" variants="GF100-"/>
+        <value value="1" name="NV_PTIMER_PRI_TIMEOUT_EN_ENABLED" variants="GF100-"/>
+    </bitfield>
+    <bitfield name="NV_PTIMER_PRI_TIMEOUT_PERIOD" low="0" high="23" variants="GF100-"/>
+</reg32>
+<reg32 offset="0x908c" name="NV_PTIMER_PRI_TIMEOUT_FECS_ERRCODE" bare="yes" variants="GF117-"/>
+<reg32 offset="0x22700" name="NV_PTOP_DEVICE_INFO" bare="yes" variants="GK104-">
+    <bitfield name="NV_PTOP_DEVICE_INFO_CHAIN" pos="31" variants="GK104-">
+        <value value="1" name="NV_PTOP_DEVICE_INFO_CHAIN_ENABLE" variants="GK104-"/>
+    </bitfield>
+    <bitfield name="NV_PTOP_DEVICE_INFO_ENGINE_ENUM" low="26" high="29" variants="GK104-"/>
+    <bitfield name="NV_PTOP_DEVICE_INFO_ENTRY" low="0" high="1" variants="GK104-">
+        <value value="0" name="NV_PTOP_DEVICE_INFO_ENTRY_NOT_VALID" variants="GK104-"/>
+        <value value="2" name="NV_PTOP_DEVICE_INFO_ENTRY_ENUM" variants="GK104-"/>
+    </bitfield>
+    <bitfield name="NV_PTOP_DEVICE_INFO_INTR_ENUM" low="15" high="19" variants="GK104-"/>
+    <bitfield name="NV_PTOP_DEVICE_INFO_RESET_ENUM" low="9" high="13" variants="GK104-"/>
+    <bitfield name="NV_PTOP_DEVICE_INFO_RUNLIST_ENUM" low="21" high="24" variants="GK104-"/>
+    <bitfield name="NV_PTOP_DEVICE_INFO_TYPE_ENUM" low="2" high="30" variants="GK104-">
+        <value value="0" name="NV_PTOP_DEVICE_INFO_TYPE_ENUM_GRAPHICS" variants="GK104-"/>
+        <value value="1" name="NV_PTOP_DEVICE_INFO_TYPE_ENUM_COPY0" variants="GK104-"/>
+    </bitfield>
+</reg32>
+<reg32 offset="0x200000001" name="NV_PTRIM_GPC_BCAST_GPCPLL_NDIV_SLOWDOWN_DEBUG" bare="yes" variants="GK110-"/>

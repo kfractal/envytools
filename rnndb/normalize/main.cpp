@@ -61,6 +61,18 @@ Main::Main(int &argc, char **argv) :
 
 void Main::start()
 {
+	//	if ( check_exec_environment() ) {
+	if ( QFileInfo(_root).exists() ) {
+		if (_verbose) {
+			out() << "info: using root " << _root << endl;
+		}
+	} else {
+		out() << "error: can't find root " << _root << endl;
+		exit(-1);
+		return;
+	}
+	//	}
+
 	//
 	// read nvidia's hwref files.  only whitelisted definitions
 	// are returned from this operation.

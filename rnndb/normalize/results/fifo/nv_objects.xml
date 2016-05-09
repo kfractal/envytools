@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns:n1="http://www.w3.org/2001/XMLSchema-instance" n1:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
+    <import file="copyright.xml"/>
+    <import file="graph/nv_m2mf.xml"/>
+    <import file="graph/gf100_m2mf.xml"/>
+    <import file="graph/nv1_2d.xml"/>
+    <import file="graph/nv4_dvd.xml"/>
+    <import file="graph/nv3_3d.xml"/>
+    <import file="graph/nv4_3d.xml"/>
+    <import file="graph/nv10_3d.xml"/>
+    <import file="graph/nv20_3d.xml"/>
+    <import file="graph/nv30-40_3d.xml"/>
+    <import file="graph/g80_2d.xml"/>
+    <import file="graph/g80_3d.xml"/>
+    <import file="graph/g80_compute.xml"/>
+    <import file="graph/gf100_3d.xml"/>
+    <import file="graph/gf100_compute.xml"/>
+    <import file="graph/gk104_compute.xml"/>
+    <import file="graph/gk104_p2mf.xml"/>
+    <import file="vdec/vpe/mpeg_fifo.xml"/>
+    <import file="vdec/vpe/me_fifo.xml"/>
+    <import file="vdec/vpe/vp1_fifo.xml"/>
+    <import file="vdec/vp2/cipher_fifo.xml"/>
+    <import file="fifo/gk104_copy.xml"/>
+</database>

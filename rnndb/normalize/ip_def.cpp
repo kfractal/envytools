@@ -154,7 +154,8 @@ struct repl_symbol_t {
 };
 
 static unordered_map<string, repl_symbol_t> symbol_map {
-	{ "sw_root" , { .value = { "/Volumes/too/t/sw" } } },
+	{ "sw_root" , { .value = { "/home/kadams/f/p4/1/sw" } } },
+		//	{ "sw_root" , { .value = { "/Volumes/too/t/sw" } } },
 	{ "chips_a" , { .value = { "${sw_root}/dev/gpu_drv/chips_a" } } },
 	{ "hwref"   , { .value = { "${chips_a}/drivers/common/inc/hwref" } } },
 };
@@ -405,9 +406,10 @@ evaluate_str(const string &def_match, const string &val_match,
 	}
 	prior_evaluation_misses++;
 	// hmm.
-	string compile_me = "clang++ -xc++ -o foo2 foo2.cpp";
+	string compile_me = "clang++ -xc++ -std=c++11 -o foo2 foo2.cpp";
 	string run_me = "./foo2";
 	string evaluate_me;
+	evaluate_me += "#include <cstdint>\n";
 	evaluate_me += "#include <iostream>\n";
 	evaluate_me += "#include <string>\n";
 
@@ -504,22 +506,23 @@ QDataStream & operator<< (QDataStream& stream, const evaluation_result_t &r)
 {
 	stream << r.field;
 	if ( r.field ) {
-		stream << r.result.field.low;
-		stream << r.result.field.high;
+		stream << (qint64)r.result.field.low;
+		stream << (qint64)r.result.field.high;
 	} else {
-		stream << r.result.val;
+		stream << (qint64)r.result.val;
 	}
 	return stream;
 }
 
 QDataStream & operator>> (QDataStream& stream, evaluation_result_t &r)
 {
+	qint64 v;
 	stream >> r.field;
 	if ( r.field ) {
-		stream >> r.result.field.low;
-		stream >> r.result.field.high;
+		stream >> v; r.result.field.low = v;
+		stream >> v; r.result.field.high = v;
 	} else {
-		stream >> r.result.val;
+		stream >> v; r.result.val = v;
 	}
 	return stream;
 }

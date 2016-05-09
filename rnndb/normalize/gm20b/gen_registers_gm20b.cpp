@@ -1,3 +1,4 @@
+// -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
 /*
  * Copyright (c) 2014-2016, NVIDIA CORPORATION. All rights reserved.
  *
@@ -64,6 +65,8 @@ static void emit_bus_group()
 
 	emit_field   ( F_SPEC( target,  NV_PBUS_BAR1_BLOCK_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PBUS_BAR1_BLOCK_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PBUS_BAR1_BLOCK_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PBUS_BAR1_BLOCK_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_field   ( F_SPEC( mode,    NV_PBUS_BAR1_BLOCK_MODE, ".") );
 	emit_constant( C_SPEC( virtual, NV_PBUS_BAR1_BLOCK_MODE_VIRTUAL, "f") );
@@ -74,6 +77,8 @@ static void emit_bus_group()
 
 	emit_field   ( F_SPEC( target,  NV_PBUS_BAR2_BLOCK_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PBUS_BAR2_BLOCK_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PBUS_BAR2_BLOCK_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PBUS_BAR2_BLOCK_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_field   ( F_SPEC( mode,    NV_PBUS_BAR2_BLOCK_MODE, ".") );
 	emit_constant( C_SPEC( virtual, NV_PBUS_BAR2_BLOCK_MODE_VIRTUAL, "f") );
@@ -83,6 +88,19 @@ static void emit_bus_group()
 	emit_constant( C_SPEC( bar1_block_ptr_shift, NV_PBUS_BAR1_BLOCK_PTR_SHIFT, "v") );
 	emit_constant( C_SPEC( bar2_block_ptr_shift, NV_PBUS_BAR2_BLOCK_PTR_SHIFT, "v") );
 
+	emit_register( R_SPEC( bind_status, NV_PBUS_BIND_STATUS ) );
+	emit_field   ( F_SPEC( bar1_pending, NV_PBUS_BIND_STATUS_BAR1_PENDING, "v" ) );
+	emit_constant( C_SPEC( empty, NV_PBUS_BIND_STATUS_BAR1_PENDING_EMPTY, "f" ) );
+	emit_constant( C_SPEC( busy, NV_PBUS_BIND_STATUS_BAR1_PENDING_BUSY, "f" ) );
+	emit_field   ( F_SPEC( bar1_outstanding, NV_PBUS_BIND_STATUS_BAR1_OUTSTANDING, "v" ) );
+	emit_constant( C_SPEC( false, NV_PBUS_BIND_STATUS_BAR1_OUTSTANDING_FALSE, "f" ) );
+	emit_constant( C_SPEC( true, NV_PBUS_BIND_STATUS_BAR1_OUTSTANDING_TRUE, "f" ) );
+	emit_field   ( F_SPEC( bar2_pending, NV_PBUS_BIND_STATUS_BAR2_PENDING, "v" ) );
+	emit_constant( C_SPEC( empty, NV_PBUS_BIND_STATUS_BAR2_PENDING_EMPTY, "f" ) );
+	emit_constant( C_SPEC( busy, NV_PBUS_BIND_STATUS_BAR2_PENDING_BUSY, "f" ) );
+	emit_field   ( F_SPEC( bar2_outstanding, NV_PBUS_BIND_STATUS_BAR2_OUTSTANDING, "v" ) );
+	emit_constant( C_SPEC( false, NV_PBUS_BIND_STATUS_BAR2_OUTSTANDING_FALSE, "f" ) );
+	emit_constant( C_SPEC( true, NV_PBUS_BIND_STATUS_BAR2_OUTSTANDING_TRUE, "f" ) );
 	emit_register( R_SPEC( intr_0, NV_PBUS_INTR_0 ) );
 	emit_field   ( F_SPEC( pri_squash, NV_PBUS_INTR_0_PRI_SQUASH, "m") );
 	emit_field   ( F_SPEC( pri_fecserr, NV_PBUS_INTR_0_PRI_FECSERR, "m") );
@@ -107,6 +125,8 @@ static void emit_ccsr_group()
 
 	emit_field   ( F_SPEC( target,  NV_PCCSR_CHANNEL_INST_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PCCSR_CHANNEL_INST_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PCCSR_CHANNEL_INST_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PCCSR_CHANNEL_INST_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_field   ( F_SPEC( bind,  NV_PCCSR_CHANNEL_INST_BIND, ".") );
 	emit_constant( C_SPEC( false, NV_PCCSR_CHANNEL_INST_BIND_FALSE, "f") );
@@ -154,7 +174,12 @@ static void emit_ctxsw_prog_group()
 	emit_constant( C_SPEC( fecs_header,       NV_CTXSW_FECS_HEADER, "v") ); /* this is goofy/wrong */
 
 	emit_offset  ( O_SPEC( main_image_num_gpcs,        NV_CTXSW_MAIN_IMAGE_NUM_GPCS ) );
+	emit_offset  ( O_SPEC( main_image_ctl,        NV_CTXSW_MAIN_IMAGE_CTL ) );
+	emit_field   ( F_SPEC( cde,                       NV_CTXSW_MAIN_IMAGE_CTL_CDE, ".") );
+	emit_constant( C_SPEC( enabled,                   NV_CTXSW_MAIN_IMAGE_CTL_CDE_ENABLED, "f") );
+	emit_constant( C_SPEC( disabled,                  NV_CTXSW_MAIN_IMAGE_CTL_CDE_DISABLED, "f") );
 	emit_offset  ( O_SPEC( main_image_patch_count,     NV_CTXSW_MAIN_IMAGE_PRI_PATCH_COUNT ) );
+	emit_offset  ( O_SPEC( main_image_context_id,      NV_CTXSW_MAIN_IMAGE_CONTEXT_ID) );
 	emit_offset  ( O_SPEC( main_image_patch_adr_lo,    NV_CTXSW_MAIN_IMAGE_PRI_PATCH_ADR_LO ) );
 	emit_offset  ( O_SPEC( main_image_patch_adr_hi,    NV_CTXSW_MAIN_IMAGE_PRI_PATCH_ADR_HI ) );
 	emit_offset  ( O_SPEC( main_image_zcull,           NV_CTXSW_MAIN_IMAGE_ZCULL ) );
@@ -215,6 +240,60 @@ static void emit_ctxsw_prog_group()
 	emit_field   ( F_SPEC( verif_features, NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES, "m") );
 	emit_constant( C_SPEC( disabled, NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES_DISABLED, "f") );
 
+	emit_offset  ( O_SPEC( main_image_context_timestamp_buffer_control, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_CONTROL) );
+	emit_field   ( F_SPEC( num_records, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_CONTROL_NUM_RECORDS, "f") );
+
+	emit_offset  ( O_SPEC( main_image_context_timestamp_buffer_ptr_hi, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_V, "m") );
+	emit_field   ( F_SPEC( target, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET, "m") );
+	emit_constant( C_SPEC( vid_mem, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coherent, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_noncoherent, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET_SYS_MEM_NONCOHERENT, "f") );
+
+	emit_offset  ( O_SPEC( main_image_context_timestamp_buffer_ptr, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_V, "f") );
+
+	begin_scope( S_SPEC( record_timestamp, NV_CTXSW_RECORD_TIMESTAMP) );
+	emit_constant( C_SPEC( record_size_in_bytes, NV_CTXSW_RECORD_TIMESTAMP_RECORD_SIZE_IN_BYTES, "v") );
+	emit_constant( C_SPEC( record_size_in_words, NV_CTXSW_RECORD_TIMESTAMP_RECORD_SIZE_IN_WORDS, "v") );
+	end_scope();
+
+	emit_offset  ( O_SPEC( record_timestamp_magic_value_lo, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_LO) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_LO_V, ".") );
+	emit_constant( C_SPEC( value, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_LO_V_VALUE, "v") );
+
+	emit_offset  ( O_SPEC( record_timestamp_magic_value_hi, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_HI) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_HI_V, ".") );
+	emit_constant( C_SPEC( value, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_HI_V_VALUE, "v") );
+
+	emit_offset  ( O_SPEC( record_timestamp_context_id, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_ID) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_ID_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_context_ptr, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_PTR) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_PTR_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_new_context_id, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_ID) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_ID_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_new_context_ptr, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_PTR) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_PTR_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_timestamp_lo, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_LO) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_LO_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_timestamp_hi, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_V, "fv") );
+	emit_field   ( F_SPEC( tag, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG, "mfv") );
+	emit_constant( C_SPEC( ctxsw_req_by_host, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_CTXSW_REQ_BY_HOST, "") );
+	emit_constant( C_SPEC( fe_ack, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK, "") );
+	emit_constant( C_SPEC( fe_ack_wfi, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_WFI, "") );
+	emit_constant( C_SPEC( fe_ack_gfxp, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_GFXP, "") );
+	emit_constant( C_SPEC( fe_ack_ctap, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_CTAP, "") );
+	emit_constant( C_SPEC( fe_ack_cilp, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_CILP, "") );
+	emit_constant( C_SPEC( save_end, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_SAVE_END, "") );
+	emit_constant( C_SPEC( restore_start, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_RESTORE_START, "") );
+	emit_constant( C_SPEC( context_start, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_CONTEXT_START, "") );
+	emit_constant( C_SPEC( invalid_timestamp, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_INVALID_TIMESTAMP, "") );
 	emit_offset  ( O_SPEC( main_image_preemption_options, NV_CTXSW_MAIN_IMAGE_PREEMPTION_OPTIONS) );
 	emit_field   ( F_SPEC( control, NV_CTXSW_MAIN_IMAGE_PREEMPTION_OPTIONS_CONTROL, "f") );
 	emit_constant( C_SPEC( cta_enabled, NV_CTXSW_MAIN_IMAGE_PREEMPTION_OPTIONS_CONTROL_CTA_ENABLED, "f") );
@@ -240,12 +319,15 @@ static void emit_fb_group()
 	emit_field   ( F_SPEC( use_pdb_big_page_size, NV_PFB_PRI_MMU_CTRL_USE_PDB_BIG_PAGE_SIZE, "v") );
 	emit_constant( C_SPEC( true, NV_PFB_PRI_MMU_CTRL_USE_PDB_BIG_PAGE_SIZE_TRUE, "f") );
 	emit_constant( C_SPEC( false, NV_PFB_PRI_MMU_CTRL_USE_PDB_BIG_PAGE_SIZE_FALSE, "f") );
+	emit_field   ( F_SPEC( use_full_comp_tag_line, NV_PFB_PRI_MMU_CTRL_USE_FULL_COMP_TAG_LINE, "v") );
+	emit_constant( C_SPEC( true, NV_PFB_PRI_MMU_CTRL_USE_FULL_COMP_TAG_LINE_TRUE, "f") );
 
 	emit_register( R_SPEC( priv_mmu_phy_secure, NV_PFB_PRI_MMU_PHYS_SECURE ) );
 
 	emit_register( R_SPEC( mmu_invalidate_pdb, NV_PFB_PRI_MMU_INVALIDATE_PDB ) );
 	emit_field   ( F_SPEC( aperture, NV_PFB_PRI_MMU_INVALIDATE_PDB_APERTURE, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PFB_PRI_MMU_INVALIDATE_PDB_APERTURE_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem, NV_PFB_PRI_MMU_INVALIDATE_PDB_APERTURE_SYS_MEM, "f") );
 	emit_field   ( F_SPEC( addr, NV_PFB_PRI_MMU_INVALIDATE_PDB_ADDR, "f") );
 
 	emit_register( R_SPEC( mmu_invalidate, NV_PFB_PRI_MMU_INVALIDATE ) );
@@ -259,6 +341,8 @@ static void emit_fb_group()
 	emit_register( R_SPEC( mmu_debug_wr, NV_PFB_PRI_MMU_DEBUG_WR ) );
 	emit_field   ( F_SPEC( aperture, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE, "") );
 	emit_constant( C_SPEC( vid_mem, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE_SYS_MEM_C, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE_SYS_MEM_NC, "f") );
 	emit_field   ( F_SPEC( vol, NV_PFB_PRI_MMU_DEBUG_WR_VOL, ".") );
 	emit_constant( C_SPEC( false, NV_PFB_PRI_MMU_DEBUG_WR_VOL_FALSE, "f") );
 	emit_constant( C_SPEC( true, NV_PFB_PRI_MMU_DEBUG_WR_VOL_TRUE, "") );
@@ -268,6 +352,8 @@ static void emit_fb_group()
 	emit_register( R_SPEC( mmu_debug_rd, NV_PFB_PRI_MMU_DEBUG_RD ) );
 	emit_field   ( F_SPEC( aperture, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE_SYS_MEM_C, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE_SYS_MEM_NC, "f") );
 	emit_field   ( F_SPEC( vol, NV_PFB_PRI_MMU_DEBUG_RD_VOL, ".") );
 	emit_constant( C_SPEC( false, NV_PFB_PRI_MMU_DEBUG_RD_VOL_FALSE, "f") );
 	emit_field   ( F_SPEC( addr, NV_PFB_PRI_MMU_DEBUG_RD_ADDR, "f") );
@@ -318,7 +404,8 @@ static void emit_fifo_group()
 	emit_field   ( F_SPEC( ptr, NV_PFIFO_RUNLIST_BASE_PTR, "f") );
 	emit_field   ( F_SPEC( target, NV_PFIFO_RUNLIST_BASE_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PFIFO_RUNLIST_BASE_TARGET_VID_MEM, "f") );
-
+	emit_constant( C_SPEC( sys_mem_coh, NV_PFIFO_RUNLIST_BASE_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PFIFO_RUNLIST_BASE_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_register( R_SPEC( runlist, NV_PFIFO_RUNLIST ) );
 	emit_field   ( F_SPEC( engine, NV_PFIFO_RUNLIST_ID, "f") );
@@ -329,6 +416,7 @@ static void emit_fifo_group()
 	emit_register( IR_SPEC( eng_runlist, NV_PFIFO_ENG_RUNLIST ) );
 	emit_constant( C_SPEC( _size_1, NV_PFIFO_ENG_RUNLIST__SIZE_1, "v") );
 	emit_field   ( F_SPEC( length, NV_PFIFO_ENG_RUNLIST_LENGTH, "f") );
+	emit_constant( C_SPEC( max, NV_PFIFO_ENG_RUNLIST_LENGTH_MAX, "v") );
 	emit_field   ( F_SPEC( pending, NV_PFIFO_ENG_RUNLIST_PENDING, ".") );
 	emit_constant( C_SPEC( true, NV_PFIFO_ENG_RUNLIST_PENDING_TRUE, "f") );
 
@@ -507,6 +595,18 @@ static void emit_flush_group()
 	emit_constant( C_SPEC( busy, NV_UFLUSH_FB_FLUSH_PENDING_BUSY, "fv") );
 	emit_field   ( F_SPEC( outstanding, NV_UFLUSH_FB_FLUSH_OUTSTANDING, "v") );
 	emit_constant( C_SPEC( true, NV_UFLUSH_FB_FLUSH_OUTSTANDING_TRUE, "v") );
+	emit_register( R_SPEC( l2_clean_comptags, NV_UFLUSH_L2_CLEAN_COMPTAGS ) );
+	emit_field   ( F_SPEC( pending, NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING, "v") );
+	emit_constant( C_SPEC( empty, NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING_EMPTY, "fv") );
+	emit_constant( C_SPEC( busy, NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING_BUSY, "fv") );
+	emit_field   ( F_SPEC( outstanding, NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING, "v") );
+	emit_constant( C_SPEC( false, NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING_FALSE, "fv") );
+	emit_constant( C_SPEC( true, NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING_TRUE, "v") );
+	emit_register( R_SPEC( fb_flush, NV_UFLUSH_FB_FLUSH ) );
+	emit_field   ( F_SPEC( pending, NV_UFLUSH_FB_FLUSH_PENDING, "v") );
+	emit_constant( C_SPEC( busy, NV_UFLUSH_FB_FLUSH_PENDING_BUSY, "fv") );
+	emit_field   ( F_SPEC( outstanding, NV_UFLUSH_FB_FLUSH_OUTSTANDING, "v") );
+	emit_constant( C_SPEC( true, NV_UFLUSH_FB_FLUSH_OUTSTANDING_TRUE, "v") );
 
 	end_group();
 
@@ -523,6 +623,8 @@ static void emit_gmmu_group()
 	emit_field   (WF_SPEC( aperture_big, NV_MMU_PDE_APERTURE_BIG,    ".") );
 	emit_constant( C_SPEC( invalid,      NV_MMU_PDE_APERTURE_BIG_INVALID,      "f") );
 	emit_constant( C_SPEC( video_memory, NV_MMU_PDE_APERTURE_BIG_VIDEO_MEMORY, "f") );
+	emit_constant( C_SPEC( sys_mem_coh,  NV_MMU_PDE_APERTURE_BIG_SYSTEM_COHERENT_MEMORY, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh,  NV_MMU_PDE_APERTURE_BIG_SYSTEM_NON_COHERENT_MEMORY, "f") );
 
 	emit_field   (WF_SPEC( size, NV_MMU_PDE_SIZE, ".") );
 	emit_constant( C_SPEC( full, NV_MMU_PDE_SIZE_FULL, "f") );
@@ -532,6 +634,8 @@ static void emit_gmmu_group()
 	emit_field   (WF_SPEC( aperture_small, NV_MMU_PDE_APERTURE_SMALL, ".") );
 	emit_constant( C_SPEC( invalid,        NV_MMU_PDE_APERTURE_SMALL_INVALID, "f") );
 	emit_constant( C_SPEC( video_memory,   NV_MMU_PDE_APERTURE_SMALL_VIDEO_MEMORY, "f") );
+	emit_constant( C_SPEC( sys_mem_coh,    NV_MMU_PDE_APERTURE_SMALL_SYSTEM_COHERENT_MEMORY, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh,    NV_MMU_PDE_APERTURE_SMALL_SYSTEM_NON_COHERENT_MEMORY, "f") );
 
 	emit_field   (WF_SPEC( vol_small, NV_MMU_PDE_VOL_SMALL, ".") );
 	emit_constant( C_SPEC( true,      NV_MMU_PDE_VOL_SMALL_TRUE,  "f") );
@@ -558,6 +662,9 @@ static void emit_gmmu_group()
 	emit_constant( C_SPEC( true,  NV_MMU_PTE_VALID_TRUE, "f") );
 	emit_constant( C_SPEC( false, NV_MMU_PTE_VALID_FALSE, "f") );
 
+	emit_field   (WF_SPEC( privilege, NV_MMU_PTE_PRIVILEGE, ".") );
+	emit_constant( C_SPEC( true,  NV_MMU_PTE_PRIVILEGE_TRUE, "f") );
+	emit_constant( C_SPEC( false, NV_MMU_PTE_PRIVILEGE_FALSE, "f") );
 	emit_field   (WF_SPEC( address_sys, NV_MMU_PTE_ADDRESS_SYS, "f") );
 
 	emit_field   (WF_SPEC( vol,   NV_MMU_PTE_VOL, ".") );
@@ -566,6 +673,8 @@ static void emit_gmmu_group()
 
 	emit_field   (WF_SPEC( aperture,     NV_MMU_PTE_APERTURE, ".") );
 	emit_constant( C_SPEC( video_memory, NV_MMU_PTE_APERTURE_VIDEO_MEMORY, "f") );
+	emit_constant( C_SPEC( sys_mem_coh,  NV_MMU_PTE_APERTURE_SYSTEM_COHERENT_MEMORY, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh,  NV_MMU_PTE_APERTURE_SYSTEM_NON_COHERENT_MEMORY, "f") );
 
 	emit_field   (WF_SPEC( read_only, NV_MMU_PTE_READ_ONLY, ".") );
 	emit_constant( C_SPEC( true,      NV_MMU_PTE_READ_ONLY_TRUE, "f") );
@@ -1022,6 +1131,7 @@ static void emit_gr_group()
 	emit_register( R_SPEC( fe_go_idle_timeout, NV_PGRAPH_PRI_FE_GO_IDLE_TIMEOUT ) );
 	emit_field   ( F_SPEC( count, NV_PGRAPH_PRI_FE_GO_IDLE_TIMEOUT_COUNT, "f") );
 	emit_constant( C_SPEC( disabled, NV_PGRAPH_PRI_FE_GO_IDLE_TIMEOUT_COUNT_DISABLED, "f") );
+	emit_constant( C_SPEC( prod, NV_PGRAPH_PRI_FE_GO_IDLE_TIMEOUT_COUNT__PROD, "f") );
 
 	emit_register( IR_SPEC( fe_object_table, NV_PGRAPH_PRI_FE_OBJECT_TABLE ) );
 	emit_field   ( F_SPEC( nvclass, NV_PGRAPH_PRI_FE_OBJECT_TABLE_NVCLASS, "v") );
@@ -1086,7 +1196,7 @@ static void emit_gr_group()
 	emit_field   ( F_SPEC( opc, NV_PGRAPH_PRI_FECS_FALCON_ICD_CMD_OPC, "") );
 	emit_constant( C_SPEC( rreg, NV_PGRAPH_PRI_FECS_FALCON_ICD_CMD_OPC_RREG, "f") );
 	emit_constant( C_SPEC( rstat, NV_PGRAPH_PRI_FECS_FALCON_ICD_CMD_OPC_RSTAT, "f") );
-	 emit_field   ( F_SPEC( idx, NV_PGRAPH_PRI_FECS_FALCON_ICD_CMD_IDX, "f") );
+	emit_field   ( F_SPEC( idx, NV_PGRAPH_PRI_FECS_FALCON_ICD_CMD_IDX, "f") );
 
 	emit_register( R_SPEC( fecs_icd_rdata, NV_PGRAPH_PRI_FECS_FALCON_ICD_RDATA ) );
 
@@ -1126,13 +1236,15 @@ static void emit_gr_group()
 	emit_field   ( F_SPEC( target, NV_PGRAPH_PRI_FECS_CURRENT_CTX_TARGET, ".") );
 	emit_field   ( F_SPEC( target, NV_PGRAPH_PRI_FECS_CURRENT_CTX_TARGET , "sfmv") );
 	emit_constant( C_SPEC( vid_mem, NV_PGRAPH_PRI_FECS_CURRENT_CTX_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PGRAPH_PRI_FECS_CURRENT_CTX_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PGRAPH_PRI_FECS_CURRENT_CTX_TARGET_SYS_MEM_NONCOHERENT, "f") );
 	emit_field   ( F_SPEC( valid, NV_PGRAPH_PRI_FECS_CURRENT_CTX_VALID, "sfmv") );
 	emit_constant( C_SPEC( false, NV_PGRAPH_PRI_FECS_CURRENT_CTX_VALID_FALSE, "f") );
 
 	emit_register( R_SPEC( fecs_method_data, NV_PGRAPH_PRI_FECS_METHOD_DATA ) );
 
 	emit_register( R_SPEC( fecs_method_push, NV_PGRAPH_PRI_FECS_METHOD_PUSH ) );
-emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
+	emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_constant( C_SPEC( bind_pointer, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_BIND_POINTER, "fv") );
 	emit_constant( C_SPEC( discover_image_size, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_DISCOVER_IMAGE_SIZE, "v") );
 	emit_constant( C_SPEC( wfi_golden_save, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_WFI_GOLDEN_SAVE, "v") );
@@ -1145,13 +1257,20 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_constant( C_SPEC( stop_ctxsw, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_STOP_CTXSW, "v") );
 	emit_constant( C_SPEC( start_ctxsw, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_START_CTXSW, "v") );
 	emit_constant( C_SPEC( set_watchdog_timeout, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_SET_WATCHDOG_TIMEOUT, "f") );
+	emit_constant( C_SPEC( write_timestamp_record,  NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_WRITE_TIMESTAMP_RECORD, "v") );
 	emit_constant( C_SPEC( halt_pipeline, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR_HALT_PIPELINE, "v") );
 
 	emit_register( R_SPEC( fecs_host_int_status, NV_PGRAPH_PRI_FECS_HOST_INT_STATUS) );
+	emit_field   ( F_SPEC( fault_during_ctxsw, NV_PGRAPH_PRI_FECS_HOST_INT_STATUS_FAULT_DURING_CTXSW, "f") );
 	emit_field   ( F_SPEC( umimp_firmware_method, NV_PGRAPH_PRI_FECS_HOST_INT_STATUS_UMIMP_FIRMWARE_METHOD, "f") );
 	emit_field   ( F_SPEC( umimp_illegal_method, NV_PGRAPH_PRI_FECS_HOST_INT_STATUS_UMIMP_ILLEGAL_METHOD, "f") );
+	emit_field   ( F_SPEC( ctxsw_intr, NV_PGRAPH_PRI_FECS_HOST_INT_STATUS_CTXSW_INTR, "f") );
 	emit_register( R_SPEC( fecs_host_int_clear, NV_PGRAPH_PRI_FECS_HOST_INT_CLEAR) );
+	emit_field   ( F_SPEC( ctxsw_intr1, NV_PGRAPH_PRI_FECS_HOST_INT_CLEAR_CTXSW_INTR1, "f") );
+	emit_constant( C_SPEC( clear, NV_PGRAPH_PRI_FECS_HOST_INT_CLEAR_CTXSW_INTR1_CLEAR, "f") );
 	emit_register( R_SPEC( fecs_host_int_enable, NV_PGRAPH_PRI_FECS_HOST_INT_ENABLE ) );
+	emit_field   ( F_SPEC( ctxsw_intr1, NV_PGRAPH_PRI_FECS_HOST_INT_ENABLE_CTXSW_INTR1, ".") );
+	emit_constant( C_SPEC( enable, NV_PGRAPH_PRI_FECS_HOST_INT_ENABLE_CTXSW_INTR1_ENABLE, "f") );
 	emit_field   ( F_SPEC( fault_during_ctxsw, NV_PGRAPH_PRI_FECS_HOST_INT_ENABLE_FAULT_DURING_CTXSW, ".") );
 	emit_constant( C_SPEC( enable, NV_PGRAPH_PRI_FECS_HOST_INT_ENABLE_FAULT_DURING_CTXSW_ENABLE, "f") );
 	emit_field   ( F_SPEC( umimp_firmware_method, NV_PGRAPH_PRI_FECS_HOST_INT_ENABLE_UMIMP_FIRMWARE_METHOD, ".") );
@@ -1512,6 +1631,7 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_cfg, NV_PGRAPH_PRI_GPC0_TPC0_SM_CONFIG ) );
 	emit_field   ( F_SPEC( sm_id, NV_PGRAPH_PRI_GPC0_TPC0_SM_CONFIG_SM_ID, "f") );
+	emit_field   ( F_SPEC( sm_id, NV_PGRAPH_PRI_GPC0_TPC0_SM_CONFIG_SM_ID, "v") );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_arch, NV_PGRAPH_PRI_GPC0_TPC0_SM_ARCH ) );
 	emit_field   ( F_SPEC( warp_count, NV_PGRAPH_PRI_GPC0_TPC0_SM_ARCH_WARP_COUNT, "v") );
@@ -1783,6 +1903,8 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_register( R_SPEC( gpcs_tpcs_tpccs_tpc_exception_en, NV_PGRAPH_PRI_GPCS_TPCS_TPCCS_TPC_EXCEPTION_EN ) );
 	emit_field   ( F_SPEC( sm, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_EN_SM, "." ) );
 	emit_constant( C_SPEC( enabled, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_EN_SM_ENABLED, "f" ) );
+	emit_field   ( F_SPEC( tex, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_EN_TEX, "." ) );
+	emit_constant( C_SPEC( enabled, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_EN_TEX_ENABLED, "f" ) );
 
 	emit_register( R_SPEC( gpc0_tpc0_tpccs_tpc_exception_en, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_EN ) );
 	emit_field   ( F_SPEC( sm, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_EN_SM, "." ) );
@@ -1798,15 +1920,21 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_constant( C_SPEC( 0_pending, NV_PGRAPH_PRI_GPC0_GPCCS_GPC_EXCEPTION_TPC_0_PENDING, "v" ) );
 
 	emit_register( R_SPEC( gpc0_tpc0_tpccs_tpc_exception, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION ) );
+	emit_field   ( F_SPEC( tex, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_TEX, "v" ) );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_TEX_PENDING, "v" ) );
 	emit_field   ( F_SPEC( sm, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_SM, "v" ) );
 	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_TPCCS_TPC_EXCEPTION_SM_PENDING, "v" ) );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_dbgr_control0, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0 ) );
 	emit_field   ( F_SPEC( debugger_mode, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_DEBUGGER_MODE, "v" ) );
 	emit_constant( C_SPEC( on, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_DEBUGGER_MODE_ON, "v" ) );
+	emit_constant( C_SPEC( off, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_DEBUGGER_MODE_OFF, "vf" ) );
 	emit_field   ( F_SPEC( stop_trigger, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_TRIGGER, "." ) );
 	emit_constant( C_SPEC( enable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_TRIGGER_ENABLE, "f" ) );
 	emit_constant( C_SPEC( disable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_TRIGGER_DISABLE, "f" ) );
+	emit_field   ( F_SPEC( single_step_mode, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_SINGLE_STEP_MODE, "." ) );
+	emit_constant( C_SPEC( enable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_SINGLE_STEP_MODE_ENABLE, "f" ) );
+	emit_constant( C_SPEC( disable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_SINGLE_STEP_MODE_DISABLE, "f" ) );
 	emit_field   ( F_SPEC( run_trigger, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_RUN_TRIGGER, "." ) );
 	emit_constant( C_SPEC( task, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_RUN_TRIGGER_TASK, "f" ) );
 
@@ -1815,13 +1943,16 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 
 	emit_field   ( F_SPEC( stop_on_any_sm, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_ON_ANY_SM, "v" ) );
 	emit_constant( C_SPEC( disable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_ON_ANY_SM_DISABLE, "f" ) );
+	emit_constant( C_SPEC( stop_on_any_warp_disable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_ON_ANY_WARP_DISABLE, "v" ) );
+	emit_constant( C_SPEC( stop_on_any_sm_disable,   NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_ON_ANY_SM_DISABLE, "v" ) );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_warp_valid_mask, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_WARP_VALID_MASK_0 ) );
+	emit_register( R_SPEC( gpc0_tpc0_sm_warp_valid_mask_2, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_WARP_VALID_MASK_2 ) );
 	emit_register( R_SPEC( gpc0_tpc0_sm_dbgr_bpt_pause_mask, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_BPT_PAUSE_MASK_0 ) );
+	emit_register( R_SPEC( gpc0_tpc0_sm_dbgr_bpt_pause_mask_2, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_BPT_PAUSE_MASK_2 ) );
 	emit_register( R_SPEC( gpc0_tpc0_sm_dbgr_bpt_trap_mask, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_BPT_TRAP_MASK_0 ) );
-
-	emit_constant( C_SPEC( stop_on_any_warp_disable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_ON_ANY_WARP_DISABLE, "v" ) );
-	emit_constant( C_SPEC( stop_on_any_sm_disable, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_CONTROL0_STOP_ON_ANY_SM_DISABLE, "v" ) );
+	emit_register( R_SPEC( gpc0_tpc0_sm_dbgr_bpt_trap_mask_2, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_BPT_TRAP_MASK_2 ) );
+	emit_register( R_SPEC( gpcs_tpcs_sm_dbgr_bpt_pause_mask, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_BPT_PAUSE_MASK_0 ) );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_dbgr_status0, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_STATUS0 ) );
 	emit_field   ( F_SPEC( sm_in_trap_mode, NV_PGRAPH_PRI_GPC0_TPC0_SM_DBGR_STATUS0_SM_IN_TRAP_MODE, "v" ) );
@@ -1835,6 +1966,16 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_BPT_PAUSE_PENDING, "f") );
 	emit_field   ( F_SPEC( single_step_complete, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_SINGLE_STEP_COMPLETE, ".") );
 	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_SINGLE_STEP_COMPLETE_PENDING, "f") );
+	emit_field   ( F_SPEC( sm_to_sm_fault, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_SM_TO_SM_FAULT, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_SM_TO_SM_FAULT_PENDING, "f") );
+	emit_field   ( F_SPEC( l1_error, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_L1_ERROR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_L1_ERROR_PENDING, "f") );
+	emit_field   ( F_SPEC( multiple_warp_errors, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_MULTIPLE_WARP_ERRORS, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_MULTIPLE_WARP_ERRORS_PENDING, "f") );
+	emit_field   ( F_SPEC( physical_stack_overflow_error, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_PHYSICAL_STACK_OVERFLOW_ERROR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_PHYSICAL_STACK_OVERFLOW_ERROR_PENDING, "f") );
+	emit_field   ( F_SPEC( timeout_error, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_TIMEOUT_ERROR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPCS_TPCS_SM_HWW_GLOBAL_ESR_TIMEOUT_ERROR_PENDING, "f") );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_hww_global_esr, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR ) );
 	emit_field   ( F_SPEC( bpt_int, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_BPT_INT, ".") );
@@ -1843,12 +1984,27 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_BPT_PAUSE_PENDING, "f") );
 	emit_field   ( F_SPEC( single_step_complete, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_SINGLE_STEP_COMPLETE, ".") );
 	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_SINGLE_STEP_COMPLETE_PENDING, "f") );
+	emit_field   ( F_SPEC( sm_to_sm_fault, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_SM_TO_SM_FAULT, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_SM_TO_SM_FAULT_PENDING, "f") );
+	emit_field   ( F_SPEC( l1_error, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_L1_ERROR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_L1_ERROR_PENDING, "f") );
+	emit_field   ( F_SPEC( multiple_warp_errors, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_MULTIPLE_WARP_ERRORS, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_MULTIPLE_WARP_ERRORS_PENDING, "f") );
+	emit_field   ( F_SPEC( physical_stack_overflow_error, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_PHYSICAL_STACK_OVERFLOW_ERROR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_PHYSICAL_STACK_OVERFLOW_ERROR_PENDING, "f") );
+	emit_field   ( F_SPEC( timeout_error, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_TIMEOUT_ERROR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_GLOBAL_ESR_TIMEOUT_ERROR_PENDING, "f") );
+
+	emit_register( R_SPEC( gpc0_tpc0_tex_m_hww_esr, NV_PGRAPH_PRI_GPC0_TPC0_TEX_M_HWW_ESR ) );
+	emit_field   ( F_SPEC( intr, NV_PGRAPH_PRI_GPC0_TPC0_TEX_M_HWW_ESR_INTR, ".") );
+	emit_constant( C_SPEC( pending, NV_PGRAPH_PRI_GPC0_TPC0_TEX_M_HWW_ESR_INTR_PENDING, "f") );
 
 	emit_register( R_SPEC( gpc0_tpc0_sm_hww_warp_esr, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_WARP_ESR ) );
 	emit_field   ( F_SPEC( error, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_WARP_ESR_ERROR, "v") );
 	emit_constant( C_SPEC( none, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_WARP_ESR_ERROR_NONE, "v") );
 	emit_constant( C_SPEC( none, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_WARP_ESR_ERROR_NONE, "f") );
 
+	emit_register( R_SPEC( gpc0_tpc0_sm_hww_warp_esr_pc, NV_PGRAPH_PRI_GPC0_TPC0_SM_HWW_WARP_ESR_PC ) );
 	emit_register( R_SPEC( gpc0_tpc0_sm_halfctl_ctrl, NV_PGRAPH_PRI_GPC0_TPC0_SM_HALFCTL_CTRL ) );
 	emit_register( R_SPEC( gpcs_tpcs_sm_halfctl_ctrl, NV_PGRAPH_PRI_GPCS_TPCS_SM_HALFCTL_CTRL ) );
 	emit_field   ( F_SPEC( sctl_read_quad_ctl, NV_PGRAPH_PRI_GPCS_TPCS_SM_HALFCTL_CTRL_SCTL_READ_QUAD_CTL, "m") );
@@ -1955,6 +2111,7 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_register( R_SPEC( gpcs_pri_mmu_ctrl, NV_PGRAPH_PRI_GPCS_MMU_CTRL ) );
 	emit_field   ( F_SPEC( vm_pg_size, NV_PGRAPH_PRI_GPCS_MMU_CTRL_VM_PG_SIZE, "m" ) );
 	emit_field   ( F_SPEC( use_pdb_big_page_size, NV_PGRAPH_PRI_GPCS_MMU_CTRL_USE_PDB_BIG_PAGE_SIZE, "m" ) );
+	emit_field   ( F_SPEC( use_full_comp_tag_line, NV_PGRAPH_PRI_GPCS_MMU_CTRL_USE_FULL_COMP_TAG_LINE, "m" ) );
 	emit_field   ( F_SPEC( vol_fault, NV_PGRAPH_PRI_GPCS_MMU_CTRL_VOL_FAULT, "m" ) );
 	emit_field   ( F_SPEC( comp_fault, NV_PGRAPH_PRI_GPCS_MMU_CTRL_COMP_FAULT, "m" ) );
 	emit_field   ( F_SPEC( miss_gran, NV_PGRAPH_PRI_GPCS_MMU_CTRL_MISS_GRAN, "m" ) );
@@ -1967,6 +2124,7 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_register( R_SPEC( gpcs_pri_mmu_debug_ctrl, NV_PGRAPH_PRI_GPCS_MMU_DEBUG_CTRL ) );
 	emit_field   ( F_SPEC( debug, NV_PGRAPH_PRI_GPCS_MMU_DEBUG_CTRL_DEBUG, "v") );
 	emit_constant( C_SPEC( enabled, NV_PGRAPH_PRI_GPCS_MMU_DEBUG_CTRL_DEBUG_ENABLED, "v") );
+	emit_constant( C_SPEC( disabled, NV_PGRAPH_PRI_GPCS_MMU_DEBUG_CTRL_DEBUG_DISABLED, "vf") );
 	emit_register( R_SPEC( gpcs_pri_mmu_debug_wr, NV_PGRAPH_PRI_GPCS_MMU_DEBUG_WR ) );
 	emit_register( R_SPEC( gpcs_pri_mmu_debug_rd, NV_PGRAPH_PRI_GPCS_MMU_DEBUG_RD ) );
 
@@ -1978,6 +2136,9 @@ emit_field   ( F_SPEC( adr, NV_PGRAPH_PRI_FECS_METHOD_PUSH_ADR, "f") );
 	emit_field   ( F_SPEC( stop_trigger, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_STOP_TRIGGER, "mv" ) );
 	emit_constant( C_SPEC( enable, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_STOP_TRIGGER_ENABLE, "f" ) );
 	emit_constant( C_SPEC( disable, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_STOP_TRIGGER_DISABLE, "f" ) );
+	emit_field   ( F_SPEC( single_step_mode, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_SINGLE_STEP_MODE, "m" ) );
+	emit_constant( C_SPEC( enable, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_SINGLE_STEP_MODE_ENABLE, "f" ) );
+	emit_constant( C_SPEC( disable, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_SINGLE_STEP_MODE_DISABLE, "f" ) );
 	emit_field   ( F_SPEC( run_trigger, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_RUN_TRIGGER, "mv" ) );
 	emit_constant( C_SPEC( task, NV_PGRAPH_PRI_GPCS_TPCS_SM_DBGR_CONTROL0_RUN_TRIGGER_TASK, "f" ) );
 
@@ -2064,6 +2225,7 @@ static void emit_ltc_group()
 	emit_register( R_SPEC( ltcs_ltss_intr, NV_PLTCG_LTCS_LTSS_INTR) );
 	emit_field   ( F_SPEC( en_evicted_cb, NV_PLTCG_LTCS_LTSS_INTR_EN_EVICTED_CB, "m") );
 	emit_field   ( F_SPEC( en_illegal_compstat_access, NV_PLTCG_LTCS_LTSS_INTR_EN_ILLEGAL_COMPSTAT_ACCESS, "m") );
+	emit_field   ( F_SPEC( en_illegal_compstat, NV_PLTCG_LTCS_LTSS_INTR_EN_ILLEGAL_COMPSTAT, "m" ) );
 	emit_register( R_SPEC( ltc0_lts0_intr, NV_PLTCG_LTC0_LTS0_INTR) );
 
 	emit_register( R_SPEC( ltcs_ltss_tstg_cmgmt0,          NV_PLTCG_LTCS_LTSS_TSTG_CMGMT_0) );
@@ -2253,6 +2415,7 @@ static void emit_pbdma_group()
 	emit_constant( C_SPEC( true, NV_PPBDMA_PB_HEADER_FIRST_TRUE, "f") );
 	emit_field   ( F_SPEC( type, NV_PPBDMA_PB_HEADER_TYPE, ".") );
 	emit_constant( C_SPEC( inc, NV_PPBDMA_PB_HEADER_TYPE_INC, "f") );
+	emit_constant( C_SPEC( non_inc, NV_PPBDMA_PB_HEADER_TYPE_NON_INC, "f") );
 
 	emit_register( IR_SPEC( hdr_shadow, NV_PPBDMA_HDR_SHADOW) );
 
@@ -2264,6 +2427,16 @@ static void emit_pbdma_group()
 	emit_constant( C_SPEC( enable, NV_PPBDMA_SUBDEVICE_CHANNEL_DMA_ENABLE, "f") );
 
 	emit_register( IR_SPEC( method0, NV_PPBDMA_METHOD0 ) );
+	emit_constant( C_SPEC( fifo_size, NV_PPBDMA_METHOD_FIFO_SIZE, "v") );
+	emit_field   ( F_SPEC( addr, NV_PPBDMA_METHOD0_ADDR, "fv") );
+	emit_field   ( F_SPEC( subch, NV_PPBDMA_METHOD0_SUBCH, "v") );
+	emit_field   ( F_SPEC( first, NV_PPBDMA_METHOD0_FIRST, ".") );
+	emit_constant( C_SPEC( true, NV_PPBDMA_METHOD0_FIRST_TRUE, "f") );
+	emit_field   ( F_SPEC( valid, NV_PPBDMA_METHOD0_VALID, ".") );
+	emit_constant( C_SPEC( true, NV_PPBDMA_METHOD0_VALID_TRUE, "f") );
+	emit_register( IR_SPEC( method1, NV_PPBDMA_METHOD1 ) );
+	emit_register( IR_SPEC( method2, NV_PPBDMA_METHOD2 ) );
+	emit_register( IR_SPEC( method3, NV_PPBDMA_METHOD3 ) );
 
 	emit_register( IR_SPEC( data0, NV_PPBDMA_DATA0 ) );
 
@@ -2281,6 +2454,7 @@ static void emit_pbdma_group()
 	emit_field   ( F_SPEC( timeout_man, NV_PPBDMA_ACQUIRE_TIMEOUT_MAN, ".") );
 	emit_constant( C_SPEC( max, NV_PPBDMA_ACQUIRE_TIMEOUT_MAN_MAX, "f") );
 	emit_field   ( F_SPEC( timeout_en, NV_PPBDMA_ACQUIRE_TIMEOUT_EN, ".") );
+	emit_constant( C_SPEC( enable, NV_PPBDMA_ACQUIRE_TIMEOUT_EN_ENABLE, "f") );
 	emit_constant( C_SPEC( disable, NV_PPBDMA_ACQUIRE_TIMEOUT_EN_DISABLE, "f") );
 
 	emit_register( IR_SPEC( status, NV_PPBDMA_STATUS ) );
@@ -2296,6 +2470,8 @@ static void emit_pbdma_group()
 	emit_register( IR_SPEC( userd, NV_PPBDMA_USERD ) );
 	emit_field   ( F_SPEC( target, NV_PPBDMA_USERD_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PPBDMA_USERD_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PPBDMA_USERD_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PPBDMA_USERD_TARGET_SYS_MEM_NONCOHERENT, "f") );
 	emit_field   ( F_SPEC( addr, NV_PPBDMA_USERD_ADDR, "f") );
 
 	emit_register( IR_SPEC( userd_hi, NV_PPBDMA_USERD_HI ) );
@@ -2470,6 +2646,9 @@ static void emit_proj_group()
 
 	emit_constant( C_SPEC( ppc_in_gpc_base,   NV_PPC_IN_GPC_BASE,   "v") );
 	emit_constant( C_SPEC( ppc_in_gpc_stride, NV_PPC_IN_GPC_STRIDE, "v") );
+	emit_constant( C_SPEC( fbpa_stride, NV_FBPA_PRI_STRIDE, "v") );
+	emit_constant( C_SPEC( ppc_in_gpc_base,   NV_PPC_IN_GPC_BASE,   "v") );
+	emit_constant( C_SPEC( ppc_in_gpc_stride, NV_PPC_IN_GPC_STRIDE, "v") );
 
 	emit_constant( C_SPEC( rop_base,        NV_ROP_PRI_BASE,        "v") );
 	emit_constant( C_SPEC( rop_shared_base, NV_ROP_PRI_SHARED_BASE, "v") );
@@ -2484,6 +2663,7 @@ static void emit_proj_group()
 
 	emit_constant( C_SPEC( scal_litter_num_tpc_per_gpc,  NV_SCAL_LITTER_NUM_TPC_PER_GPC,  "v") );
 	emit_constant( C_SPEC( scal_litter_num_fbps,         NV_SCAL_LITTER_NUM_FBPS,         "v") );
+	emit_constant( C_SPEC( scal_litter_num_fbpas,        NV_SCAL_LITTER_NUM_FBPAS,        "v") );
 	emit_constant( C_SPEC( scal_litter_num_gpcs,         NV_SCAL_LITTER_NUM_GPCS,         "v") );
 	emit_constant( C_SPEC( scal_litter_num_pes_per_gpc,  NV_SCAL_LITTER_NUM_PES_PER_GPC,  "v") );
 	emit_constant( C_SPEC( scal_litter_num_tpcs_per_pes, NV_SCAL_LITTER_NUM_TPCS_PER_PES, "v") );
@@ -2636,7 +2816,7 @@ static void emit_pwr_group()
 	emit_field   ( F_SPEC( opc, NV_PPWR_FALCON_ICD_CMD_OPC, "") );
 	emit_constant( C_SPEC( rreg, NV_PPWR_FALCON_ICD_CMD_OPC_RREG, "f") );
 	emit_constant( C_SPEC( rstat, NV_PPWR_FALCON_ICD_CMD_OPC_RSTAT, "f") );
-	 emit_field   ( F_SPEC( idx, NV_PPWR_FALCON_ICD_CMD_IDX, "f") );
+	emit_field   ( F_SPEC( idx, NV_PPWR_FALCON_ICD_CMD_IDX, "f") );
 
 	emit_register( R_SPEC( pmu_falcon_icd_rdata, NV_PPWR_FALCON_ICD_RDATA ) );
 
@@ -2653,6 +2833,7 @@ static void emit_pwr_group()
 	emit_field   ( F_SPEC( target, NV_PPWR_PMU_NEW_INSTBLK_TARGET, ".") );
 	emit_constant( C_SPEC( fb, NV_PPWR_PMU_NEW_INSTBLK_TARGET_FB, "f") );
 	emit_constant( C_SPEC( sys_coh, NV_PPWR_PMU_NEW_INSTBLK_TARGET_SYS_COH, "f") );
+	emit_constant( C_SPEC( sys_ncoh, NV_PPWR_PMU_NEW_INSTBLK_TARGET_SYS_NONCOH, "f") );
 	emit_field   ( F_SPEC( valid, NV_PPWR_PMU_NEW_INSTBLK_VALID, "f") );
 
 	emit_register( R_SPEC( pmu_mutex_id, NV_PPWR_PMU_MUTEX_ID ) );
@@ -2752,6 +2933,8 @@ static void emit_ram_group()
 	//emit_field   (WF_SPEC( ramfc, NV_RAMIN_RAMFC, "sw") );
 	emit_field   (WF_SPEC( page_dir_base_target, NV_RAMIN_PAGE_DIR_BASE_TARGET, "fw") );
 	emit_constant( C_SPEC( vid_mem, NV_RAMIN_PAGE_DIR_BASE_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_NONCOHERENT, "f") );
 	emit_field   (WF_SPEC( page_dir_base_vol, NV_RAMIN_PAGE_DIR_BASE_VOL, "." ) );
 	emit_constant( C_SPEC( true, NV_RAMIN_PAGE_DIR_BASE_VOL_TRUE, "f") );
 	emit_field   (WF_SPEC( big_page_size, NV_RAMIN_BIG_PAGE_SIZE, "fmw") );
@@ -2853,17 +3036,33 @@ static void emit_therm_group()
 {
 	begin_group( G_SPEC( therm, NV_THERM ) );
 	emit_register( R_SPEC( use_a, NV_THERM_USE_A ) );
+	emit_field   (F_SPEC( ext_therm_0, NV_THERM_USE_A_EXT_THERM_0, ".") );
+	emit_constant( C_SPEC( enable, NV_THERM_USE_A_EXT_THERM_0_YES, "f") );
+	emit_field   (F_SPEC( ext_therm_1, NV_THERM_USE_A_EXT_THERM_1, ".") );
+	emit_constant( C_SPEC( enable, NV_THERM_USE_A_EXT_THERM_1_YES, "f") );
+	emit_field   (F_SPEC( ext_therm_2, NV_THERM_USE_A_EXT_THERM_2, ".") );
+	emit_constant( C_SPEC( enable, NV_THERM_USE_A_EXT_THERM_2_YES, "f") );
 
 	emit_register( R_SPEC( evt_ext_therm_0, NV_THERM_EVT_EXT_THERM_0 ) );
+	emit_field   (F_SPEC( slow_factor, NV_THERM_EVT_EXT_THERM_0_SLOW_FACTOR, "f") );
+	emit_constant( C_SPEC( init, NV_THERM_EVT_EXT_THERM_0_SLOW_FACTOR_INIT, "v") );
 
 	emit_register( R_SPEC( evt_ext_therm_1, NV_THERM_EVT_EXT_THERM_1 ) );
+	emit_field   (F_SPEC( slow_factor, NV_THERM_EVT_EXT_THERM_1_SLOW_FACTOR, "f") );
+	emit_constant( C_SPEC( init, NV_THERM_EVT_EXT_THERM_1_SLOW_FACTOR_INIT, "v") );
 
 	emit_register( R_SPEC( evt_ext_therm_2, NV_THERM_EVT_EXT_THERM_2 ) );
+	emit_field   (F_SPEC( slow_factor, NV_THERM_EVT_EXT_THERM_2_SLOW_FACTOR, "f") );
+	emit_constant( C_SPEC( init, NV_THERM_EVT_EXT_THERM_2_SLOW_FACTOR_INIT, "v") );
 
 	emit_register( R_SPEC( weight_1, NV_THERM_WEIGHT_1 ) );
 
 	emit_register( R_SPEC( config1, NV_THERM_CONFIG1 ) );
 
+	emit_register( IR_SPEC( gate_ctrl, NV_THERM_GATE_CTRL ) );
+	emit_register( R_SPEC( config2, NV_THERM_CONFIG2 ) );
+	emit_field   (F_SPEC( slowdown_factor_extended, NV_THERM_CONFIG2_SLOWDOWN_FACTOR_EXTENDED, "f" ) );
+	emit_field   (F_SPEC( grad_enable, NV_THERM_CONFIG2_GRAD_ENABLE, "f" ) );
 	emit_register( IR_SPEC( gate_ctrl, NV_THERM_GATE_CTRL ) );
 
 	emit_field   ( F_SPEC( eng_clk, NV_THERM_GATE_CTRL_ENG_CLK, "m") );
@@ -2881,6 +3080,7 @@ static void emit_therm_group()
 
 	emit_field   ( F_SPEC( eng_idle_filt_exp, NV_THERM_GATE_CTRL_ENG_IDLE_FILT_EXP, "fm") );
 	emit_field   ( F_SPEC( eng_idle_filt_mant, NV_THERM_GATE_CTRL_ENG_IDLE_FILT_MANT, "fm") );
+	emit_field   ( F_SPEC( eng_delay_before, NV_THERM_GATE_CTRL_ENG_DELAY_BEFORE, "fm") );
 	emit_field   ( F_SPEC( eng_delay_after, NV_THERM_GATE_CTRL_ENG_DELAY_AFTER, "fm") );
 
 	emit_register( R_SPEC( fecs_idle_filter, NV_THERM_FECS_IDLE_FILTER ) );
@@ -2893,6 +3093,27 @@ static void emit_therm_group()
 	emit_field   (  F_SPEC( idle_factor, NV_THERM_CLK_SLOWDOWN_0_IDLE_FACTOR, "fmv" ) );
 	emit_constant( C_SPEC( disabled, NV_THERM_CLK_SLOWDOWN_0_IDLE_FACTOR_DISABLED, "f") );
 
+	emit_register( IR_SPEC( grad_stepping_table, NV_THERM_GRAD_STEPPING_TABLE ) );
+	emit_field   ( F_SPEC( slowdown_factor0, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR0, "fm" ) );
+	emit_constant( C_SPEC( fpdiv_by1p5, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR_FPDIV_BY1P5, "f" ) );
+	emit_constant( C_SPEC( fpdiv_by2, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR_FPDIV_BY2, "f" ) );
+	emit_constant( C_SPEC( fpdiv_by4, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR_FPDIV_BY4, "f" ) );
+	emit_constant( C_SPEC( fpdiv_by8, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR_FPDIV_BY8, "f" ) );
+	emit_field   ( F_SPEC( slowdown_factor1, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR1, "fm" ) );
+	emit_field   ( F_SPEC( slowdown_factor2, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR2, "fm" ) );
+	emit_field   ( F_SPEC( slowdown_factor3, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR3, "fm" ) );
+	emit_field   ( F_SPEC( slowdown_factor4, NV_THERM_GRAD_STEPPING_TABLE_SLOWDOWN_FACTOR4, "fm" ) );
+
+	emit_register( R_SPEC( grad_stepping0, NV_THERM_GRAD_STEPPING0 ) );
+	emit_field   ( F_SPEC( feature, NV_THERM_GRAD_STEPPING0_FEATURE, "sfmv" ) );
+	emit_constant( C_SPEC( enable, NV_THERM_GRAD_STEPPING0_FEATURE_ENABLE, "f" ) );
+
+	emit_register( R_SPEC( grad_stepping1, NV_THERM_GRAD_STEPPING1 ) );
+	emit_field   ( F_SPEC( pdiv_duration, NV_THERM_GRAD_STEPPING1_PDIV_DURATION, "f" ) );
+
+	emit_register( IR_SPEC( clk_timing, NV_THERM_CLK_TIMING_0 ) );
+	emit_field   ( F_SPEC( grad_slowdown, NV_THERM_CLK_TIMING_0_GRAD_SLOWDOWN, "fm" ) );
+	emit_constant( C_SPEC( enabled, NV_THERM_CLK_TIMING_0_GRAD_SLOWDOWN_ENABLED, "f" ) );
 	end_group();
 
 }
@@ -3054,6 +3275,8 @@ static void emit_timer_group()
 	emit_register( R_SPEC( pri_timeout_save_0, NV_PTIMER_PRI_TIMEOUT_SAVE_0 ) );
 	emit_register( R_SPEC( pri_timeout_save_1, NV_PTIMER_PRI_TIMEOUT_SAVE_1 ) );
 	emit_register( R_SPEC( pri_timeout_fecs_errcode, NV_PTIMER_PRI_TIMEOUT_FECS_ERRCODE ) );
+	emit_register( R_SPEC( time_0, NV_PTIMER_TIME_0 ) );
+	emit_register( R_SPEC( time_1, NV_PTIMER_TIME_1 ) );
 	end_group();
 
 }
@@ -3077,6 +3300,48 @@ static void emit_fuse_group()
 
 	emit_register( R_SPEC( status_opt_fbp, NV_FUSE_STATUS_OPT_FBP ) );
 	emit_field   ( IF_SPEC( idx, NV_FUSE_STATUS_OPT_FBP_IDX, "v") );
+
+	end_group();
+}
+
+void emit_perf_group(void)
+{
+	begin_group( G_SPEC( perf, NV_PERF ) );
+
+	emit_register( R_SPEC( pmasys_control, NV_PERF_PMASYS_CONTROL ) );
+	emit_field   ( F_SPEC( membuf_status,  NV_PERF_PMASYS_CONTROL_MEMBUF_STATUS, "v") );
+	emit_constant( C_SPEC( overflowed,     NV_PERF_PMASYS_CONTROL_MEMBUF_STATUS_OVERFLOWED, "fv") );
+	emit_field   ( F_SPEC( membuf_clear_status, NV_PERF_PMASYS_CONTROL_MEMBUF_CLEAR_STATUS, "fv") );
+	emit_constant( C_SPEC( doit,                NV_PERF_PMASYS_CONTROL_MEMBUF_CLEAR_STATUS_DOIT, "fv") );
+
+	emit_register( R_SPEC( pmasys_mem_block, NV_PERF_PMASYS_MEM_BLOCK ) );
+	emit_field   ( F_SPEC( base,             NV_PERF_PMASYS_MEM_BLOCK_BASE, "f") );
+	emit_field   ( F_SPEC( target,           NV_PERF_PMASYS_MEM_BLOCK_TARGET, "fv") );
+	emit_constant( C_SPEC( lfb,              NV_PERF_PMASYS_MEM_BLOCK_TARGET_LFB, "fv") );
+	emit_constant( C_SPEC( sys_coh,          NV_PERF_PMASYS_MEM_BLOCK_TARGET_SYS_COH, "fv") );
+	emit_constant( C_SPEC( sys_ncoh,         NV_PERF_PMASYS_MEM_BLOCK_TARGET_SYS_NCOH, "fv") );
+	emit_field   ( F_SPEC( valid,            NV_PERF_PMASYS_MEM_BLOCK_VALID, "fv") );
+	emit_constant( C_SPEC( true,             NV_PERF_PMASYS_MEM_BLOCK_VALID_TRUE, "fv") );
+	emit_constant( C_SPEC( false,            NV_PERF_PMASYS_MEM_BLOCK_VALID_FALSE, "fv") );
+
+	emit_register( R_SPEC( pmasys_outbase, NV_PERF_PMASYS_OUTBASE ) );
+	emit_field   ( F_SPEC( ptr,            NV_PERF_PMASYS_OUTBASE_PTR, "f") );
+
+	emit_register( R_SPEC( pmasys_outbaseupper, NV_PERF_PMASYS_OUTBASEUPPER ) );
+	emit_field   ( F_SPEC( ptr,                 NV_PERF_PMASYS_OUTBASEUPPER_PTR, "f") );
+
+	emit_register( R_SPEC( pmasys_outsize, NV_PERF_PMASYS_OUTSIZE ) );
+	emit_field   ( F_SPEC( numbytes,       NV_PERF_PMASYS_OUTSIZE_NUMBYTES, "f") );
+
+	emit_register( R_SPEC( pmasys_mem_bytes, NV_PERF_PMASYS_MEM_BYTES ) );
+	emit_field   ( F_SPEC( numbytes,         NV_PERF_PMASYS_MEM_BYTES_NUMBYTES, "f") );
+
+	emit_register( R_SPEC( pmasys_mem_bump,  NV_PERF_PMASYS_MEM_BUMP ) );
+	emit_field   ( F_SPEC( numbytes,         NV_PERF_PMASYS_MEM_BUMP_NUMBYTES, "f") );
+
+	emit_register( R_SPEC( pmasys_enginestatus, NV_PERF_PMASYS_ENGINESTATUS ) );
+	emit_field   ( F_SPEC( rbufempty,           NV_PERF_PMASYS_ENGINESTATUS_RBUFEMPTY, "f") );
+	emit_constant( C_SPEC( empty,               NV_PERF_PMASYS_ENGINESTATUS_RBUFEMPTY_EMPTY, "fv") );
 
 	end_group();
 }
@@ -3105,4 +3370,5 @@ void ip_whitelist::emit_groups_gm20b()
 	emit_trim_group();
 	emit_timer_group();
 	emit_fuse_group();
+	emit_perf_group();
 }

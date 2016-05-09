@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns:n1="http://www.w3.org/2001/XMLSchema-instance" n1:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
+    <import file="copyright.xml"/>
+    <import file="nvchipsets.xml"/>
+    <import file="memory/nv_pfb.xml"/>
+    <domain name="NV_MMIO" bare="yes" prefix="chipset">
+        <group name="gf100_pbfb">
+            <stripe offset="0x000" name="HW_BLK">
+                <use-group name="gf100_hw_blk"/>
+            </stripe>
+            <reg32 offset="0x100" name="NV_PMC_INTR_0">
+                <bitfield name="NV_PMC_INTR_LTC_ALL" pos="25" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_LTC_ALL_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PBUS" pos="28" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PBUS_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PFIFO" pos="8" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PFIFO_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PGRAPH" pos="12" variants="GM204-"/>
+                <bitfield name="NV_PMC_INTR_PMU" pos="24" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PMU_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PRIV_RING" pos="30" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PRIV_RING_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PBUS" pos="28" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PBUS_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PFIFO" pos="8" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PFIFO_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PGRAPH" pos="12" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PGRAPH_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield pos="0" name="UNK0"/>
+                <bitfield low="4" high="9" name="UNK4" variants="GF100:GK110"/>
+                <bitfield low="4" high="10" name="UNK4" variants="GK110-"/>
+            </reg32>
+            <reg32 offset="0x160" name="PM_SEL">
+                <bitfield low="0" high="2" name="SEL"/>
+                <bitfield pos="4" name="ENABLE"/>
+            </reg32>
+            <reg32 offset="0x200" name="NV_PMC_ENABLE">
+                <bitfield name="NV_PMC_ENABLE_PFB" pos="20" variants="G80-"/>
+                <bitfield name="NV_PMC_ENABLE_PFIFO" pos="8" variants="G80-">
+                    <value value="1" name="NV_PMC_ENABLE_PFIFO_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PGRAPH" pos="12" variants="G80-">
+                    <value value="1" name="NV_PMC_ENABLE_PGRAPH_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PMEDIA" pos="4" variants="G80-"/>
+                <bitfield pos="2" name="RANKS">
+                    <value value="0" name="A"/>
+                    <value value="1" name="AB"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x204" name="NV_PMC_ENABLE_PB">
+                <bitfield name="NV_PMC_ENABLE_PB_0" pos="0" variants="GF100-">
+                    <value value="1" name="NV_PMC_ENABLE_PB_0_ENABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PB_SEL" pos="0" variants="GF100-"/>
+                <bitfield low="12" high="15" name="COLBITS">
+                    <doc> Number of column bits. </doc>
+                </bitfield>
+                <bitfield low="16" high="19" name="ROWBITSA">
+                    <doc> Number of row bits used on rank A - 8. </doc>
+                </bitfield>
+                <bitfield low="20" high="23" name="ROWBITSB">
+                    <doc> Number of row bits used on rank B - 8. </doc>
+                </bitfield>
+                <bitfield low="24" high="25" name="BANKBITS">
+                    <doc> Number of bank bits - 2. </doc>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x20c" name="NV_PMC_ELPG_ENABLE" shr="20">
+                <bitfield name="NV_PMC_ELPG_ENABLE_HUB" pos="0" variants="GF100-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_HUB_ENABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ELPG_ENABLE_PFB" pos="0" variants="G80-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_PFB_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ELPG_ENABLE_XBAR" pos="0" variants="GF100-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_XBAR_ENABLED" variants="GF100-"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x210" name="REFCTRL" variants="GF100-">
+                <bitfield low="0" high="7" name="PUT"/>
+                <bitfield low="8" high="15" name="GET"/>
+                <bitfield pos="31" name="AUTO_REFRESH"/>
+            </reg32>
+            <reg32 offset="0x290" name="MEM_TIMINGS_0" variants="NV10:GF100">
+                <doc> This, and the next 6 regs, are all related to memtimings.
+			A good place to read might be http://www.tweakers.fr/timings.html .
+			Most bitfields are unknown.
+			</doc>
+                <bitfield high="7" low="0" name="RP">
+                    <doc> RAS# Precharge. </doc>
+                </bitfield>
+                <bitfield high="15" low="8" name="RAS">
+                    <doc> Activate to precharge delay. </doc>
+                </bitfield>
+                <bitfield high="23" low="16" name="RFC">
+                    <doc> Refresh to activate delay. </doc>
+                </bitfield>
+                <bitfield high="31" low="24" name="RC">
+                    <doc> Row Cycle time. </doc>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x290" name="MEM_TIMINGS_0" variants="GF100-">
+                <doc> This, and the next 6 regs, are all related to memtimings.
+			A good place to read might be http://www.tweakers.fr/timings.html .
+			Most bitfields are unknown.
+			</doc>
+                <bitfield high="7" low="0" name="tRC">
+                    <doc> Row Cycle time. </doc>
+                </bitfield>
+                <bitfield high="15" low="8" name="tRFC">
+                    <doc> Refresh to activate delay. </doc>
+                </bitfield>
+                <bitfield high="23" low="17" name="tRAS">
+                    <doc> Activate to precharge delay. </doc>
+                </bitfield>
+                <bitfield high="31" low="24" name="tRCD">
+                    <doc> RAS# to CAS# Delay. </doc>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x294" name="MEM_TIMINGS_1" variants="GF100-">
+                <bitfield high="3" low="0" name="tCL">
+                    <doc> Row Cycle time. </doc>
+                </bitfield>
+                <bitfield high="13" low="7" name="tCWL">
+                    <doc> CAS# Write Latency. </doc>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x298" name="MEM_TIMINGS_2" variants="GF100-">
+                <bitfield high="15" low="8" name="tWTR">
+                    <doc> Write To Read delay. </doc>
+                </bitfield>
+                <bitfield high="23" low="15" name="tWR">
+                    <doc> Write Recovery time. </doc>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x29c" name="MEM_TIMINGS_3" variants="GF100-"/>
+            <reg32 offset="0x2a0" name="MEM_TIMINGS_4" variants="GF100-"/>
+            <reg32 offset="0x2a4" name="MEM_TIMINGS_5" variants="GF100-"/>
+            <reg32 offset="0x2a8" name="MEM_TIMINGS_6" variants="GF100-"/>
+            <reg32 offset="0x2ac" name="MEM_TIMINGS_7" variants="GK104-"/>
+            <reg32 offset="0x2cc" name="MEM_TIMINGS_8" variants="GK104-"/>
+            <reg32 offset="0x2e8" name="MEM_TIMINGS_9" variants="GK104-"/>
+            <array name="PFB_RAMCHIP_CFG" offset="0x300" stride="0x30" length="1" variants="GF100-">
+                <use-group name="ramchip_cfg"/>
+            </array>
+        </group>
+        <array name="PBFB_BROADCAST" offset="0x10f000" stride="0x1000" length="1" variants="GF100-">
+            <use-group name="gf100_pbfb"/>
+        </array>
+        <array name="PBFB" offset="0x110000" stride="0x1000" length="16" variants="GF100-">
+            <use-group name="gf100_pbfb"/>
+        </array>
+    </domain>
+</database>

@@ -1,3 +1,4 @@
+// -*- mode: c++; tab-width: 4; indent-tabs-mode: t; -*-
 /*
  * Copyright (c) 2013-2016, NVIDIA CORPORATION. All rights reserved.
  *
@@ -43,6 +44,7 @@
 #include "dev_top.h"
 #include "dev_trim.h"
 #include "dev_timer.h"
+#include "dev_perf.h"
 
 /* some header elements added after final chip def'n */
 #ifndef NV_CTXSW_MAIN_IMAGE_PRIV_ACCESS_MAP_CONFIG
@@ -59,6 +61,8 @@ static void emit_bus_group()
 
 	emit_field   ( F_SPEC( target,  NV_PBUS_BAR1_BLOCK_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PBUS_BAR1_BLOCK_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PBUS_BAR1_BLOCK_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PBUS_BAR1_BLOCK_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_field   ( F_SPEC( mode,    NV_PBUS_BAR1_BLOCK_MODE, ".") );
 	emit_constant( C_SPEC( virtual, NV_PBUS_BAR1_BLOCK_MODE_VIRTUAL, "f") );
@@ -69,6 +73,8 @@ static void emit_bus_group()
 
 	emit_field   ( F_SPEC( target,  NV_PBUS_BAR2_BLOCK_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PBUS_BAR2_BLOCK_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PBUS_BAR2_BLOCK_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PBUS_BAR2_BLOCK_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_field   ( F_SPEC( mode,    NV_PBUS_BAR2_BLOCK_MODE, ".") );
 	emit_constant( C_SPEC( virtual, NV_PBUS_BAR2_BLOCK_MODE_VIRTUAL, "f") );
@@ -102,6 +108,8 @@ static void emit_ccsr_group()
 
 	emit_field   ( F_SPEC( target,  NV_PCCSR_CHANNEL_INST_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PCCSR_CHANNEL_INST_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PCCSR_CHANNEL_INST_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PCCSR_CHANNEL_INST_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_field   ( F_SPEC( bind,  NV_PCCSR_CHANNEL_INST_BIND, ".") );
 	emit_constant( C_SPEC( false, NV_PCCSR_CHANNEL_INST_BIND_FALSE, "f") );
@@ -206,6 +214,61 @@ static void emit_ctxsw_prog_group()
 	emit_field   ( F_SPEC( verif_features, NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES, "m") );
 	emit_constant( C_SPEC( disabled, NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES_DISABLED, "f") );
 
+	emit_offset  ( O_SPEC( main_image_context_timestamp_buffer_control, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_CONTROL) );
+	emit_field   ( F_SPEC( num_records, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_CONTROL_NUM_RECORDS, "f") );
+
+	emit_offset  ( O_SPEC( main_image_context_timestamp_buffer_ptr_hi, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_V, "m") );
+	emit_field   ( F_SPEC( target, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET, "m") );
+	emit_constant( C_SPEC( vid_mem, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coherent, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_noncoherent, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_HI_TARGET_SYS_MEM_NONCOHERENT, "f") );
+
+	emit_offset  ( O_SPEC( main_image_context_timestamp_buffer_ptr, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_MAIN_IMAGE_CONTEXT_TIMESTAMP_BUFFER_PTR_V, "f") );
+
+	begin_scope( S_SPEC( record_timestamp, NV_CTXSW_RECORD_TIMESTAMP_RECORD) );
+	emit_constant( C_SPEC( record_size_in_bytes, NV_CTXSW_RECORD_TIMESTAMP_RECORD_SIZE_IN_BYTES, "v") );
+	emit_constant( C_SPEC( record_size_in_words, NV_CTXSW_RECORD_TIMESTAMP_RECORD_SIZE_IN_WORDS, "v") );
+	end_scope();
+
+	emit_offset  ( O_SPEC( record_timestamp_magic_value_lo, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_LO) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_LO_V, ".") );
+	emit_constant( C_SPEC( value, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_LO_V_VALUE, "v") );
+
+	emit_offset  ( O_SPEC( record_timestamp_magic_value_hi, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_HI) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_HI_V, ".") );
+	emit_constant( C_SPEC( value, NV_CTXSW_RECORD_TIMESTAMP_MAGIC_VALUE_HI_V_VALUE, "v") );
+
+	emit_offset  ( O_SPEC( record_timestamp_context_id, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_ID) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_ID_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_context_ptr, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_PTR) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_CONTEXT_PTR_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_new_context_id, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_ID) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_ID_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_new_context_ptr, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_PTR) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_NEW_CONTEXT_PTR_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_timestamp_lo, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_LO) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_LO_V, ".") );
+
+	emit_offset  ( O_SPEC( record_timestamp_timestamp_hi, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI) );
+	emit_field   ( F_SPEC( v, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_V, "fv") );
+	emit_field   ( F_SPEC( tag, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG, "mfv") );
+	emit_constant( C_SPEC( ctxsw_req_by_host, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_CTXSW_REQ_BY_HOST, "") );
+	emit_constant( C_SPEC( fe_ack, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK, "") );
+	emit_constant( C_SPEC( fe_ack_wfi, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_WFI, "") );
+	emit_constant( C_SPEC( fe_ack_gfxp, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_GFXP, "") );
+	emit_constant( C_SPEC( fe_ack_ctap, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_CTAP, "") );
+	emit_constant( C_SPEC( fe_ack_cilp, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_FE_ACK_CILP, "") );
+	emit_constant( C_SPEC( save_end, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_SAVE_END, "") );
+	emit_constant( C_SPEC( restore_start, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_RESTORE_START, "") );
+	emit_constant( C_SPEC( context_start, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_CONTEXT_START, "") );
+	emit_constant( C_SPEC( invalid_timestamp, NV_CTXSW_RECORD_TIMESTAMP_TIMESTAMP_HI_TAG_INVALID_TIMESTAMP, "") );
+
 	end_group();
 
 }
@@ -226,6 +289,7 @@ static void emit_fb_group()
 	emit_register( R_SPEC( mmu_invalidate_pdb, NV_PFB_PRI_MMU_INVALIDATE_PDB ) );
 	emit_field   ( F_SPEC( aperture, NV_PFB_PRI_MMU_INVALIDATE_PDB_APERTURE, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PFB_PRI_MMU_INVALIDATE_PDB_APERTURE_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem, NV_PFB_PRI_MMU_INVALIDATE_PDB_APERTURE_SYS_MEM, "f") );
 	emit_field   ( F_SPEC( addr, NV_PFB_PRI_MMU_INVALIDATE_PDB_ADDR, "f") );
 
 	emit_register( R_SPEC( mmu_invalidate, NV_PFB_PRI_MMU_INVALIDATE ) );
@@ -239,6 +303,8 @@ static void emit_fb_group()
 	emit_register( R_SPEC( mmu_debug_wr, NV_PFB_PRI_MMU_DEBUG_WR ) );
 	emit_field   ( F_SPEC( aperture, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE, "") );
 	emit_constant( C_SPEC( vid_mem, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE_SYS_MEM_C, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PFB_PRI_MMU_DEBUG_WR_APERTURE_SYS_MEM_NC, "f") );
 	emit_field   ( F_SPEC( vol, NV_PFB_PRI_MMU_DEBUG_WR_VOL, ".") );
 	emit_constant( C_SPEC( false, NV_PFB_PRI_MMU_DEBUG_WR_VOL_FALSE, "f") );
 	emit_constant( C_SPEC( true, NV_PFB_PRI_MMU_DEBUG_WR_VOL_TRUE, "") );
@@ -248,6 +314,8 @@ static void emit_fb_group()
 	emit_register( R_SPEC( mmu_debug_rd, NV_PFB_PRI_MMU_DEBUG_RD ) );
 	emit_field   ( F_SPEC( aperture, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE_VID_MEM, "f") );
+	emit_constant( C_SPEC( sys_mem_coh, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE_SYS_MEM_C, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PFB_PRI_MMU_DEBUG_RD_APERTURE_SYS_MEM_NC, "f") );
 	emit_field   ( F_SPEC( vol, NV_PFB_PRI_MMU_DEBUG_RD_VOL, ".") );
 	emit_constant( C_SPEC( false, NV_PFB_PRI_MMU_DEBUG_RD_VOL_FALSE, "f") );
 	emit_field   ( F_SPEC( addr, NV_PFB_PRI_MMU_DEBUG_RD_ADDR, "f") );
@@ -284,6 +352,8 @@ static void emit_fifo_group()
 	emit_field   ( F_SPEC( target, NV_PFIFO_RUNLIST_BASE_TARGET, ".") );
 	emit_constant( C_SPEC( vid_mem, NV_PFIFO_RUNLIST_BASE_TARGET_VID_MEM, "f") );
 
+	emit_constant( C_SPEC( sys_mem_coh, NV_PFIFO_RUNLIST_BASE_TARGET_SYS_MEM_COHERENT, "f") );
+	emit_constant( C_SPEC( sys_mem_ncoh, NV_PFIFO_RUNLIST_BASE_TARGET_SYS_MEM_NONCOHERENT, "f") );
 
 	emit_register( R_SPEC( runlist, NV_PFIFO_RUNLIST ) );
 	emit_field   ( F_SPEC( engine, NV_PFIFO_RUNLIST_ID, "f") );
@@ -294,6 +364,7 @@ static void emit_fifo_group()
 	emit_register( IR_SPEC( eng_runlist, NV_PFIFO_ENG_RUNLIST ) );
 	emit_constant( C_SPEC( _size_1, NV_PFIFO_ENG_RUNLIST__SIZE_1, "v") );
 	emit_field   ( F_SPEC( length, NV_PFIFO_ENG_RUNLIST_LENGTH, "f") );
+	emit_constant( C_SPEC( max, NV_PFIFO_ENG_RUNLIST_LENGTH_MAX, "v") );
 	emit_field   ( F_SPEC( pending, NV_PFIFO_ENG_RUNLIST_PENDING, ".") );
 	emit_constant( C_SPEC( true, NV_PFIFO_ENG_RUNLIST_PENDING_TRUE, "f") );
 
@@ -488,6 +559,14 @@ static void emit_flush_group()
 	emit_field   ( F_SPEC( outstanding, NV_UFLUSH_L2_FLUSH_DIRTY_OUTSTANDING, "v") );
 	emit_constant( C_SPEC( false, NV_UFLUSH_L2_FLUSH_DIRTY_OUTSTANDING_FALSE, "") );
 	emit_constant( C_SPEC( true, NV_UFLUSH_L2_FLUSH_DIRTY_OUTSTANDING_TRUE, "v") );
+
+	emit_register( R_SPEC( l2_clean_comptags, NV_UFLUSH_L2_CLEAN_COMPTAGS ) );
+	emit_field   ( F_SPEC( pending, NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING, "v") );
+	emit_constant( C_SPEC( empty, NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING_EMPTY, "fv") );
+	emit_constant( C_SPEC( busy, NV_UFLUSH_L2_CLEAN_COMPTAGS_PENDING_BUSY, "fv") );
+	emit_field   ( F_SPEC( outstanding, NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING, "v") );
+	emit_constant( C_SPEC( false, NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING_FALSE, "fv") );
+	emit_constant( C_SPEC( true, NV_UFLUSH_L2_CLEAN_COMPTAGS_OUTSTANDING_TRUE, "v") );
 
 	emit_register( R_SPEC( fb_flush, NV_UFLUSH_FB_FLUSH ) );
 	emit_field   ( F_SPEC( pending, NV_UFLUSH_FB_FLUSH_PENDING, "v") );

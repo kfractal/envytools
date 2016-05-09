@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns:n1="http://www.w3.org/2001/XMLSchema-instance" n1:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
+    <import file="copyright.xml"/>
+    <import file="nvchipsets.xml"/>
+    <import file="vdec/vpe/pvpe.xml"/>
+    <import file="vdec/vpe/mpeg_fifo.xml"/>
+    <domain name="NV_MMIO" bare="yes" prefix="chipset">
+        <group name="pmpeg">
+            <bitset name="pmpeg_intr" inline="yes">
+                <bitfield pos="0" name="SYNC"/>
+                <bitfield pos="4" name="UNK4" variants="G80-"/>
+                <bitfield pos="8" name="FETCH_DONE"> GET == PUT </bitfield>
+                <bitfield pos="16" name="ERROR"/>
+                <bitfield pos="20" name="UNK20" variants="NV44-"/>
+                <bitfield pos="24" name="FIFO_ERR" variants="NV31-"/>
+            </bitset>
+            <reg32 offset="0x000" name="NV_RAMUSERD" type="pmpeg_intr">
+                <bitfield name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES" pos="3" variants="GF100-">
+                    <value value="0" name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES_DISABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_APERTURE" low="4" high="5" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_APERTURE_VIDEO_MEMORY" variants="G80-"/>
+                    <value value="2" name="NV_MMU_PTE_APERTURE_SYSTEM_COHERENT_MEMORY" variants="G80-"/>
+                    <value value="3" name="NV_MMU_PTE_APERTURE_SYSTEM_NON_COHERENT_MEMORY" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_COMPTAGLINE" low="49" high="61" variants="MCP89 GT215-GT218"/>
+                <bitfield name="NV_MMU_PTE_KIND" low="40" high="46" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_KIND_PITCH" variants="G80-"/>
+                    <value value="16" name="NV_MMU_PTE_KIND_Z24S8" variants="G80-GT218"/>
+                    <value value="20" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="21" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="22" name="NV_MMU_PTE_KIND_Z24V8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="32" name="NV_MMU_PTE_KIND_S8Z24" variants="G80-GT218"/>
+                    <value value="36" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC4" variants="G80-GT218"/>
+                    <value value="37" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC12" variants="G80-GT218"/>
+                    <value value="38" name="NV_MMU_PTE_KIND_V8Z24_MS8_VC8" variants="G80-GT218"/>
+                    <value value="64" name="NV_MMU_PTE_KIND_ZF32" variants="G80-GT218"/>
+                    <value value="68" name="NV_MMU_PTE_KIND_X8C24" variants="MCP77-GT218"/>
+                    <value value="84" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="85" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="86" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="96" name="NV_MMU_PTE_KIND_ZF32_X24S8" variants="G80-GT218"/>
+                    <value value="100" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="101" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="102" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="104" name="NV_MMU_PTE_KIND_Z16" variants="MCP77-GT218"/>
+                    <value value="127" name="NV_MMU_PTE_KIND_INVALID" variants="G80-GT218"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_PRIVILEGE" pos="6" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_PRIVILEGE_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_PRIVILEGE_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_READ_ONLY" pos="3" variants="G80-GT218">
+                    <value value="1" name="NV_MMU_PTE_READ_ONLY_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_VALID" pos="0" variants="G80-">
+                    <value value="0" name="NV_MMU_PTE_VALID_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_VALID_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE_GPC_4N3_MASK" pos="0" variants="GF100-GF114 GF119">
+                    <value value="256" name="NV_PGRAPH_PRI_PD_ALPHA_RATIO_TABLE__SIZE_1" variants="GF100-GM108"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_RM_PAGEPOOL_VALID" pos="0" variants="GF117">
+                    <value value="8" name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE__SIZE_1" variants="GF117 GK104-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_BOOT_0_ARCHITECTURE" low="24" high="28" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_IMPLEMENTATION" low="20" high="23" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MAJOR_REVISION" low="4" high="7" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MINOR_REVISION" low="0" high="3" variants="G80-"/>
+                <bitfield name="NV_PMC_ELPG_ENABLE_PFB" pos="0" variants="G80-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_PFB_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_RAMFC_ACQUIRE" low="384" high="415" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_FORMATS" low="1248" high="1279" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_FETCH" low="640" high="671" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_GET" low="160" high="191" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_PUT" low="0" high="31" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_COUNT" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH" low="672" high="703" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH_HI" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET" low="192" high="223" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET_HI" low="224" high="255" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_HEADER" low="1056" high="1087" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TIMESLICE" low="2016" high="2047" variants="GF100-GK20A"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET" low="256" high="287" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET_HI" low="288" high="319" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREA" low="448" high="479" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREB" low="480" high="511" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREC" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHORED" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SIGNATURE" low="128" high="159" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SUBDEVICE" low="1184" high="1215" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_TARGET" low="1376" high="1407" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD" low="64" high="95" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD_HI" low="96" high="127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_HI" low="4192" high="4199" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_LO" low="4172" high="4191" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ENGINE_CS" pos="4227" variants="GK104-">
+                    <value value="0" name="NV_RAMIN_ENGINE_CS_WFI" variants="GK104-"/>
+                    <value value="1" name="NV_RAMIN_ENGINE_CS_FG" variants="GK104-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_CS" pos="4227" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_CS_WFI" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_MODE" pos="4226" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_WFI_MODE_PHYSICAL" variants="GF100-"/>
+                    <value value="1" name="NV_RAMIN_GR_WFI_MODE_VIRTUAL" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_HI" low="4256" high="4263" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_LO" low="4236" high="4255" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_TARGET" low="4224" high="4225" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_HI" low="4128" high="4135" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_LO" low="4108" high="4127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_TARGET" low="4096" high="4097" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_VID_MEM" variants="GF100-"/>
+                    <value value="2" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_COHERENT" variants="GF100-"/>
+                    <value value="3" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_NONCOHERENT" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_VOL" pos="4098" variants="GF100-">
+                    <value value="1" name="NV_RAMIN_PAGE_DIR_BASE_VOL_TRUE" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_RAMFC" low="0" high="4095" variants="GF100-"/>
+                <bitfield name="NV_RAMRL_ENTRY_CHID" low="0" high="6" variants="GF100-GF119"/>
+                <bitfield name="NV_RAMUSERD_GET" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GET_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_GET" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_PUT" low="1120" high="1151" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET_HI" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF_THRESHOLD" low="640" high="671" variants="GF100-"/>
+            </reg32>
+            <reg32 offset="0x040" name="INTR_EN" type="pmpeg_intr"/>
+            <reg32 offset="0x090" name="UNK090" variants="NV41-"> 0/1/0 on NV41, 0/3/0 on G80 </reg32>
+            <reg32 offset="0x100" name="NV_PMC_INTR_0">
+                <bitfield name="NV_PMC_INTR_LTC_ALL" pos="25" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_LTC_ALL_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PBUS" pos="28" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PBUS_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PFIFO" pos="8" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PFIFO_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PGRAPH" pos="12" variants="GM204-"/>
+                <bitfield name="NV_PMC_INTR_PMU" pos="24" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PMU_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PRIV_RING" pos="30" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PRIV_RING_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PBUS" pos="28" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PBUS_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PFIFO" pos="8" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PFIFO_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PGRAPH" pos="12" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PGRAPH_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield pos="0" name="UNK0"/>
+                <bitfield pos="4" name="UNK4"> fetch </bitfield>
+                <bitfield pos="5" name="UNK5"> 5, 6, 7/1 command - awaiting data? </bitfield>
+                <bitfield pos="9" name="UNK9"> 8, 9 command </bitfield>
+                <bitfield pos="13" name="UNK13"> 7/1, 8. 9, c, d command - awaiting data? </bitfield>
+                <bitfield pos="14" name="UNK14"> fetch </bitfield>
+                <bitfield pos="15" name="UNK15"> fetch </bitfield>
+                <bitfield pos="24" name="UNK24"> fetch </bitfield>
+                <bitfield pos="25" name="UNK25"> fetch </bitfield>
+                <bitfield pos="26" name="UNK26"> fetch </bitfield>
+                <bitfield pos="29" name="UNK29"> 7, a, b, f command </bitfield>
+                <bitfield pos="30" name="UNK30"> 7 command </bitfield>
+            </reg32>
+            <reg32 offset="0x104" name="NV_PMC_INTR_1">
+                <bitfield pos="0" name="IDCT_ENABLE"/>
+                <bitfield pos="4" name="IQ_ENABLE" variants="NV17:NV31"/>
+                <bitfield pos="8" name="UNK8"> RO 1 </bitfield>
+                <bitfield pos="12" name="UNK12" variants="NV17:NV31"> RO 1 </bitfield>
+                <bitfield pos="31" name="UNK31" variants="NV40-"> RO 1 </bitfield>
+            </reg32>
+            <reg32 offset="0x110" name="ERROR_STATUS">
+                <bitfield pos="0" name="INVALID_MMIO_ADDR"> write to nonexistent or RO MMIO address </bitfield>
+                <bitfield pos="1" name="INVALID_MMIO_VALUE"> invalid value written to MMIO </bitfield>
+                <bitfield pos="4" name="INVALID_CMD"/>
+                <bitfield pos="5" name="INVALID_SIZE"/>
+                <bitfield pos="6" name="INVALID_INTRA_DC_MULT"> INTRA_DC_MULT set to 0 </bitfield>
+                <bitfield pos="7" name="INVALID_QUANT_SCALE"> QUANT_SCALE not 1-112 nor 128 </bitfield>
+                <bitfield pos="8" name="INVALID_INTRA_DC_WEIGHT"> tried to set IQ weight for DC intra coords to something other than 8 </bitfield>
+                <bitfield pos="9" name="INVALID_IQ_WEIGHT"> tried to set 0 IQ weight </bitfield>
+                <bitfield pos="10" name="INVALID_DATA_UNK10"> 71000001 </bitfield>
+                <bitfield pos="11" name="INVALID_MB_COORD_X"> X not aligned to 16 </bitfield>
+                <bitfield pos="12" name="INVALID_MB_COORD_Y"> Y not aligned to 8 [luma] or 4 [chroma] </bitfield>
+                <bitfield pos="13" name="INVALID_SEQUENCE_MB"> cmd 8/9 not immediately followed by cmd a, or cmd a out of blue </bitfield>
+                <bitfield pos="14" name="INVALID_SEQUENCE_MV"> cmd c/d not immediately followed by cmd e, or cmd e out of blue </bitfield>
+                <bitfield pos="15" name="INVALID_DATA_SEEK" variants="NV31-"> DATA_SEEK used in NV17 mode </bitfield>
+                <bitfield pos="16" name="DATA_TOO_SHORT" variants="NV40-"> tried to read data past DATA_SIZE </bitfield>
+                <bitfield pos="17" name="DATA_SIZE_MISMATCH" variants="NV40-"> final data pos != DATA_SIZE </bitfield>
+                <bitfield pos="24" name="CMD_FAULT" variants="NV31-"/>
+                <bitfield pos="25" name="DATA_FAULT" variants="NV31-"/>
+                <bitfield pos="26" name="IMAGE_FAULT" variants="NV31-"/>
+                <bitfield pos="27" name="QUERY_FAULT" variants="G84-"/>
+            </reg32>
+            <reg32 offset="0x114" name="ERROR_CMD"/>
+            <reg32 offset="0x118" name="ERROR_MMIO_ADDR"/>
+            <reg32 offset="0x11c" name="ERROR_MEM_ADDR" variants="NV31-"> XXX variants?  17/ffff/0  seems every non-0x17 value is the new mode </reg32>
+            <reg32 offset="0x120" name="COMPAT_MODE" variants="NV31-">
+                <value value="0x17" name="NV17"/>
+            </reg32>
+            <reg32 offset="0x130" name="FIFO_ERR" variants="NV31-">
+                <bitfield pos="0" name="CLEAR"/>
+                <bitfield pos="4" name="ILLEGAL_MTHD"/>
+                <bitfield pos="5" name="ILLEGAL_VALUE"/>
+                <bitfield pos="12" name="PIO_OVERFLOW"/>
+                <bitfield pos="13" name="ILLEGAL_EXEC"/>
+            </reg32>
+            <reg32 offset="0x134" name="FIFO_ERR_MTHD" variants="NV31-"/>
+            <reg32 offset="0x138" name="FIFO_ERR_DATA" variants="NV31-"/>
+            <reg32 offset="0x140" name="NV_PMC_INTR_EN_0" variants="G80-">
+                <bitfield name="NV_PMC_INTR_EN_0_INTA" low="0" high="1" variants="G80-">
+                    <value value="0" name="NV_PMC_INTR_EN_0_INTA_DISABLED" variants="G80-"/>
+                    <value value="1" name="NV_PMC_INTR_EN_0_INTA_HARDWARE" variants="G80-"/>
+                </bitfield> 20800/3ffff/0 </reg32>
+            <reg32 offset="0x150" name="FIFO_FREE" access="r" variants="NV31:NV40"/>
+            <reg32 offset="0x154" name="FIFO_BUSY" access="r" variants="NV31:NV40"/>
+            <reg32 offset="0x150" name="PIO_MTHD" variants="NV40-"/>
+            <reg32 offset="0x154" name="PIO_DATA" variants="NV40-"/>
+            <reg32 offset="0x158" name="PIO_CONTROL" variants="NV40-">
+                <bitfield pos="0" name="TRIGGER"/>
+                <bitfield pos="8" name="IDLE"/> 10000/ffffffff on pre-NV31, 30200/ffffffff on NV31+, ...  variants tested on: NV17, NV31, NV40, NV42, NV44, G80, G200 </reg32>
+            <reg32 offset="0x200" name="NV_PMC_ENABLE">
+                <bitfield name="NV_PMC_ENABLE_PFB" pos="20" variants="G80-"/>
+                <bitfield name="NV_PMC_ENABLE_PFIFO" pos="8" variants="G80-">
+                    <value value="1" name="NV_PMC_ENABLE_PFIFO_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PGRAPH" pos="12" variants="G80-">
+                    <value value="1" name="NV_PMC_ENABLE_PGRAPH_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PMEDIA" pos="4" variants="G80-"/>
+                <bitfield pos="0" name="FIFO_MODE" variants="NV31-">
+                    <value value="0" name="PIO"/>
+                    <value value="1" name="PFIFO"/>
+                </bitfield>
+                <bitfield pos="6" name="UNK6" variants="NV44-"/>
+                <bitfield pos="7" name="UNK7" variants="NV44-"/>
+                <bitfield pos="8" name="ERROR_CHECK"/>
+                <bitfield pos="9" name="FIFO_ERR_CHECK" variants="NV31-"/>
+                <bitfield pos="10" name="CMD_FAULT_CHECK" variants="NV31-"/>
+                <bitfield pos="11" name="DATA_FAULT_CHECK" variants="NV31-"/>
+                <bitfield pos="12" name="IMAGE_FAULT_CHECK" variants="NV31-"/>
+                <bitfield pos="13" name="QUERY_FAULT_CHECK" variants="G84-"/>
+                <bitfield pos="14" name="UNK14" variants="G80-"/>
+                <bitfield pos="15" name="DATA_SIZE_CHECK" variants="NV40-"> enables DATA_TOO_SHORT and DATA_SIZE_MISMATCH error checking </bitfield>
+                <bitfield pos="16" name="CMD_TARGET" variants="NV17:NV40">
+                    <value value="0" name="VRAM"/>
+                    <value value="1" name="AGP"> or PCI? </value>
+                </bitfield>
+                <bitfield pos="17" name="DATA_TARGET" variants="NV31:NV40">
+                    <value value="0" name="VRAM"/>
+                    <value value="1" name="AGP"> or PCI? </value>
+                </bitfield>
+                <bitfield low="16" high="17" name="CMD_TARGET" variants="NV40:G80"/>
+                <bitfield low="18" high="19" name="DATA_TARGET" variants="NV40:G80"> NOTE: the ENDIAN bits simply byteswap 32-bit words. This works
+		     for CMD, but not for DATA in non-IDCT mode, is totally pointless
+		     for IMAGE, and doesn't properly swap the QUERY timestamp </bitfield>
+                <bitfield pos="20" name="CMD_ENDIAN">
+                    <value value="0" name="LITTLE"/>
+                    <value value="1" name="BIG"/>
+                </bitfield>
+                <bitfield pos="21" name="DATA_ENDIAN" variants="NV31-">
+                    <value value="0" name="LITTLE"/>
+                    <value value="1" name="BIG"/>
+                </bitfield>
+                <bitfield pos="22" name="UNK22" variants="NV44-"/>
+                <bitfield pos="23" name="UNK23" variants="NV44-"/>
+                <bitfield pos="24" name="IMAGE_ENDIAN" variants="NV44-">
+                    <value value="0" name="LITTLE"/>
+                    <value value="1" name="BIG"/>
+                </bitfield>
+                <bitfield pos="25" name="UNK25" variants="NV44:G80"/>
+                <bitfield pos="25" name="QUERY_ENDIAN" variants="G84-">
+                    <value value="0" name="LITTLE"/>
+                    <value value="1" name="BIG"/>
+                </bitfield>
+                <bitfield pos="26" name="UNK26" variants="NV44:G80"/>
+            </reg32>
+            <reg32 offset="0x208" name="INSTANCE" variants="NV31-"> ffffffff </reg32>
+            <reg32 offset="0x210" name="UNK310"> 1f/1f/0 </reg32>
+            <reg32 offset="0x214" name="UNK314"> 0/ffff/0 </reg32>
+            <reg32 offset="0x218" name="CHANNEL_CUR" variants="NV44-"/>
+            <reg32 offset="0x21c" name="CHANNEL_NEXT" variants="NV44-"/>
+            <reg32 offset="0x220" name="CMD_OFFSET"> ffffffc0 on pre-NV31, fffffffc NV31+ </reg32>
+            <reg32 offset="0x224" name="CMD_LIMIT"> ffffffc0 on pre-NV31, fffffffc NV31+ </reg32>
+            <reg32 offset="0x228" name="CMD_PUT"> ffffffc0 on pre-NV31, fffffffc NV31+ </reg32>
+            <reg32 offset="0x22c" name="ENABLE"> 0/1/0 </reg32>
+            <reg32 offset="0x230" name="CMD_GET"> RO </reg32>
+            <reg32 offset="0x234" name="CMD_BASE" variants="NV31:G80"> fffffffc </reg32>
+            <reg32 offset="0x240" name="SEQUENCE"> RO </reg32>
+            <reg32 offset="0x250" name="CRYPT_HOST">
+                <bitfield low="0" high="15" name="HOST_KEY"/>
+                <bitfield low="16" high="23" name="HOST_HASH"> over HOST_KEY and HOST_SEL </bitfield>
+                <bitfield low="24" high="26" name="HOST_SEL"> provides 3 bits of tkey index; MPEG will provide the remaining one  27-31 unused </bitfield>
+            </reg32>
+            <reg32 offset="0x254" name="CRYPT_MPEG" access="r">
+                <bitfield low="0" high="15" name="MPEG_KEY"/>
+                <bitfield low="16" high="23" name="TKEY_ID"> identifies the tkey selected by MPEG </bitfield>
+                <bitfield low="24" high="31" name="SESS_HASH"> over HOST_KEY and MPEG_KEY </bitfield>
+            </reg32>
+            <reg32 offset="0x260" name="DATA_BASE" variants="NV31:G80"/>
+            <reg32 offset="0x264" name="DATA_LIMIT" variants="NV31:G80"/>
+            <reg32 offset="0x268" name="DATA_OFFSET" variants="NV31-"/>
+            <reg32 offset="0x26c" name="DATA_SIZE" variants="NV31-"/>
+            <reg32 offset="0x270" name="IMAGE_BASE" variants="NV31:G80"/>
+            <reg32 offset="0x274" name="IMAGE_LIMIT" variants="NV31:G80"/>
+            <reg32 offset="0x278" name="PITCH" variants="NV31-">
+                <bitfield low="5" high="11" name="PITCH" shr="5"/>
+                <bitfield pos="16" name="UN16"/>
+            </reg32>
+            <reg32 offset="0x27c" name="SIZE" variants="NV31-">
+                <bitfield low="0" high="10" name="W"/>
+                <bitfield low="16" high="26" name="H"/> mthd 310; RO on G80+ </reg32>
+            <reg32 offset="0x288" name="FORMAT">
+                <bitfield pos="0" name="DATA_FORMAT">
+                    <value value="0" name="S16"/>
+                    <value value="1" name="S8"/>
+                </bitfield>
+                <bitfield pos="8" name="UNK8"/>
+                <bitfield pos="24" name="UNK24" variants="G80-"/>
+            </reg32>
+            <reg32 offset="0x290" name="DMA_QUERY" variants="G84-">
+                <bitfield low="0" high="15" name="INST"/>
+                <bitfield pos="31" name="VALID"/>
+            </reg32>
+            <reg32 offset="0x294" name="QUERY_ADDRESS" variants="G84-"/>
+            <reg32 offset="0x298" name="QUERY_COUNTER" variants="G84-" access="r"/>
+            <reg32 offset="0x300" name="UNK400"> ff </reg32>
+            <reg32 offset="0x310" name="UNK410"> ffffffff </reg32>
+            <reg32 offset="0x320" name="DMA_CMD" variants="G80-">
+                <bitfield low="0" high="15" name="INST"/>
+                <bitfield pos="31" name="VALID"/>
+            </reg32>
+            <reg32 offset="0x324" name="DMA_DATA" variants="G80-">
+                <bitfield low="0" high="15" name="INST"/>
+                <bitfield pos="31" name="VALID"/>
+            </reg32>
+            <reg32 offset="0x328" name="DMA_IMAGE" variants="G80-">
+                <bitfield low="0" high="15" name="INST"/>
+                <bitfield pos="30" name="UNK30"/>
+                <bitfield pos="31" name="VALID"/>
+            </reg32>
+            <reg32 offset="0x350" name="IMAGE_Y_OFFSET" stride="8" length="8" variants="NV31-"/>
+            <reg32 offset="0x354" name="IMAGE_C_OFFSET" stride="8" length="8" variants="NV31-"/>
+        </group>
+        <array name="PMPEG" offset="0xb000" stride="0x1000" length="1" variants="NV17:NV20 NV30:NV40">
+            <stripe offset="0x100">
+                <use-group name="pmpeg"/>
+            </stripe>
+            <array offset="0xc00" stride="0x400" length="1" name="PIO" variants="NV31:NV40">
+                <reg32 offset="0x0000" name="OBJECT"/>
+                <reg32 offset="0x0010" name="FREE" access="r"/>
+                <reg32 offset="0x0014" name="BUSY" access="r"/>
+                <use-group name="mpeg"/>
+            </array>
+        </array>
+        <array name="PMPEG" offset="0xb100" stride="0x400" length="1" variants="NV40:G98 G200">
+            <use-group name="pmpeg"/>
+        </array> XXX: pre G80 </domain>
+    <domain name="G80_MPEGCTX" varset="chipset">
+        <reg32 offset="0x00" name="SIZE"/>
+        <reg32 offset="0x04" name="MODE"/>
+        <reg32 offset="0x08" name="FORMAT"/>
+        <reg32 offset="0x0c" name="PITCH"/>
+        <reg32 offset="0x10" name="IMAGE_C_OFFSET" length="8"> in reverse order! </reg32>
+        <reg32 offset="0x30" name="IMAGE_Y_OFFSET" length="8"> in reverse order! </reg32>
+        <reg32 offset="0x50" name="DMA_IMAGE"/>
+        <reg32 offset="0x54" name="DATA_SIZE"/>
+        <reg32 offset="0x58" name="DATA_OFFSET"/>
+        <reg32 offset="0x5c" name="DMA_DATA"/>
+        <reg32 offset="0x60" name="CMD_PUT"/>
+        <reg32 offset="0x64" name="CMD_OFFSET"/>
+        <reg32 offset="0x68" name="CMD_LIMIT"/>
+        <reg32 offset="0x6c" name="DMA_CMD"/>
+        <reg32 offset="0x70" name="CONFIG"/>
+        <reg32 offset="0x74" name="SEQUENCE"/>
+        <reg32 offset="0x78" name="INSTANCE"/>
+        <reg32 offset="0x7c" name="UNK364"> XXX mangled horribly </reg32>
+        <reg32 offset="0x80" name="QUERY_COUNTER" variants="G84-"/>
+        <reg32 offset="0x84" name="QUERY_OFFSET" variants="G84-"/>
+        <reg32 offset="0x88" name="DMA_QUERY" variants="G84-"/>
+        <reg32 offset="0x100" name="FIFO_DATA" stride="8" length="32"/>
+        <reg32 offset="0x104" name="FIFO_CMD" stride="8" length="32">
+            <bitfield low="0" high="10" name="MTHD" shr="2"/>
+            <bitfield pos="31" name="VALID"/>
+        </reg32>
+    </domain>
+</database>

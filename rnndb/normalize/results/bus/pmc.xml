@@ -1,0 +1,644 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns:n1="http://www.w3.org/2001/XMLSchema-instance" n1:schemaLocation="http://nouveau.freedesktop.org/ rules-ng.xsd">
+    <import file="copyright.xml"/>
+    <import file="nvchipsets.xml"/>
+    <domain name="NV_MMIO" bare="yes" prefix="chipset">
+        <array offset="0x000000" name="PMC" stride="0x1000" length="1">
+            <reg32 offset="0x000" name="NV_RAMUSERD" variants="GF100-">
+                <bitfield name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES" pos="3" variants="GF100-">
+                    <value value="0" name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES_DISABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_APERTURE" low="4" high="5" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_APERTURE_VIDEO_MEMORY" variants="G80-"/>
+                    <value value="2" name="NV_MMU_PTE_APERTURE_SYSTEM_COHERENT_MEMORY" variants="G80-"/>
+                    <value value="3" name="NV_MMU_PTE_APERTURE_SYSTEM_NON_COHERENT_MEMORY" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_COMPTAGLINE" low="49" high="61" variants="MCP89 GT215-GT218"/>
+                <bitfield name="NV_MMU_PTE_KIND" low="40" high="46" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_KIND_PITCH" variants="G80-"/>
+                    <value value="16" name="NV_MMU_PTE_KIND_Z24S8" variants="G80-GT218"/>
+                    <value value="20" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="21" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="22" name="NV_MMU_PTE_KIND_Z24V8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="32" name="NV_MMU_PTE_KIND_S8Z24" variants="G80-GT218"/>
+                    <value value="36" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC4" variants="G80-GT218"/>
+                    <value value="37" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC12" variants="G80-GT218"/>
+                    <value value="38" name="NV_MMU_PTE_KIND_V8Z24_MS8_VC8" variants="G80-GT218"/>
+                    <value value="64" name="NV_MMU_PTE_KIND_ZF32" variants="G80-GT218"/>
+                    <value value="68" name="NV_MMU_PTE_KIND_X8C24" variants="MCP77-GT218"/>
+                    <value value="84" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="85" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="86" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="96" name="NV_MMU_PTE_KIND_ZF32_X24S8" variants="G80-GT218"/>
+                    <value value="100" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="101" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="102" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="104" name="NV_MMU_PTE_KIND_Z16" variants="MCP77-GT218"/>
+                    <value value="127" name="NV_MMU_PTE_KIND_INVALID" variants="G80-GT218"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_PRIVILEGE" pos="6" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_PRIVILEGE_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_PRIVILEGE_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_READ_ONLY" pos="3" variants="G80-GT218">
+                    <value value="1" name="NV_MMU_PTE_READ_ONLY_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_VALID" pos="0" variants="G80-">
+                    <value value="0" name="NV_MMU_PTE_VALID_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_VALID_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE_GPC_4N3_MASK" pos="0" variants="GF100-GF114 GF119">
+                    <value value="256" name="NV_PGRAPH_PRI_PD_ALPHA_RATIO_TABLE__SIZE_1" variants="GF100-GM108"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_RM_PAGEPOOL_VALID" pos="0" variants="GF117">
+                    <value value="8" name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE__SIZE_1" variants="GF117 GK104-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_BOOT_0_ARCHITECTURE" low="24" high="28" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_IMPLEMENTATION" low="20" high="23" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MAJOR_REVISION" low="4" high="7" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MINOR_REVISION" low="0" high="3" variants="G80-"/>
+                <bitfield name="NV_PMC_ELPG_ENABLE_PFB" pos="0" variants="G80-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_PFB_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_RAMFC_ACQUIRE" low="384" high="415" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_FORMATS" low="1248" high="1279" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_FETCH" low="640" high="671" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_GET" low="160" high="191" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_PUT" low="0" high="31" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_COUNT" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH" low="672" high="703" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH_HI" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET" low="192" high="223" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET_HI" low="224" high="255" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_HEADER" low="1056" high="1087" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TIMESLICE" low="2016" high="2047" variants="GF100-GK20A"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET" low="256" high="287" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET_HI" low="288" high="319" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREA" low="448" high="479" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREB" low="480" high="511" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREC" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHORED" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SIGNATURE" low="128" high="159" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SUBDEVICE" low="1184" high="1215" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_TARGET" low="1376" high="1407" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD" low="64" high="95" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD_HI" low="96" high="127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_HI" low="4192" high="4199" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_LO" low="4172" high="4191" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ENGINE_CS" pos="4227" variants="GK104-">
+                    <value value="0" name="NV_RAMIN_ENGINE_CS_WFI" variants="GK104-"/>
+                    <value value="1" name="NV_RAMIN_ENGINE_CS_FG" variants="GK104-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_CS" pos="4227" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_CS_WFI" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_MODE" pos="4226" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_WFI_MODE_PHYSICAL" variants="GF100-"/>
+                    <value value="1" name="NV_RAMIN_GR_WFI_MODE_VIRTUAL" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_HI" low="4256" high="4263" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_LO" low="4236" high="4255" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_TARGET" low="4224" high="4225" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_HI" low="4128" high="4135" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_LO" low="4108" high="4127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_TARGET" low="4096" high="4097" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_VID_MEM" variants="GF100-"/>
+                    <value value="2" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_COHERENT" variants="GF100-"/>
+                    <value value="3" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_NONCOHERENT" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_VOL" pos="4098" variants="GF100-">
+                    <value value="1" name="NV_RAMIN_PAGE_DIR_BASE_VOL_TRUE" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_RAMFC" low="0" high="4095" variants="GF100-"/>
+                <bitfield name="NV_RAMRL_ENTRY_CHID" low="0" high="6" variants="GF100-GF119"/>
+                <bitfield name="NV_RAMUSERD_GET" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GET_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_GET" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_PUT" low="1120" high="1151" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET_HI" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF_THRESHOLD" low="640" high="671" variants="GF100-"/>
+                <bitfield low="0" high="3" name="REV_MINOR"/>
+                <bitfield low="4" high="7" name="REV_MAJOR"/>
+                <bitfield low="8" high="11" name="IMPLEMENTATION"/>
+                <bitfield low="12" high="15" name="ALWAYS0_2"/>
+                <bitfield low="16" high="19" name="CHIPSET">
+                    <value value="1" name="NV1"/>
+                    <value value="2" name="NV2"/>
+                    <value value="3" name="NV3"/>
+                </bitfield>
+                <bitfield low="24" high="27" name="ALWAYS0_1"/>
+                <bitfield low="28" high="31" name="FOUNDRY">
+                    <value value="0" name="SGS"/>
+                    <value value="1" name="HELIOS"/>
+                    <value value="2" name="TMSC"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x000" name="NV_RAMUSERD" variants="GF100-">
+                <bitfield name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES" pos="3" variants="GF100-">
+                    <value value="0" name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES_DISABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_APERTURE" low="4" high="5" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_APERTURE_VIDEO_MEMORY" variants="G80-"/>
+                    <value value="2" name="NV_MMU_PTE_APERTURE_SYSTEM_COHERENT_MEMORY" variants="G80-"/>
+                    <value value="3" name="NV_MMU_PTE_APERTURE_SYSTEM_NON_COHERENT_MEMORY" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_COMPTAGLINE" low="49" high="61" variants="MCP89 GT215-GT218"/>
+                <bitfield name="NV_MMU_PTE_KIND" low="40" high="46" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_KIND_PITCH" variants="G80-"/>
+                    <value value="16" name="NV_MMU_PTE_KIND_Z24S8" variants="G80-GT218"/>
+                    <value value="20" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="21" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="22" name="NV_MMU_PTE_KIND_Z24V8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="32" name="NV_MMU_PTE_KIND_S8Z24" variants="G80-GT218"/>
+                    <value value="36" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC4" variants="G80-GT218"/>
+                    <value value="37" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC12" variants="G80-GT218"/>
+                    <value value="38" name="NV_MMU_PTE_KIND_V8Z24_MS8_VC8" variants="G80-GT218"/>
+                    <value value="64" name="NV_MMU_PTE_KIND_ZF32" variants="G80-GT218"/>
+                    <value value="68" name="NV_MMU_PTE_KIND_X8C24" variants="MCP77-GT218"/>
+                    <value value="84" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="85" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="86" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="96" name="NV_MMU_PTE_KIND_ZF32_X24S8" variants="G80-GT218"/>
+                    <value value="100" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="101" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="102" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="104" name="NV_MMU_PTE_KIND_Z16" variants="MCP77-GT218"/>
+                    <value value="127" name="NV_MMU_PTE_KIND_INVALID" variants="G80-GT218"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_PRIVILEGE" pos="6" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_PRIVILEGE_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_PRIVILEGE_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_READ_ONLY" pos="3" variants="G80-GT218">
+                    <value value="1" name="NV_MMU_PTE_READ_ONLY_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_VALID" pos="0" variants="G80-">
+                    <value value="0" name="NV_MMU_PTE_VALID_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_VALID_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE_GPC_4N3_MASK" pos="0" variants="GF100-GF114 GF119">
+                    <value value="256" name="NV_PGRAPH_PRI_PD_ALPHA_RATIO_TABLE__SIZE_1" variants="GF100-GM108"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_RM_PAGEPOOL_VALID" pos="0" variants="GF117">
+                    <value value="8" name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE__SIZE_1" variants="GF117 GK104-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_BOOT_0_ARCHITECTURE" low="24" high="28" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_IMPLEMENTATION" low="20" high="23" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MAJOR_REVISION" low="4" high="7" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MINOR_REVISION" low="0" high="3" variants="G80-"/>
+                <bitfield name="NV_PMC_ELPG_ENABLE_PFB" pos="0" variants="G80-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_PFB_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_RAMFC_ACQUIRE" low="384" high="415" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_FORMATS" low="1248" high="1279" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_FETCH" low="640" high="671" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_GET" low="160" high="191" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_PUT" low="0" high="31" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_COUNT" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH" low="672" high="703" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH_HI" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET" low="192" high="223" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET_HI" low="224" high="255" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_HEADER" low="1056" high="1087" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TIMESLICE" low="2016" high="2047" variants="GF100-GK20A"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET" low="256" high="287" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET_HI" low="288" high="319" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREA" low="448" high="479" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREB" low="480" high="511" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREC" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHORED" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SIGNATURE" low="128" high="159" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SUBDEVICE" low="1184" high="1215" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_TARGET" low="1376" high="1407" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD" low="64" high="95" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD_HI" low="96" high="127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_HI" low="4192" high="4199" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_LO" low="4172" high="4191" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ENGINE_CS" pos="4227" variants="GK104-">
+                    <value value="0" name="NV_RAMIN_ENGINE_CS_WFI" variants="GK104-"/>
+                    <value value="1" name="NV_RAMIN_ENGINE_CS_FG" variants="GK104-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_CS" pos="4227" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_CS_WFI" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_MODE" pos="4226" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_WFI_MODE_PHYSICAL" variants="GF100-"/>
+                    <value value="1" name="NV_RAMIN_GR_WFI_MODE_VIRTUAL" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_HI" low="4256" high="4263" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_LO" low="4236" high="4255" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_TARGET" low="4224" high="4225" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_HI" low="4128" high="4135" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_LO" low="4108" high="4127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_TARGET" low="4096" high="4097" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_VID_MEM" variants="GF100-"/>
+                    <value value="2" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_COHERENT" variants="GF100-"/>
+                    <value value="3" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_NONCOHERENT" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_VOL" pos="4098" variants="GF100-">
+                    <value value="1" name="NV_RAMIN_PAGE_DIR_BASE_VOL_TRUE" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_RAMFC" low="0" high="4095" variants="GF100-"/>
+                <bitfield name="NV_RAMRL_ENTRY_CHID" low="0" high="6" variants="GF100-GF119"/>
+                <bitfield name="NV_RAMUSERD_GET" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GET_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_GET" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_PUT" low="1120" high="1151" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET_HI" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF_THRESHOLD" low="640" high="671" variants="GF100-"/>
+                <bitfield low="12" high="15" name="ARCHITECTURE">
+                    <value value="4" name="NV4"/>
+                </bitfield>
+                <bitfield low="16" high="19" name="REV_MINOR"/>
+                <bitfield low="20" high="23" name="REV_MAJOR"/>
+                <bitfield low="24" high="27" name="ALWAYS0"/>
+                <bitfield low="28" high="31" name="FOUNDRY">
+                    <value value="0" name="SGS"/>
+                    <value value="1" name="HELIOS"/>
+                    <value value="2" name="TSMC"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x000" name="NV_RAMUSERD" variants="GF100-">
+                <bitfield name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES" pos="3" variants="GF100-">
+                    <value value="0" name="NV_CTXSW_MAIN_IMAGE_MISC_OPTIONS_VERIF_FEATURES_DISABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_APERTURE" low="4" high="5" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_APERTURE_VIDEO_MEMORY" variants="G80-"/>
+                    <value value="2" name="NV_MMU_PTE_APERTURE_SYSTEM_COHERENT_MEMORY" variants="G80-"/>
+                    <value value="3" name="NV_MMU_PTE_APERTURE_SYSTEM_NON_COHERENT_MEMORY" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_COMPTAGLINE" low="49" high="61" variants="MCP89 GT215-GT218"/>
+                <bitfield name="NV_MMU_PTE_KIND" low="40" high="46" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_KIND_PITCH" variants="G80-"/>
+                    <value value="16" name="NV_MMU_PTE_KIND_Z24S8" variants="G80-GT218"/>
+                    <value value="20" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="21" name="NV_MMU_PTE_KIND_Z24V8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="22" name="NV_MMU_PTE_KIND_Z24V8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="32" name="NV_MMU_PTE_KIND_S8Z24" variants="G80-GT218"/>
+                    <value value="36" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC4" variants="G80-GT218"/>
+                    <value value="37" name="NV_MMU_PTE_KIND_V8Z24_MS4_VC12" variants="G80-GT218"/>
+                    <value value="38" name="NV_MMU_PTE_KIND_V8Z24_MS8_VC8" variants="G80-GT218"/>
+                    <value value="64" name="NV_MMU_PTE_KIND_ZF32" variants="G80-GT218"/>
+                    <value value="68" name="NV_MMU_PTE_KIND_X8C24" variants="MCP77-GT218"/>
+                    <value value="84" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="85" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="86" name="NV_MMU_PTE_KIND_X8Z24_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="96" name="NV_MMU_PTE_KIND_ZF32_X24S8" variants="G80-GT218"/>
+                    <value value="100" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC4" variants="G80-GT218"/>
+                    <value value="101" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS4_VC12" variants="G80-GT218"/>
+                    <value value="102" name="NV_MMU_PTE_KIND_ZF32_X16V8S8_MS8_VC8" variants="G80-GT218"/>
+                    <value value="104" name="NV_MMU_PTE_KIND_Z16" variants="MCP77-GT218"/>
+                    <value value="127" name="NV_MMU_PTE_KIND_INVALID" variants="G80-GT218"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_PRIVILEGE" pos="6" variants="G80-GT218">
+                    <value value="0" name="NV_MMU_PTE_PRIVILEGE_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_PRIVILEGE_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_READ_ONLY" pos="3" variants="G80-GT218">
+                    <value value="1" name="NV_MMU_PTE_READ_ONLY_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_MMU_PTE_VALID" pos="0" variants="G80-">
+                    <value value="0" name="NV_MMU_PTE_VALID_FALSE" variants="G80-"/>
+                    <value value="1" name="NV_MMU_PTE_VALID_TRUE" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE_GPC_4N3_MASK" pos="0" variants="GF100-GF114 GF119">
+                    <value value="256" name="NV_PGRAPH_PRI_PD_ALPHA_RATIO_TABLE__SIZE_1" variants="GF100-GM108"/>
+                </bitfield>
+                <bitfield name="NV_PGRAPH_PRI_PD_RM_PAGEPOOL_VALID" pos="0" variants="GF117">
+                    <value value="8" name="NV_PGRAPH_PRI_PD_DIST_SKIP_TABLE__SIZE_1" variants="GF117 GK104-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_BOOT_0_ARCHITECTURE" low="24" high="28" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_IMPLEMENTATION" low="20" high="23" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MAJOR_REVISION" low="4" high="7" variants="G80-"/>
+                <bitfield name="NV_PMC_BOOT_0_MINOR_REVISION" low="0" high="3" variants="G80-"/>
+                <bitfield name="NV_PMC_ELPG_ENABLE_PFB" pos="0" variants="G80-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_PFB_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_RAMFC_ACQUIRE" low="384" high="415" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_FORMATS" low="1248" high="1279" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_BASE_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_FETCH" low="640" high="671" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_GET" low="160" high="191" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_GP_PUT" low="0" high="31" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_COUNT" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH" low="672" high="703" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_FETCH_HI" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET" low="192" high="223" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_GET_HI" low="224" high="255" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_HEADER" low="1056" high="1087" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_PUT_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TIMESLICE" low="2016" high="2047" variants="GF100-GK20A"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET" low="256" high="287" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_PB_TOP_LEVEL_GET_HI" low="288" high="319" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREA" low="448" high="479" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREB" low="480" high="511" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHOREC" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SEMAPHORED" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SIGNATURE" low="128" high="159" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_SUBDEVICE" low="1184" high="1215" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_TARGET" low="1376" high="1407" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD" low="64" high="95" variants="GF100-"/>
+                <bitfield name="NV_RAMFC_USERD_HI" low="96" high="127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_HI" low="4192" high="4199" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ADR_LIMIT_LO" low="4172" high="4191" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_ENGINE_CS" pos="4227" variants="GK104-">
+                    <value value="0" name="NV_RAMIN_ENGINE_CS_WFI" variants="GK104-"/>
+                    <value value="1" name="NV_RAMIN_ENGINE_CS_FG" variants="GK104-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_CS" pos="4227" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_CS_WFI" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_MODE" pos="4226" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_GR_WFI_MODE_PHYSICAL" variants="GF100-"/>
+                    <value value="1" name="NV_RAMIN_GR_WFI_MODE_VIRTUAL" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_HI" low="4256" high="4263" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_PTR_LO" low="4236" high="4255" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_GR_WFI_TARGET" low="4224" high="4225" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_HI" low="4128" high="4135" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_LO" low="4108" high="4127" variants="GF100-"/>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_TARGET" low="4096" high="4097" variants="GF100-">
+                    <value value="0" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_VID_MEM" variants="GF100-"/>
+                    <value value="2" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_COHERENT" variants="GF100-"/>
+                    <value value="3" name="NV_RAMIN_PAGE_DIR_BASE_TARGET_SYS_MEM_NONCOHERENT" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_PAGE_DIR_BASE_VOL" pos="4098" variants="GF100-">
+                    <value value="1" name="NV_RAMIN_PAGE_DIR_BASE_VOL_TRUE" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_RAMIN_RAMFC" low="0" high="4095" variants="GF100-"/>
+                <bitfield name="NV_RAMRL_ENTRY_CHID" low="0" high="6" variants="GF100-GF119"/>
+                <bitfield name="NV_RAMUSERD_GET" low="544" high="575" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GET_HI" low="768" high="799" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_GET" low="1088" high="1119" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_PUT" low="1120" high="1151" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET" low="704" high="735" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_GP_TOP_LEVEL_GET_HI" low="736" high="767" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT" low="512" high="543" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_PUT_HI" low="608" high="639" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF" low="576" high="607" variants="GF100-"/>
+                <bitfield name="NV_RAMUSERD_REF_THRESHOLD" low="640" high="671" variants="GF100-"/>
+                <bitfield low="0" high="7" name="STEPPING"/>
+                <bitfield low="16" high="19" name="DEVICE_ID" variants="NV10:G92"/>
+                <bitfield low="15" high="19" name="DEVICE_ID" variants="G92:GF119"/>
+                <bitfield low="12" high="17" name="DEVICE_ID" variants="GF119-"/>
+                <bitfield low="20" high="28" name="CHIPSET" type="chipset"/>
+                <bitfield low="29" high="31" name="FOUNDRY">
+                    <value value="0" name="TSMC"/>
+                    <value value="1" name="UMC"/>
+                    <value value="2" name="IBM"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x004" name="ENDIAN" variants="NV1A-"/>
+            <reg32 offset="0x008" name="NV_UDMA_NOP" variants="GF100-"/>
+            <bitset name="nv_pmc_intr" inline="yes">
+                <bitfield pos="0" name="PAUDIO" variants="NV1"/>
+                <bitfield pos="0" name="PVPE" variants="NV17:G98 G200:MCP77"/>
+                <bitfield pos="0" name="PPPP" variants="G98:G200 MCP77:GM107"/>
+                <bitfield pos="4" name="PDMA" variants="NV1"/>
+                <bitfield pos="4" name="PMEDIA" variants="NV3-"/>
+                <bitfield pos="5" name="PCOPY0" variants="GF100-"/>
+                <bitfield pos="6" name="PCOPY1" variants="GF100-"/>
+                <bitfield pos="7" name="PCOPY2" variants="GK104-"/>
+                <bitfield pos="8" name="PFIFO"/>
+                <bitfield pos="9" name="UNK9" variants="GT215-"/>
+                <bitfield pos="11" name="UNK11" variants="GT215:GF100"/>
+                <bitfield pos="12" name="PGRAPH"/>
+                <bitfield pos="13" name="PDMA" variants="NV3:NV4"/>
+                <bitfield pos="13" name="UNK13" variants="GT215:GF100"/>
+                <bitfield pos="13" name="PBFB" variants="GF100-"/>
+                <bitfield pos="14" name="PCIPHER" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="14" name="PSEC" variants="G98:G200 MCP77:GT215"/>
+                <bitfield pos="14" name="UNK14" variants="GT215:MCP89"/>
+                <bitfield pos="14" name="PVCOMP" variants="MCP89:GF100"/>
+                <bitfield pos="15" name="PBSP" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="15" name="PVLD" variants="G98:G200 MCP77:GM107"/>
+                <bitfield pos="15" name="PUNK087" variants="GM107-"/>
+                <bitfield pos="16" name="PRM" variants="NV1"/>
+                <bitfield pos="16" name="PVIDEO" variants="NV3:G80"/>
+                <bitfield pos="16" name="UNK16" variants="GT215:GF100"/>
+                <bitfield pos="16" name="PVENC" variants="GK104-"/>
+                <bitfield pos="17" name="PVP2" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="17" name="PPDEC" variants="G98:G200 MCP77:GM107"/>
+                <bitfield pos="17" name="PUNK084" variants="GM107-"/>
+                <bitfield pos="18" name="PDAEMON" variants="GT215:GF100"/>
+                <bitfield pos="18" name="PTHERM" variants="GF100-"/>
+                <bitfield pos="19" name="PTHERM" variants="GT215:GF100"/>
+                <bitfield pos="19" name="UNK19" variants="GF119-"/>
+                <bitfield pos="20" name="PTIMER"/>
+                <bitfield pos="21" name="PNVIO" variants="G80-"/>
+                <bitfield pos="22" name="PCOPY" variants="GT215:GF100"/>
+                <bitfield pos="23" name="UNK23" variants="GF100-"/>
+                <bitfield pos="24" name="PFB" variants="NV1"/>
+                <bitfield pos="24" name="PCRTC" variants="NV3:G80"/>
+                <bitfield pos="24" name="PDAEMON" variants="GF100-"/>
+                <bitfield pos="25" name="PCRTC2" variants="NV11:G80"/>
+                <bitfield pos="25" name="PMFB" variants="GF100-"/>
+                <bitfield pos="26" name="PDISPLAY" variants="G80-"/>
+                <bitfield pos="27" name="UNK27" variants="GT215:GF100"/>
+                <bitfield pos="27" name="PFFB" variants="GF100-"/>
+                <bitfield pos="28" name="SOFTWARE" variants="NV1"/>
+                <bitfield pos="28" name="PBUS" variants="NV3-"/>
+                <bitfield pos="29" name="PPCI" variants="G84-"/>
+                <bitfield pos="30" name="PIBUS" variants="GF100-"/>
+                <bitfield pos="31" name="SOFTWARE" variants="NV3-">
+                    <doc>Software interrupt: write 1 to this bit to trigger
+				interrupt, write 0 to stop.</doc>
+                </bitfield>
+            </bitset>
+            <reg32 offset="0x100" name="NV_PMC_INTR_0" type="nv_pmc_intr">
+                <bitfield name="NV_PMC_INTR_LTC_ALL" pos="25" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_LTC_ALL_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PBUS" pos="28" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PBUS_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PFIFO" pos="8" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PFIFO_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PGRAPH" pos="12" variants="GM204-"/>
+                <bitfield name="NV_PMC_INTR_PMU" pos="24" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PMU_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_PRIV_RING" pos="30" variants="GM107-">
+                    <value value="1" name="NV_PMC_INTR_PRIV_RING_PENDING" variants="GM204-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PBUS" pos="28" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PBUS_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PFIFO" pos="8" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PFIFO_PENDING" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_INTR_0_PGRAPH" pos="12" variants="G80-">
+                    <value value="1" name="NV_PMC_INTR_0_PGRAPH_PENDING" variants="G80-"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x104" name="NV_PMC_INTR_1" variants="MCP77-">
+                <bitfield pos="8" name="PFIFO"/>
+            </reg32>
+            <reg32 offset="0x104" name="NV_PMC_INTR_1" type="nv_pmc_intr" variants="MCP77-"/>
+            <reg32 offset="0x108" name="INTR_DAEMON" type="nv_pmc_intr" variants="GT215-"/>
+            <reg32 offset="0x140" name="NV_PMC_INTR_EN_0">
+                <bitfield name="NV_PMC_INTR_EN_0_INTA" low="0" high="1" variants="G80-">
+                    <value value="0" name="NV_PMC_INTR_EN_0_INTA_DISABLED" variants="G80-"/>
+                    <value value="1" name="NV_PMC_INTR_EN_0_INTA_HARDWARE" variants="G80-"/>
+                </bitfield>
+                <bitfield pos="0" name="HARDWARE"/>
+                <bitfield pos="1" name="SOFTWARE"/>
+            </reg32>
+            <reg32 offset="0x144" name="NV_PMC_INTR_EN_1" variants="MCP89 GT215-">
+                <bitfield name="NV_PMC_INTR_EN_1_INTA" low="0" high="1" variants="MCP77-">
+                    <value value="0" name="NV_PMC_INTR_EN_1_INTA_DISABLED" variants="MCP77-"/>
+                    <value value="1" name="NV_PMC_INTR_EN_1_INTA_HARDWARE" variants="MCP77-"/>
+                </bitfield>
+                <bitfield pos="0" name="HARDWARE"/>
+                <bitfield pos="1" name="SOFTWARE"/>
+            </reg32>
+            <reg32 offset="0x148" name="INTR_EN_DAEMON" variants="GT215-">
+                <bitfield pos="0" name="HARDWARE"/>
+                <bitfield pos="1" name="SOFTWARE"/>
+            </reg32>
+            <reg32 offset="0x160" name="INTR_LN_HOST"/>
+            <reg32 offset="0x164" name="INTR_LN_NRHOST" variants="GT215-"/>
+            <reg32 offset="0x168" name="INTR_LN_DAEMON" variants="GT215-"/>
+            <bitset name="nv_pmc_enable" inline="yes">
+                <bitfield pos="0" name="PAUDIO" variants="NV1"/>
+                <bitfield pos="0" name="UNK0" variants="NV3:NV4 NV10-"/>
+                <bitfield pos="1" name="PVPE" variants="NV17:G98 G200"/>
+                <bitfield pos="1" name="PPPP" variants="G98:G200 MCP77:GM107"/>
+                <bitfield pos="2" name="PXBAR" variants="GF100-"/>
+                <bitfield pos="3" name="PMFB" variants="GF100-"/>
+                <bitfield pos="4" name="PDMA" variants="NV1"/>
+                <bitfield pos="4" name="PMEDIA" variants="NV3-"/>
+                <bitfield pos="5" name="PIBUS" variants="GF100-"/>
+                <bitfield pos="6" name="PCOPY0" variants="GF100-"/>
+                <bitfield pos="7" name="PCOPY1" variants="GF100-"/>
+                <bitfield pos="8" name="PFIFO"/>
+                <bitfield pos="12" name="PGRAPH"/>
+                <bitfield pos="13" name="PCOPY" variants="GT215:GF100"/>
+                <bitfield pos="13" name="PDAEMON" variants="GF100-"/>
+                <bitfield pos="14" name="PCIPHER" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="14" name="PSEC" variants="G98:G200 MCP77:GT215"/>
+                <bitfield pos="14" name="PVCOMP" variants="MCP89:GF100"/>
+                <bitfield pos="14" name="PUNK087" variants="GM107-"/>
+                <bitfield pos="15" name="PBSP" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="15" name="PVLD" variants="G98:G200 MCP77:GM107"/>
+                <bitfield pos="15" name="PUNK084" variants="GM107-"/>
+                <bitfield pos="16" name="PRM" variants="NV1"/>
+                <bitfield pos="16" name="PTIMER" variants="NV3-"/>
+                <bitfield pos="17" name="PVP2" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="17" name="PPDEC" variants="G98:G200 MCP77:GM107"/>
+                <bitfield pos="18" name="PVENC" variants="GK104-"/>
+                <bitfield pos="20" name="PFB" variants="NV3:GF100"/>
+                <bitfield pos="20" name="PBFB" variants="GF100-"/>
+                <bitfield pos="24" name="PFB" variants="NV1"/>
+                <bitfield pos="21" name="PGRAPH_CHSW" variants="G84:GF100"/>
+                <bitfield pos="21" name="PCOPY2" variants="GK104-"/>
+                <bitfield pos="22" name="PMPEG_CHSW" variants="G84:G98 G200"/>
+                <bitfield pos="22" name="PPPP_CHSW" variants="G98 MCP77:GF100"/>
+                <bitfield pos="23" name="UNUSED2_CHSW" variants="G84:GT215"/>
+                <bitfield pos="23" name="PCOPY_CHSW" variants="GT215:GF100"/>
+                <bitfield pos="24" name="PVP2_CHSW" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="24" name="PPDEC_CHSW" variants="G98:G200 MCP77:GF100"/>
+                <bitfield pos="25" name="PCIPHER_CHSW" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="25" name="PSEC_CHSW" variants="G98:G200 MCP77:GT215"/>
+                <bitfield pos="25" name="UNUSED4_CHSW" variants="GT215:MCP89"/>
+                <bitfield pos="25" name="PVCOMP_CHSW" variants="MCP89:GF100"/>
+                <bitfield pos="26" name="PBSP_CHSW" variants="G84:G98 G200:MCP77"/>
+                <bitfield pos="26" name="PVLD_CHSW" variants="G98:G200 MCP77:GF100"> place for two more CHSWs? </bitfield>
+                <bitfield pos="27" name="UNK27" variants="G84:GF100"/>
+                <bitfield pos="28" name="UNK28" variants="G84:GF100"/>
+                <bitfield pos="24" name="PCRTC" variants="NV3:G80"/>
+                <bitfield pos="25" name="PCRTC2" variants="NV11:G80"/>
+                <bitfield pos="26" name="PTV" variants="NV17:NV20 NV25:G80"/>
+                <bitfield pos="26" name="UNK26" variants="GK104-"/>
+                <bitfield pos="27" name="BLG" variants="GF100-"/>
+                <bitfield pos="28" name="PVIDEO" variants="NV3:G80"/>
+                <bitfield pos="28" name="PCOUNTER" variants="GF100-"/>
+                <bitfield pos="29" name="PFFB" variants="GF100-"/>
+                <bitfield pos="30" name="PDISPLAY" variants="G80-"/>
+                <bitfield pos="31" name="UNK31" variants="G80-"/>
+            </bitset>
+            <reg32 offset="0x17c" name="NV_PMC_INTR_LTC" access="r" variants="GF100-"> one bit per partition; not sure of variants </reg32>
+            <reg32 offset="0x180" name="INTR_PBFB" access="r" variants="GF100-"> one bit per PBFB; not sure of variants </reg32>
+            <reg32 offset="0x200" name="NV_PMC_ENABLE" type="nv_pmc_enable">
+                <bitfield name="NV_PMC_ENABLE_PFB" pos="20" variants="G80-"/>
+                <bitfield name="NV_PMC_ENABLE_PFIFO" pos="8" variants="G80-">
+                    <value value="1" name="NV_PMC_ENABLE_PFIFO_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PGRAPH" pos="12" variants="G80-">
+                    <value value="1" name="NV_PMC_ENABLE_PGRAPH_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PMEDIA" pos="4" variants="G80-"/>
+            </reg32>
+            <reg32 offset="0x204" name="NV_PMC_ENABLE_PB" variants="GF100-">
+                <bitfield name="NV_PMC_ENABLE_PB_0" pos="0" variants="GF100-">
+                    <value value="1" name="NV_PMC_ENABLE_PB_0_ENABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ENABLE_PB_SEL" pos="0" variants="GF100-"/>
+                <bitfield pos="0" name="0"/>
+                <bitfield pos="1" name="1"/>
+                <bitfield pos="2" name="2"/>
+            </reg32>
+            <reg32 offset="0x208" name="UNK208" type="nv_pmc_enable" variants="GF100-"/>
+            <reg32 offset="0x20c" name="NV_PMC_ELPG_ENABLE" variants="GF104-GF108 GF116-">
+                <bitfield name="NV_PMC_ELPG_ENABLE_HUB" pos="0" variants="GF100-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_HUB_ENABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ELPG_ENABLE_PFB" pos="0" variants="G80-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_PFB_ENABLED" variants="G80-"/>
+                </bitfield>
+                <bitfield name="NV_PMC_ELPG_ENABLE_XBAR" pos="0" variants="GF100-GF119">
+                    <value value="1" name="NV_PMC_ENABLE_XBAR_ENABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield pos="1" name="PPPP"/>
+                <bitfield pos="6" name="PCOPY0"/>
+                <bitfield pos="7" name="PCOPY1"/>
+                <bitfield pos="12" name="PGRAPH"/>
+                <bitfield pos="15" name="PVLD"/>
+                <bitfield pos="17" name="PPDEC"/>
+            </reg32>
+            <reg32 offset="0x300" name="VRAM_HIDE_LOW" variants="NV17-">
+                <bitfield low="0" high="28" name="ADDR"/>
+                <bitfield pos="31" name="ENABLE"/>
+            </reg32>
+            <reg32 offset="0x304" name="VRAM_HIDE_HIGH" variants="NV17-"/>
+            <reg32 offset="0x640" name="NV_PMC_INTR_MSK_0" type="nv_pmc_intr" variants="MCP77-"/>
+            <reg32 offset="0x644" name="NV_PMC_INTR_MSK_1" variants="MCP89 GT215-">
+                <bitfield name="NV_PMC_INTR_MSK_1_PMU" pos="24" variants="GF100-">
+                    <value value="1" name="NV_PMC_INTR_MSK_1_PMU_ENABLED" variants="GF100-"/>
+                </bitfield>
+                <bitfield pos="8" name="PFIFO"/>
+            </reg32>
+            <reg32 offset="0x644" name="NV_PMC_INTR_MSK_1" type="nv_pmc_intr" variants="MCP89 GT215-">
+                <bitfield name="NV_PMC_INTR_MSK_1_PMU" pos="24" variants="GF100-">
+                    <value value="1" name="NV_PMC_INTR_MSK_1_PMU_ENABLED" variants="GF100-"/>
+                </bitfield>
+            </reg32>
+            <reg32 offset="0x648" name="INTR_MASK_DAEMON" type="nv_pmc_intr" variants="GT215-"/>
+            <reg32 offset="0xa00" name="NEW_ID" variants="G94-">
+                <bitfield low="0" high="4" name="DEVICE_ID"/>
+                <bitfield low="8" high="9" name="BOOT_2"/>
+                <bitfield low="12" high="19" name="STEPPING"/>
+                <bitfield low="20" high="28" name="CHIPSET" type="chipset"/>
+            </reg32>
+        </array>
+    </domain>
+</database>
